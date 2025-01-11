@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { auth } from "../../firebase"; // Adjust the path to firebase.js
+import { auth } from "../../firebase"; // Ensure the path is correct
 import styles from "./page.module.css";
 
 export default function LoginPage() {
@@ -90,7 +90,7 @@ export default function LoginPage() {
                 className={styles["google-btn"]}
                 onClick={handleGoogleSignIn}
               >
-                Sign in with Google
+                Login with Google
               </button>
             </div>
 
@@ -124,6 +124,12 @@ export default function LoginPage() {
                 {error && <p className={styles["error-message"]}>{error}</p>}
                 <button className={styles["flip-card__btn"]}>Sign Up</button>
               </form>
+              <button
+                className={styles["google-btn"]}
+                onClick={handleGoogleSignIn}
+              >
+                Sign up with Google
+              </button>
             </div>
           </div>
         </label>
