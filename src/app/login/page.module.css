@@ -210,3 +210,21 @@
     color: red;
     font-size: 14px;
   }  
+
+  .google-btn {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background: #4285f4;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .google-btn:hover {
+    background: #357ae8;
+  }
+  
