@@ -7,18 +7,20 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { auth } from "../../firebase"; // Ensure the path is correct
+import { auth, db } from "../../firebase"; // Adjust path to your firebase.js and Firestore initialization
 import styles from "./page.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false); // Toggle between login and sign-up
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
+  // Toggle between Login and Sign-Up forms
   const toggleForm = () => setIsSignUp(!isSignUp);
 
   // Handle Email/Password Login
@@ -27,8 +29,9 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Login successful!");
-      router.push("/dashboard");
+      router.push("/dashboard"); // Redirect to the dashboard
     } catch (error) {
+      console.error("Login error:", error);
       setError(error.message);
     }
   };
@@ -37,10 +40,21 @@ export default function LoginPage() {
   const handleSignUp = async (e) => {
     e.preventDefault();
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Save user details to Firestore
+      const userDoc = doc(db, "users", result.user.uid);
+      await setDoc(userDoc, {
+        name,
+        email: result.user.email,
+        photoURL: null,
+        createdAt: new Date(),
+      });
+
       console.log("Sign-Up successful!");
       router.push("/dashboard");
     } catch (error) {
+      console.error("Sign-Up error:", error);
       setError(error.message);
     }
   };
@@ -48,11 +62,31 @@ export default function LoginPage() {
   // Handle Google Sign-In
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+
+    // Add scopes and custom parameters
+    provider.addScope("profile");
+    provider.addScope("email");
+    provider.setCustomParameters({
+      prompt: "select_account", // Force account selection each time
+    });
+
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Save user details to Firestore
+      const userDoc = doc(db, "users", user.uid);
+      await setDoc(userDoc, {
+        name: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+      });
+
       console.log("Google Sign-In successful!");
       router.push("/dashboard");
     } catch (error) {
+      console.error("Google Sign-In error:", error);
       setError(error.message);
     }
   };
