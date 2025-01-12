@@ -9,7 +9,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { auth, db } from "../../firebase"; // Adjust path to your firebase.js and Firestore initialization
+import { auth, db } from "../../firebase"; // Ensure the correct path to firebase.js
 import styles from "./page.module.css";
 
 export default function DashboardPage() {

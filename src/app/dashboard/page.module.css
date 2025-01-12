@@ -3,8 +3,8 @@
     font-family: Arial, sans-serif;
   }
   
-  /* Section Titles */
-  h2 {
+  /* Scoped h2 selector */
+  .dashboard h2 {
     font-size: 18px;
     margin-bottom: 10px;
   }
