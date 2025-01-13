@@ -1,6 +1,13 @@
+/* Global Variables */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary-color: #f9a825; /* Warm Yellow */
+  --secondary-color: #ff7043; /* Burnt Orange */
+  --accent-color: #388e3c; /* Forest Green */
+  --neutral-color: #faf3e0; /* Warm Beige */
+  --text-color: #323232; /* Dark Gray */
+  --background-color: #ffffff; /* White */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,4 +46,108 @@ a {
   html {
     color-scheme: dark;
   }
+}
+
+/* Navigation Bar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: var(--primary-color);
+  color: var(--neutral-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar .hamburger {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.navbar .hamburger span {
+  width: 25px;
+  height: 3px;
+  background-color: var(--neutral-color);
+  border-radius: 3px;
+}
+
+.navbar .profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.navbar .profile img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 2px solid var(--neutral-color);
+}
+
+.navbar .auth-links {
+  display: flex;
+  gap: 15px;
+}
+
+.navbar .auth-links a {
+  color: var(--neutral-color);
+  font-weight: bold;
+}
+
+/* Hamburger Menu */
+.hamburger-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
+  height: 100%;
+  background-color: var(--secondary-color);
+  color: var(--neutral-color);
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1100;
+}
+
+.hamburger-menu.active {
+  transform: translateX(0);
+}
+
+.hamburger-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hamburger-menu li {
+  margin-bottom: 15px;
+}
+
+.hamburger-menu a {
+  color: var(--neutral-color);
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Overlay for menu */
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 1090;
+}
+
+.menu-overlay.active {
+  display: block;
 }
