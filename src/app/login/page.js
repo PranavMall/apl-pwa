@@ -93,6 +93,7 @@ export default function LoginPage() {
   };
 
   return (
+    <>
     {/* Render Navigation */}
       <Navigation isLoggedIn={false} />
     <div className={styles.wrapper}>
