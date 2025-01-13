@@ -94,84 +94,86 @@ export default function LoginPage() {
 
   return (
     <>
-    {/* Render Navigation */}
+      {/* Render Navigation */}
       <Navigation isLoggedIn={false} />
-    <div className={styles.wrapper}>
-      <div className={styles["card-switch"]}>
-        <label className={styles.switch}>
-          <input type="checkbox" className={styles.toggle} onChange={toggleForm} />
-          <div className={styles["flip-card__inner"]}>
-            {/* Login Form */}
-            <div className={styles["flip-card__front"]}>
-              <div className={styles.title}>Log in</div>
-              <form className={styles["flip-card__form"]} onSubmit={handleLogin}>
-                <input
-                  className={styles["flip-card__input"]}
-                  name="email"
-                  placeholder="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="password"
-                  placeholder="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                {error && <p className={styles["error-message"]}>{error}</p>}
-                <button className={styles["flip-card__btn"]}>Log In</button>
-              </form>
-              <button
-                className={styles["google-btn"]}
-                onClick={handleGoogleSignIn}
-              >
-                Login with Google
-              </button>
-            </div>
 
-            {/* Sign-Up Form */}
-            <div className={styles["flip-card__back"]}>
-              <div className={styles.title}>Sign up</div>
-              <form className={styles["flip-card__form"]} onSubmit={handleSignUp}>
-                <input
-                  className={styles["flip-card__input"]}
-                  placeholder="Name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="email"
-                  placeholder="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="password"
-                  placeholder="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                {error && <p className={styles["error-message"]}>{error}</p>}
-                <button className={styles["flip-card__btn"]}>Sign Up</button>
-              </form>
-              <button
-                className={styles["google-btn"]}
-                onClick={handleGoogleSignIn}
-              >
-                Sign up with Google
-              </button>
+      <div className={styles.wrapper}>
+        <div className={styles["card-switch"]}>
+          <label className={styles.switch}>
+            <input type="checkbox" className={styles.toggle} onChange={toggleForm} />
+            <div className={styles["flip-card__inner"]}>
+              {/* Login Form */}
+              <div className={styles["flip-card__front"]}>
+                <div className={styles.title}>Log in</div>
+                <form className={styles["flip-card__form"]} onSubmit={handleLogin}>
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="email"
+                    placeholder="Email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="password"
+                    placeholder="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  {error && <p className={styles["error-message"]}>{error}</p>}
+                  <button className={styles["flip-card__btn"]}>Log In</button>
+                </form>
+                <button
+                  className={styles["google-btn"]}
+                  onClick={handleGoogleSignIn}
+                >
+                  Login with Google
+                </button>
+              </div>
+
+              {/* Sign-Up Form */}
+              <div className={styles["flip-card__back"]}>
+                <div className={styles.title}>Sign up</div>
+                <form className={styles["flip-card__form"]} onSubmit={handleSignUp}>
+                  <input
+                    className={styles["flip-card__input"]}
+                    placeholder="Name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="email"
+                    placeholder="Email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="password"
+                    placeholder="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  {error && <p className={styles["error-message"]}>{error}</p>}
+                  <button className={styles["flip-card__btn"]}>Sign Up</button>
+                </form>
+                <button
+                  className={styles["google-btn"]}
+                  onClick={handleGoogleSignIn}
+                >
+                  Sign up with Google
+                </button>
+              </div>
             </div>
-          </div>
-        </label>
+          </label>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
