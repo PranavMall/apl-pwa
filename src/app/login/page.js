@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import Navigation from "../components/Navigation/Navigation"; // Adjust path if needed
 import { auth, db } from "../../firebase"; // Adjust path to your firebase.js and Firestore initialization
 import styles from "./page.module.css";
 
@@ -92,6 +93,8 @@ export default function LoginPage() {
   };
 
   return (
+    {/* Render Navigation */}
+      <Navigation isLoggedIn={false} />
     <div className={styles.wrapper}>
       <div className={styles["card-switch"]}>
         <label className={styles.switch}>
