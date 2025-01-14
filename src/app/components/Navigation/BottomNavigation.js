@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "../context/AuthContext"; // Adjust the path as necessary
+import { useAuth } from "../context/authContext"; // Adjust the path as necessary
 import HamburgerMenu from "./HamburgerMenu"; // Reusable hamburger menu component
 import styles from "./BottomNavigation.module.css";
 
