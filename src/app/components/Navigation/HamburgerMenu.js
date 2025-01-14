@@ -3,39 +3,60 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import styles from "./HamburgerMenu.module.css";
+import { useAuth } from "@/app/context/authContext";
 
-export default function HamburgerMenu({ isLoggedIn }) {
+export default function HamburgerMenu() {
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const toggleMenu = () => setMenuOpen(!menuOpen);
 
-  const loggedInMenu = [
-    { label: "About APL", href: "/about" },
-    { label: "Logout", href: "/logout" },
+  const handleMenuToggle = () => setMenuOpen(!menuOpen);
+
+  const loggedInLinks = [
+    { label: "About APL", href: "/about-apl" },
+    { label: "Logout", action: logout }, // Logout triggers the `logout` function
   ];
 
-  const nonLoggedInMenu = [
-    { label: "Other Info", href: "/info" },
+  const nonLoggedInLinks = [
+    { label: "About APL", href: "/about-apl" },
+    { label: "Other Info", href: "/other-info" },
   ];
 
   return (
     <>
-      <div className={styles.hamburgerIcon} onClick={toggleMenu}>
+      {/* Hamburger Icon */}
+      <div className={styles.hamburger} onClick={handleMenuToggle}>
         <span></span>
         <span></span>
         <span></span>
       </div>
+
+      {/* Hamburger Menu */}
+      <div
+        className={`${styles.hamburgerMenu} ${
+          menuOpen ? styles.active : ""
+        }`}
+      >
+        <ul>
+          {(user ? loggedInLinks : nonLoggedInLinks).map((item, index) => (
+            <li key={index}>
+              {item.href ? (
+                <Link href={item.href}>{item.label}</Link>
+              ) : (
+                <button onClick={item.action} className={styles.logoutButton}>
+                  {item.label}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Overlay to close menu */}
       {menuOpen && (
-        <div className={styles.menuOverlay} onClick={toggleMenu}>
-          <div className={styles.menu}>
-            <ul>
-              {(isLoggedIn ? loggedInMenu : nonLoggedInMenu).map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href}>{item.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <div
+          className={styles.menuOverlay}
+          onClick={handleMenuToggle}
+        ></div>
       )}
     </>
   );
