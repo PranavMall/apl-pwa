@@ -1,7 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNavigation from "./components/Navigation/BottomNavigation";
-import { AuthProvider } from "./context/authContext";
+import { AuthProvider } from "@/app/context/authContext"; // Use absolute path for clarity
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,7 +23,6 @@ export default function RootLayout({ children }) {
     <AuthProvider>
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
-          {/* Bottom Navigation */}
           <BottomNavigation />
           {children}
         </body>
