@@ -1,9 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navigation from "./components/Navigation/Navigation"; // Adjust path if needed
-import { AuthProvider } from "./context/authContext"; // Import AuthProvider
+import BottomNavigation from "./components/BottomNavigation/BottomNavigation";
+import { AuthProvider } from "./context/AuthContext";
 
-// Font configuration
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -14,7 +13,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Metadata for the app
 export const metadata = {
   title: "Apna Premier League",
   description: "Fantasy cricket league platform",
@@ -22,16 +20,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {/* Wrap the application with AuthProvider */}
-        <AuthProvider>
-          {/* Include the Navigation Component */}
-          <Navigation />
-          {/* Render the page-specific content */}
+    <AuthProvider>
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable}`}>
+          {/* Bottom Navigation */}
+          <BottomNavigation />
           {children}
-        </AuthProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </AuthProvider>
   );
 }
