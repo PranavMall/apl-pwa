@@ -2,20 +2,21 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../../firebase"; // Adjust based on your firebase.js location
+import { auth } from "@/firebase";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Store user info
-  const [loading, setLoading] = useState(true); // Manage loading state
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
+      setLoading(false); // Stop loading once the auth state is resolved
     });
-    return () => unsubscribe(); // Cleanup listener
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -25,4 +26,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
