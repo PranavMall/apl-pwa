@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import BottomNavigation from "./components/BottomNavigation/BottomNavigation";
+import BottomNavigation from "./components/Navigation/BottomNavigation";
 import { AuthProvider } from "./context/AuthContext";
 
 const geistSans = Geist({
