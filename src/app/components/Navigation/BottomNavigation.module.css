@@ -1,0 +1,29 @@
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  background-color: var(--primary-color);
+  padding: 10px;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.links {
+  display: flex;
+  flex: 1;
+  justify-content: space-around;
+}
+
+.linkItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--neutral-color);
+  text-decoration: none;
+}
+
+.linkItem .icon {
+  font-size: 20px;
+}
