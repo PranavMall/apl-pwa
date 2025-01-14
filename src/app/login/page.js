@@ -93,10 +93,6 @@ export default function LoginPage() {
   };
 
   return (
-    // <>
-    //   {/* Render Navigation */}
-    //   <Navigation isLoggedIn={false} />
-
       <div className={styles.wrapper}>
         <div className={styles["card-switch"]}>
           <label className={styles.switch}>
