@@ -1,17 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState, useContext } from "react";
 import Link from "next/link";
-import { useAuth } from "../../context/authContext";
-import HamburgerMenu from "./HamburgerMenu";
-import styles from "./BottomNavigation.module.css";
+import styles from "./Navigation.module.css";
+import { AuthContext } from "@/app/context/authContext";
 
-export default function BottomNavigation() {
-  const { user, loading } = useAuth();
+export default function Navigation() {
+  const { user, logout, loading } = useContext(AuthContext);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  if (loading) {
-    return null;
-  }
+  const handleMenuToggle = () => setMenuOpen(!menuOpen);
 
   const loggedInLinks = [
     { label: "Dashboard", href: "/dashboard", icon: "🏠" },
@@ -21,23 +19,34 @@ export default function BottomNavigation() {
   ];
 
   const nonLoggedInLinks = [
-    { label: "Homepage", href: "/", icon: "🏠" },
-    { label: "Login/Sign-Up", href: "/login", icon: "🔑" },
-    { label: "About APL", href: "/about-apl", icon: "ℹ️" },
-    { label: "Point System", href: "/point-system", icon: "📜" },
+    { label: "Homepage", href: "/" },
+    { label: "Login/Sign-Up", href: "/login" },
+    { label: "About APL", href: "/about-apl" },
+    { label: "Point System", href: "/point-system" },
   ];
 
-  return (
-    <nav className={styles.bottomNav}>
-      <div className={styles.navLinks}>
-        {(user ? loggedInLinks : nonLoggedInLinks).map((item) => (
-          <Link key={item.label} href={item.href} className={styles.navLink}>
-            <span>{item.icon}</span> {item.label}
-          </Link>
-        ))}
-      </div>
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-      <HamburgerMenu isLoggedIn={!!user} />
+  return (
+    <nav className={styles.navbar}>
+      <ul className={styles.navLinks}>
+        {(user ? loggedInLinks : nonLoggedInLinks).map((link) => (
+          <li key={link.label}>
+            <Link href={link.href}>
+              {link.icon} {link.label}
+            </Link>
+          </li>
+        ))}
+        {user && (
+          <li>
+            <button onClick={logout} className={styles.logout}>
+              Logout
+            </button>
+          </li>
+        )}
+      </ul>
     </nav>
   );
 }
