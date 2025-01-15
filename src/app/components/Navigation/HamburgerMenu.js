@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../../context/authContext";
 import styles from "./HamburgerMenu.module.css";
 
 export default function HamburgerMenu({ isLoggedIn }) {
