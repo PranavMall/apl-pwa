@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../../context/authContext";
 import HamburgerMenu from "./HamburgerMenu";
 import styles from "./BottomNavigation.module.css";
 
