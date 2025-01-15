@@ -1,50 +1,46 @@
 "use client";
 
-import React, { useContext, useState } from "react";
-import Link from "next/link";
+import React, { useState } from "react";
 import styles from "./HamburgerMenu.module.css";
-import { AuthContext } from "@/app/context/authContext";
 
-export default function HamburgerMenu() {
-  const { user, logout } = useContext(AuthContext);
+const HamburgerMenu = ({ user, logout }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleMenuToggle = () => setMenuOpen(!menuOpen);
+  const handleToggle = () => setMenuOpen(!menuOpen);
 
-  const loggedInLinks = [
+  const loggedInMenu = [
     { label: "About APL", href: "/about-apl" },
-    { label: "Logout", href: "#", onClick: logout },
+    { label: "Logout", href: "/", onClick: logout },
   ];
 
-  const nonLoggedInLinks = [
-    { label: "About APL", href: "/about-apl" },
-    { label: "Point System", href: "/point-system" },
+  const nonLoggedInMenu = [
+    { label: "Other Info", href: "/other-info" },
   ];
+
+  const menuLinks = user ? loggedInMenu : nonLoggedInMenu;
 
   return (
-    <div>
-      <button className={styles.hamburgerButton} onClick={handleMenuToggle}>
-        ☰
-      </button>
+    <div className={styles.hamburger}>
+      <div className={styles.hamburgerIcon} onClick={handleToggle}>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
       {menuOpen && (
-        <div className={styles.hamburgerMenu}>
+        <div className={styles.menu}>
           <ul>
-            {(user ? loggedInLinks : nonLoggedInLinks).map((link) => (
-              <li key={link.label}>
-                {link.onClick ? (
-                  <button onClick={link.onClick}>{link.label}</button>
-                ) : (
-                  <Link href={link.href}>{link.label}</Link>
-                )}
+            {menuLinks.map((item) => (
+              <li key={item.label}>
+                <a href={item.href} onClick={item.onClick || null}>
+                  {item.label}
+                </a>
               </li>
             ))}
           </ul>
-          <div
-            className={styles.overlay}
-            onClick={handleMenuToggle}
-          ></div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default HamburgerMenu;
