@@ -2,28 +2,58 @@
   position: fixed;
   bottom: 0;
   width: 100%;
+  background: linear-gradient(45deg, #f9a825, #ff7043); /* Warm Yellow to Burnt Orange */
   display: flex;
-  justify-content: space-between;
-  background-color: var(--primary-color);
-  padding: 10px;
-  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 0;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
   z-index: 1000;
 }
 
-.links {
+.navLinks {
   display: flex;
-  flex: 1;
-  justify-content: space-around;
+  gap: 20px;
+  align-items: center;
 }
 
-.linkItem {
+.navLink {
+  text-align: center;
+  color: #faf3e0; /* Warm Beige */
+  font-size: 16px;
+  font-weight: bold;
+  text-decoration: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--neutral-color);
-  text-decoration: none;
 }
 
-.linkItem .icon {
+.navLink span {
   font-size: 20px;
+}
+
+.hamburgerMenu {
+  position: absolute;
+  bottom: 60px; /* Adjust based on design */
+  right: 20px;
+  background: #388e3c; /* Forest Green */
+  color: #faf3e0;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.hamburgerMenu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hamburgerMenu li {
+  margin: 10px 0;
+  cursor: pointer;
+}
+
+.hamburgerMenu li:hover {
+  color: #f9a825;
 }
