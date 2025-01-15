@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useState, useContext } from "react";
-import Link from "next/link";
-import styles from "./Navigation.module.css";
-import { AuthContext } from "@/app/context/authContext";
+import React from "react";
+import { useAuth } from "@/app/context/authContext"; // Corrected path
+import HamburgerMenu from "./HamburgerMenu";
+import styles from "./BottomNavigation.module.css";
 
-export default function Navigation() {
-  const { user, logout, loading } = useContext(AuthContext);
-  const [menuOpen, setMenuOpen] = useState(false);
+const BottomNavigation = () => {
+  const { user, logout, loading } = useAuth();
 
-  const handleMenuToggle = () => setMenuOpen(!menuOpen);
+  if (loading) return null; // Wait until authentication is resolved
 
   const loggedInLinks = [
     { label: "Dashboard", href: "/dashboard", icon: "🏠" },
@@ -19,34 +18,25 @@ export default function Navigation() {
   ];
 
   const nonLoggedInLinks = [
-    { label: "Homepage", href: "/" },
-    { label: "Login/Sign-Up", href: "/login" },
-    { label: "About APL", href: "/about-apl" },
-    { label: "Point System", href: "/point-system" },
+    { label: "Homepage", href: "/", icon: "🏠" },
+    { label: "Login/Sign-Up", href: "/login", icon: "🔑" },
+    { label: "About APL", href: "/about-apl", icon: "ℹ️" },
+    { label: "Point System", href: "/point-system", icon: "📋" },
   ];
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  const links = user ? loggedInLinks : nonLoggedInLinks;
 
   return (
-    <nav className={styles.navbar}>
-      <ul className={styles.navLinks}>
-        {(user ? loggedInLinks : nonLoggedInLinks).map((link) => (
-          <li key={link.label}>
-            <Link href={link.href}>
-              {link.icon} {link.label}
-            </Link>
-          </li>
-        ))}
-        {user && (
-          <li>
-            <button onClick={logout} className={styles.logout}>
-              Logout
-            </button>
-          </li>
-        )}
-      </ul>
-    </nav>
+    <div className={styles.bottomNav}>
+      {links.map((link) => (
+        <a key={link.label} href={link.href} className={styles.navItem}>
+          <span className={styles.icon}>{link.icon}</span>
+          <span className={styles.label}>{link.label}</span>
+        </a>
+      ))}
+      <HamburgerMenu user={user} logout={logout} />
+    </div>
   );
-}
+};
+
+export default BottomNavigation;
