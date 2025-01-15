@@ -1,42 +1,50 @@
 "use client";
 
-import React from "react";
+import React, { useContext, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "../../context/authContext";
 import styles from "./HamburgerMenu.module.css";
+import { AuthContext } from "@/app/context/authContext";
 
-export default function HamburgerMenu({ isLoggedIn }) {
-  const { logout } = useAuth();
+export default function HamburgerMenu() {
+  const { user, logout } = useContext(AuthContext);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const loggedInMenu = [
-    { label: "About APL", href: "/about-apl", icon: "ℹ️" },
-    { label: "Logout", onClick: logout, icon: "🚪" },
+  const handleMenuToggle = () => setMenuOpen(!menuOpen);
+
+  const loggedInLinks = [
+    { label: "About APL", href: "/about-apl" },
+    { label: "Logout", href: "#", onClick: logout },
   ];
 
-  const nonLoggedInMenu = [
-    { label: "About APL", href: "/about-apl", icon: "ℹ️" },
-    { label: "Other Info", href: "/info", icon: "📚" },
+  const nonLoggedInLinks = [
+    { label: "About APL", href: "/about-apl" },
+    { label: "Point System", href: "/point-system" },
   ];
-
-  const menuItems = isLoggedIn ? loggedInMenu : nonLoggedInMenu;
 
   return (
-    <div className={styles.hamburgerMenu}>
-      <ul>
-        {menuItems.map((item) =>
-          item.onClick ? (
-            <li key={item.label} onClick={item.onClick} className={styles.menuItem}>
-              <span>{item.icon}</span> {item.label}
-            </li>
-          ) : (
-            <li key={item.label}>
-              <Link href={item.href}>
-                <span>{item.icon}</span> {item.label}
-              </Link>
-            </li>
-          )
-        )}
-      </ul>
+    <div>
+      <button className={styles.hamburgerButton} onClick={handleMenuToggle}>
+        ☰
+      </button>
+      {menuOpen && (
+        <div className={styles.hamburgerMenu}>
+          <ul>
+            {(user ? loggedInLinks : nonLoggedInLinks).map((link) => (
+              <li key={link.label}>
+                {link.onClick ? (
+                  <button onClick={link.onClick}>{link.label}</button>
+                ) : (
+                  <Link href={link.href}>{link.label}</Link>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div
+            className={styles.overlay}
+            onClick={handleMenuToggle}
+          ></div>
+        </div>
+      )}
     </div>
   );
 }
