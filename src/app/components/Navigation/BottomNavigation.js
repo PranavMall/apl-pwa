@@ -1,14 +1,14 @@
 "use client";
 
 import React from "react";
-import { useAuth } from "@/app/context/authContext"; // Corrected path
+import { useAuth } from "@/app/context/authContext";
 import HamburgerMenu from "./HamburgerMenu";
 import styles from "./BottomNavigation.module.css";
 
 const BottomNavigation = () => {
-  const { user, logout, loading } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (loading) return null; // Wait until authentication is resolved
+  if (loading) return null;
 
   const loggedInLinks = [
     { label: "Dashboard", href: "/dashboard", icon: "🏠" },
@@ -34,7 +34,7 @@ const BottomNavigation = () => {
           <span className={styles.label}>{link.label}</span>
         </a>
       ))}
-      <HamburgerMenu user={user} logout={logout} />
+      <HamburgerMenu />
     </div>
   );
 };
