@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import { useAuth } from "@/app/context/authContext";
 import styles from "./HamburgerMenu.module.css";
 
-const HamburgerMenu = ({ user, logout }) => {
+const HamburgerMenu = () => {
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleToggle = () => setMenuOpen(!menuOpen);
@@ -31,7 +33,16 @@ const HamburgerMenu = ({ user, logout }) => {
           <ul>
             {menuLinks.map((item) => (
               <li key={item.label}>
-                <a href={item.href} onClick={item.onClick || null}>
+                <a
+                  href={item.href}
+                  onClick={(e) => {
+                    if (item.onClick) {
+                      e.preventDefault();
+                      item.onClick();
+                    }
+                    handleToggle();
+                  }}
+                >
                   {item.label}
                 </a>
               </li>
