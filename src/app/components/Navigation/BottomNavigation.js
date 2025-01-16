@@ -13,6 +13,38 @@ const BottomNavigation = () => {
 
   if (loading) return null;
 
+  const getProfileIcon = () => {
+    if (user?.photoURL) {
+      return (
+        <div className={styles.profileImageContainer}>
+          <Image
+            src={user.photoURL}
+            alt="Profile"
+            width={24}
+            height={24}
+            className={styles.profileImage}
+            onError={(e) => {
+              // If image fails to load, replace with placeholder
+              e.currentTarget.src = "/images/placeholder-profile.png";
+            }}
+          />
+        </div>
+      );
+    }
+    // Placeholder image when no photoURL exists
+    return (
+      <div className={styles.profileImageContainer}>
+        <Image
+          src="public/images/placeholder-profile.png"
+          alt="Profile"
+          width={24}
+          height={24}
+          className={styles.profileImage}
+        />
+      </div>
+    );
+  };
+
   const loggedInLinks = [
     { label: "Dashboard", href: "/dashboard", icon: "🏠" },
     { label: "Leaderboard", href: "/leaderboard", icon: "📊" },
@@ -20,15 +52,7 @@ const BottomNavigation = () => {
     { 
       label: "Settings", 
       href: "/settings", 
-      icon: user?.photoURL ? (
-        <Image
-          src={user.photoURL}
-          alt="Profile"
-          width={24}
-          height={24}
-          className={styles.profileImage}
-        />
-      ) : "⚙️"
+      icon: getProfileIcon()
     },
   ];
 
