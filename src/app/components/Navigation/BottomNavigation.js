@@ -1,12 +1,15 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/authContext";
 import HamburgerMenu from "./HamburgerMenu";
 import styles from "./BottomNavigation.module.css";
 
 const BottomNavigation = () => {
   const { user, loading } = useAuth();
+  const router = useRouter();
 
   if (loading) return null;
 
@@ -14,7 +17,19 @@ const BottomNavigation = () => {
     { label: "Dashboard", href: "/dashboard", icon: "🏠" },
     { label: "Leaderboard", href: "/leaderboard", icon: "📊" },
     { label: "Player Performance", href: "/player-performance", icon: "⚾" },
-    { label: "Settings", href: "/settings", icon: "⚙️" },
+    { 
+      label: "Settings", 
+      href: "/settings", 
+      icon: user?.photoURL ? (
+        <Image
+          src={user.photoURL}
+          alt="Profile"
+          width={24}
+          height={24}
+          className={styles.profileImage}
+        />
+      ) : "⚙️"
+    },
   ];
 
   const nonLoggedInLinks = [
@@ -26,16 +41,26 @@ const BottomNavigation = () => {
 
   const links = user ? loggedInLinks : nonLoggedInLinks;
 
+  const handleNavigation = (href) => {
+    router.push(href);
+  };
+
   return (
-    <div className={styles.bottomNav}>
+    <nav className={styles.bottomNav}>
       {links.map((link) => (
-        <a key={link.label} href={link.href} className={styles.navItem}>
-          <span className={styles.icon}>{link.icon}</span>
+        <button
+          key={link.label}
+          onClick={() => handleNavigation(link.href)}
+          className={styles.navItem}
+        >
+          <span className={styles.icon}>
+            {typeof link.icon === "string" ? link.icon : link.icon}
+          </span>
           <span className={styles.label}>{link.label}</span>
-        </a>
+        </button>
       ))}
       <HamburgerMenu />
-    </div>
+    </nav>
   );
 };
 
