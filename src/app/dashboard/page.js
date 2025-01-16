@@ -11,6 +11,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { auth, db } from "../../firebase"; // Ensure the correct path to firebase.js
 import styles from "./page.module.css";
+import withAuth from "@/app/components/withAuth";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -119,3 +120,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+export default withAuth(Dashboard);
