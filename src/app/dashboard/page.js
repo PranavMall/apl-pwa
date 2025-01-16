@@ -13,9 +13,9 @@ import { auth, db } from "../../firebase"; // Ensure the correct path to firebas
 import styles from "./page.module.css";
 import withAuth from "@/app/components/withAuth";
 
-export default function DashboardPage() {
-  const router = useRouter();
+const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("batsmen");
+  const [userDetails, setUserDetails] = useState(null);
 
   const players = {
     batsmen: [
@@ -37,8 +37,39 @@ export default function DashboardPage() {
     { team1: "Team C", team2: "Team D", time: "2:00 PM" },
   ];
 
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      const user = auth.currentUser;
+
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          setUserDetails(userDoc.data());
+        }
+      }
+    };
+
+    fetchUserDetails();
+  }, []);
+
   return (
     <div className={styles.dashboard}>
+      {/* Profile Section */}
+      <section className={styles.profileSection}>
+        {userDetails && (
+          <div className={styles.profile}>
+            <img
+              src={userDetails.photoURL || "/default-avatar.png"}
+              alt="Profile"
+              className={styles.profileImage}
+            />
+            <p>{userDetails.name}</p>
+          </div>
+        )}
+      </section>
+
       {/* Your Team Section */}
       <section className={styles.yourTeam}>
         <h2>Your Team</h2>
@@ -119,5 +150,6 @@ export default function DashboardPage() {
       </section>
     </div>
   );
-}
-export default withAuth(Dashboard);
+};
+
+export default withAuth(DashboardPage);
