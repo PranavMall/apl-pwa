@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { auth, db } from "../../firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { CricketService } from "../services/cricketService";
+import { CricketService } from "../../services/cricketService";
 import styles from "./page.module.css";
 import withAuth from "@/app/components/withAuth";
 
@@ -17,38 +17,38 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-        const user = auth.currentUser;
-        if (!user) {
-          throw new Error('Authentication required');
-        }
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Authentication required');
+    }
 
-        // Fetch user details
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUserDetails(userDoc.data());
-        }
+    // Fetch user details
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      setUserDetails(userDoc.data());
+    }
 
-        // Fetch matches with scorecard data
-        const matchData = await CricketService.getMatchesFromFirebase();
-        setMatches(matchData);
-        
-        // Set the first match as selected by default if available
-        if (matchData.length > 0) {
-          setSelectedMatch(matchData[0]);
-        }
+    // Use CricketService correctly
+    const matchData = await CricketService.getMatchesFromFirebase();
+    console.log("Fetched match data:", matchData); // Add this for debugging
+    setMatches(matchData);
+    
+    if (matchData.length > 0) {
+      setSelectedMatch(matchData[0]);
+    }
 
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError(error.message || "Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    setError(error.message || "Failed to load dashboard data");
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchData();
   }, []);
