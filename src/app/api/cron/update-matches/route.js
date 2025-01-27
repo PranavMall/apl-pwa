@@ -6,47 +6,27 @@ export const runtime = 'edge';
 
 export async function GET(request) {
   try {
-    // Enhanced logging for debugging
-    const requestUrl = new URL(request.url);
-    console.log('Request URL:', requestUrl.toString());
-    console.log('Request Method:', request.method);
-    
-    // Comprehensive header logging
-    const headers = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
-    console.log('All Headers:', headers);
-
-    // Multi-layer authentication check
+    const isVercelCron = request.headers.get('x-vercel-cron') === '1';
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
     
-    if (!cronSecret) {
-      console.error('CRON_SECRET environment variable is not set');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    console.log('Request context:', {
+      isVercelCron,
+      hasAuthHeader: !!authHeader,
+      url: request.url,
+      method: request.method
+    });
+
+    // For Vercel cron jobs, we trust the x-vercel-cron header
+    // For external requests, we require the authorization header
+    if (!isVercelCron) {
+      if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        console.error('External request authentication failed');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
-    if (!authHeader) {
-      console.error('No authorization header present');
-      return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
-    }
-
-    const expectedAuth = `Bearer ${cronSecret}`;
-    if (authHeader !== expectedAuth) {
-      console.error('Invalid authorization token');
-      return NextResponse.json({ error: 'Invalid authorization token' }, { status: 401 });
-    }
-
-    console.log('Authentication successful, proceeding with match sync...');
-
-    // Perform match sync with enhanced error handling
+    console.log('Authentication successful, starting match data sync...');
     const results = await CricketService.syncMatchData();
-    
-    // Validate sync results
-    if (!results || !results.success) {
-      throw new Error('Match sync completed but returned invalid results');
-    }
 
     return NextResponse.json({
       success: true,
@@ -55,16 +35,14 @@ export async function GET(request) {
       results
     });
   } catch (error) {
-    console.error('Detailed error in match update cron job:', {
+    console.error('Error in cron job:', {
       message: error.message,
-      stack: error.stack,
-      name: error.name
+      stack: error.stack
     });
     
-    return NextResponse.json({
-      error: 'Failed to update match data',
-      details: error.message,
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update match data', details: error.message },
+      { status: 500 }
+    );
   }
 }
