@@ -18,12 +18,6 @@ const CRICKET_API_HOST = 'cricbuzz-cricket.p.rapidapi.com';
 
 export class CricketService {
   static async fetchRecentMatches() {
-    // Verify API key exists
-    if (!RAPID_API_KEY) {
-      console.error('RAPID_API_KEY is not defined');
-      throw new Error('API key configuration is missing');
-    }
-
     const options = {
       method: 'GET',
       headers: {
@@ -33,32 +27,10 @@ export class CricketService {
     };
 
     try {
-      console.log('Initiating API request to fetch matches...');
-      
-      // Add timeout to the fetch request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await fetch(
-        'https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent', 
-        {
-          ...options,
-          signal: controller.signal
-        }
-      );
-      
-      clearTimeout(timeoutId);
-
-      console.log('API Response Status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`API responded with status ${response.status}: ${errorText}`);
-      }
+      const response = await fetch('https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent', options);
+      if (!response.ok) throw new Error('Failed to fetch matches');
       
       const data = await response.json();
-      console.log('Successfully fetched matches data');
       
       // Filter for Big Bash League matches (series ID: 8535)
       const bigBashMatches = [];
@@ -77,30 +49,14 @@ export class CricketService {
         });
       });
 
-      console.log(`Found ${bigBashMatches.length} Big Bash matches`);
       return bigBashMatches;
     } catch (error) {
-      if (error.name === 'AbortError') {
-        console.error('Request timed out after 30 seconds');
-        throw new Error('Request timed out while fetching matches');
-      }
-      
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      
-      throw new Error(`Failed to fetch recent matches: ${error.message}`);
+      console.error('Error fetching recent matches:', error);
+      throw new Error('Failed to fetch recent matches');
     }
   }
 
   static async fetchScorecard(matchId) {
-    if (!RAPID_API_KEY) {
-      console.error('RAPID_API_KEY is not defined');
-      throw new Error('API key configuration is missing');
-    }
-
     const options = {
       method: 'GET',
       headers: {
@@ -110,31 +66,14 @@ export class CricketService {
     };
 
     try {
-      console.log(`Fetching scorecard for match ${matchId}...`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
       const response = await fetch(
         `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/hscard`,
-        {
-          ...options,
-          signal: controller.signal
-        }
+        options
       );
       
-      clearTimeout(timeoutId);
-
-      console.log(`Scorecard API Response Status for match ${matchId}:`, response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Scorecard API Error Response for match ${matchId}:`, errorText);
-        throw new Error(`API responded with status ${response.status}: ${errorText}`);
-      }
+      if (!response.ok) throw new Error('Failed to fetch scorecard');
       
       const data = await response.json();
-      console.log(`Successfully fetched scorecard for match ${matchId}`);
       
       // Transform the scorecard data into our desired format
       return {
@@ -168,21 +107,82 @@ export class CricketService {
         }
       };
     } catch (error) {
-      if (error.name === 'AbortError') {
-        console.error(`Request timed out while fetching scorecard for match ${matchId}`);
-        throw new Error('Request timed out while fetching scorecard');
-      }
-      
-      console.error('Scorecard Error details:', {
-        matchId,
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      
-      throw new Error(`Failed to fetch scorecard: ${error.message}`);
+      console.error('Error fetching scorecard:', error);
+      throw new Error('Failed to fetch scorecard');
     }
   }
 
-  // ... rest of the class methods remain the same ...
+  static async getMatchesFromFirebase() {
+    try {
+      const matchesRef = collection(db, 'matches');
+      const matchQuery = query(
+        matchesRef,
+        orderBy('lastUpdated', 'desc'),
+        limit(10)
+      );
+      
+      const querySnapshot = await getDocs(matchQuery);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      return [];
+    }
+  }
+
+  static async updateMatchInFirebase(matchData, scorecard) {
+    try {
+      if (!auth.currentUser) {
+        throw new Error('Authentication required');
+      }
+
+      const matchDoc = doc(db, 'matches', matchData.matchId.toString());
+      const matchDocument = {
+        matchId: matchData.matchId,
+        lastUpdated: Timestamp.now(),
+        matchInfo: matchData.matchInfo || {},
+        scorecard: scorecard || {},
+        updatedBy: auth.currentUser.uid
+      };
+
+      await setDoc(matchDoc, matchDocument, { merge: true });
+    } catch (error) {
+      console.error('Error updating match:', error);
+      throw new Error('Failed to update match in database');
+    }
+  }
+
+  static async syncMatchData() {
+    if (!auth.currentUser) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const matches = await this.fetchRecentMatches();
+      const results = {
+        updated: 0,
+        errors: []
+      };
+
+      for (const match of matches) {
+        try {
+          const scorecard = await this.fetchScorecard(match.matchId);
+          await this.updateMatchInFirebase(match, scorecard);
+          results.updated++;
+        } catch (error) {
+          results.errors.push({
+            matchId: match.matchId,
+            error: error.message
+          });
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error in sync process:', error);
+      throw new Error('Failed to sync match data');
+    }
+  }
 }
