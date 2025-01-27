@@ -101,24 +101,24 @@ const DashboardPage = () => {
       </section>
 
       {/* Your Team Section */}
-      <section className={styles.yourTeam}>
-        <h2>Your Team</h2>
-        <div className={styles.teamCards}>
-          {players.batsmen.map((player, index) => (
-            <div key={index} className={styles.card}>
-              <img
-                src={`/images/player${index + 1}.png`}
-                alt={player.name}
-                className={styles.playerImage}
-              />
-              <div className={styles.cardDetails}>
-                <p className={styles.playerName}>{player.name}</p>
-                <p className={styles.playerPoints}>{player.points} pts</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      // <section className={styles.yourTeam}>
+      //   <h2>Your Team</h2>
+      //   <div className={styles.teamCards}>
+      //     {players.batsmen.map((player, index) => (
+      //       <div key={index} className={styles.card}>
+      //         <img
+      //           src={`/images/player${index + 1}.png`}
+      //           alt={player.name}
+      //           className={styles.playerImage}
+      //         />
+      //         <div className={styles.cardDetails}>
+      //           <p className={styles.playerName}>{player.name}</p>
+      //           <p className={styles.playerPoints}>{player.points} pts</p>
+      //         </div>
+      //       </div>
+      //     ))}
+      //   </div>
+      // </section>
 
       {/* Rest of your existing sections remain the same */}
       <section className={styles.leaderboard}>
@@ -130,38 +130,38 @@ const DashboardPage = () => {
         </ul>
       </section>
 
-      <section className={styles.playerPerformance}>
-        <h2>Player Performance</h2>
-        <div className={styles.tabs}>
-          {Object.keys(players).map((category) => (
-            <button
-              key={category}
-              className={`${styles.tab} ${
-                activeTab === category ? styles.activeTab : ""
-              }`}
-              onClick={() => setActiveTab(category)}
-            >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </button>
-          ))}
-        </div>
-        <div className={styles.tabContent}>
-          {players[activeTab].map((player, index) => (
-            <div key={index} className={styles.playerRow}>
-              <p>{player.name}</p>
-              {activeTab === "batsmen" && <p>Runs: {player.runs}</p>}
-              {activeTab === "bowlers" && <p>Wickets: {player.wickets}</p>}
-              {activeTab === "allRounders" && (
-                <>
-                  <p>Runs: {player.runs}</p>
-                  <p>Wickets: {player.wickets}</p>
-                </>
-              )}
-              <p>Points: {player.points}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      // <section className={styles.playerPerformance}>
+      //   <h2>Player Performance</h2>
+      //   <div className={styles.tabs}>
+      //     {Object.keys(players).map((category) => (
+      //       <button
+      //         key={category}
+      //         className={`${styles.tab} ${
+      //           activeTab === category ? styles.activeTab : ""
+      //         }`}
+      //         onClick={() => setActiveTab(category)}
+      //       >
+      //         {category.charAt(0).toUpperCase() + category.slice(1)}
+      //       </button>
+      //     ))}
+      //   </div>
+      //   <div className={styles.tabContent}>
+      //     {players[activeTab].map((player, index) => (
+      //       <div key={index} className={styles.playerRow}>
+      //         <p>{player.name}</p>
+      //         {activeTab === "batsmen" && <p>Runs: {player.runs}</p>}
+      //         {activeTab === "bowlers" && <p>Wickets: {player.wickets}</p>}
+      //         {activeTab === "allRounders" && (
+      //           <>
+      //             <p>Runs: {player.runs}</p>
+      //             <p>Wickets: {player.wickets}</p>
+      //           </>
+      //         )}
+      //         <p>Points: {player.points}</p>
+      //       </div>
+      //     ))}
+      //   </div>
+      // </section>
     </div>
   );
 };
