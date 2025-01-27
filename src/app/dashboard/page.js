@@ -19,41 +19,34 @@ const DashboardPage = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const players = {
-    batsmen: [
-      { name: "Player 1", runs: 450, points: 120 },
-      { name: "Player 2", runs: 380, points: 100 },
-    ],
-    bowlers: [
-      { name: "Player 3", wickets: 25, points: 130 },
-      { name: "Player 4", wickets: 20, points: 110 },
-    ],
-    allRounders: [
-      { name: "Player 5", runs: 200, wickets: 10, points: 140 },
-    ],
-    wicketKeepers: [{ name: "Player 6", runs: 300, points: 90 }],
-  };
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch user details
+        setLoading(true);
+        setError(null);
+
+        // Ensure user is authenticated
         const user = auth.currentUser;
-        if (user) {
-          const userDocRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            setUserDetails(userDoc.data());
-          }
+        if (!user) {
+          throw new Error('Authentication required');
         }
 
-        // Fetch and sync cricket matches
-        await CricketService.syncMatchData();
+        // Fetch user details
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          setUserDetails(userDoc.data());
+        }
+
+        // Fetch matches
         const matchData = await CricketService.getMatchesFromFirebase();
         setMatches(matchData);
+
       } catch (error) {
         console.error("Error fetching data:", error);
+        setError(error.message || "Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
