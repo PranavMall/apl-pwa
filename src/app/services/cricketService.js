@@ -1,5 +1,5 @@
 // app/services/cricketService.js
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { 
   collection, 
   doc, 
