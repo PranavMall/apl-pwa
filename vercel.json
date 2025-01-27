@@ -2,8 +2,5 @@
   "crons": [{
     "path": "/api/cron/update-matches",
     "schedule": "0 0 * * *",
-    "headers": {
-      "authorization": "Bearer @CRON_SECRET"
-    }
   }]
 }
