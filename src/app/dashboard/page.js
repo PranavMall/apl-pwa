@@ -53,15 +53,6 @@ const DashboardPage = () => {
     };
 
     fetchData();
-
-    // Set up real-time updates for matches
-    const unsubscribe = CricketService.subscribeToMatches((updatedMatches) => {
-      setMatches(updatedMatches);
-    });
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
   }, []);
 
   const renderMatchCard = (match) => (
