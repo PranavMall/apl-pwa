@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { auth, db } from "../../firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { CricketService } from "../../services/cricketService";
+import { CricketService } from "../services/cricketService";
 import styles from "./page.module.css";
 import withAuth from "@/app/components/withAuth";
 
