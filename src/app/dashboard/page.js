@@ -1,22 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-
 import {
   GoogleAuthProvider,
   signInWithPopup,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { auth, db } from "../../firebase"; // Ensure the correct path to firebase.js
+import { auth, db } from "../../firebase";
+import { CricketService } from "../services/cricketService";
 import styles from "./page.module.css";
 import withAuth from "@/app/components/withAuth";
 
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("batsmen");
   const [userDetails, setUserDetails] = useState(null);
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const players = {
     batsmen: [
@@ -33,27 +35,62 @@ const DashboardPage = () => {
     wicketKeepers: [{ name: "Player 6", runs: 300, points: 90 }],
   };
 
-  const matches = [
-    { team1: "Team A", team2: "Team B", time: "10:00 AM" },
-    { team1: "Team C", team2: "Team D", time: "2:00 PM" },
-  ];
-
   useEffect(() => {
-    const fetchUserDetails = async () => {
-      const user = auth.currentUser;
-
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          setUserDetails(userDoc.data());
+    const fetchData = async () => {
+      try {
+        // Fetch user details
+        const user = auth.currentUser;
+        if (user) {
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setUserDetails(userDoc.data());
+          }
         }
+
+        // Fetch and sync cricket matches
+        await CricketService.syncMatchData();
+        const matchData = await CricketService.getMatchesFromFirebase();
+        setMatches(matchData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchUserDetails();
+    fetchData();
+
+    // Set up real-time updates for matches
+    const unsubscribe = CricketService.subscribeToMatches((updatedMatches) => {
+      setMatches(updatedMatches);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
+
+  const renderMatchCard = (match) => (
+    <div key={match.matchId} className={styles.matchCard}>
+      <div className={styles.matchTeams}>
+        <p>{match.matchInfo?.team1?.teamName} vs {match.matchInfo?.team2?.teamName}</p>
+      </div>
+      {match.scorecard && (
+        <div className={styles.matchScore}>
+          <p>{match.scorecard.team1Score}</p>
+          <p>{match.scorecard.team2Score}</p>
+        </div>
+      )}
+      <div className={styles.matchStatus}>
+        <p>{match.matchInfo?.status}</p>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return <div className={styles.loading}>Loading dashboard...</div>;
+  }
 
   return (
     <div className={styles.dashboard}>
@@ -69,6 +106,14 @@ const DashboardPage = () => {
             <p>{userDetails.name}</p>
           </div>
         )}
+      </section>
+
+      {/* Live Matches Section */}
+      <section className={styles.liveMatches}>
+        <h2>Live Big Bash Matches</h2>
+        <div className={styles.matchCards}>
+          {matches.map(renderMatchCard)}
+        </div>
       </section>
 
       {/* Your Team Section */}
@@ -91,7 +136,7 @@ const DashboardPage = () => {
         </div>
       </section>
 
-      {/* Leaderboard Section */}
+      {/* Rest of your existing sections remain the same */}
       <section className={styles.leaderboard}>
         <h2>Leaderboard Highlights</h2>
         <ul className={styles.leaderboardList}>
@@ -101,7 +146,6 @@ const DashboardPage = () => {
         </ul>
       </section>
 
-      {/* Player Performance Section */}
       <section className={styles.playerPerformance}>
         <h2>Player Performance</h2>
         <div className={styles.tabs}>
@@ -130,21 +174,6 @@ const DashboardPage = () => {
                 </>
               )}
               <p>Points: {player.points}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Upcoming Matches Section */}
-      <section className={styles.upcomingMatches}>
-        <h2>Upcoming Matches</h2>
-        <div className={styles.matchCards}>
-          {matches.map((match, index) => (
-            <div key={index} className={styles.matchCard}>
-              <p>
-                {match.team1} vs {match.team2}
-              </p>
-              <p>{match.time}</p>
             </div>
           ))}
         </div>
