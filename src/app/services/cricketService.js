@@ -1,5 +1,5 @@
 // services/cricketService.js
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { collection, doc, setDoc, getDocs, query, where } from 'firebase/firestore';
 
 const RAPID_API_KEY = process.env.NEXT_PUBLIC_RAPID_API_KEY;
