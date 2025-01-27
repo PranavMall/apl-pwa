@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
+const RAPID_API_KEY = process.env.NEXT_PUBLIC_RAPID_API_KEY;
+const CRICKET_API_HOST = 'cricbuzz-cricket.p.rapidapi.com';
+
 export async function GET(request) {
   try {
     // Verify the request is from Vercel Cron
