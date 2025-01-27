@@ -55,21 +55,60 @@ export class CricketService {
     return querySnapshot.docs.map(doc => doc.data());
   }
 
-  static async syncMatchData() {
+static async syncMatchData() {
     try {
+      // Create a log entry for this sync
+      const syncLog = {
+        startTime: new Date().toISOString(),
+        status: 'started',
+        matchesUpdated: 0,
+        errors: []
+      };
+
       // 1. Fetch recent Big Bash matches
       const matches = await this.fetchRecentMatches();
       
       // 2. For each match, fetch scorecard and update Firebase
       for (const match of matches) {
-        const scorecard = await this.fetchScorecard(match.matchId);
-        await this.updateMatchInFirebase(match, scorecard);
+        try {
+          const scorecard = await this.fetchScorecard(match.matchId);
+          await this.updateMatchInFirebase(match, scorecard);
+          syncLog.matchesUpdated++;
+        } catch (error) {
+          syncLog.errors.push({
+            matchId: match.matchId,
+            error: error.message
+          });
+        }
       }
+
+      // Update sync log with completion status
+      syncLog.status = 'completed';
+      syncLog.endTime = new Date().toISOString();
       
-      return true;
+      // Store the sync log in Firebase
+      const logsCollection = collection(db, 'syncLogs');
+      await addDoc(logsCollection, syncLog);
+
+      return {
+        success: true,
+        matchesUpdated: syncLog.matchesUpdated,
+        errors: syncLog.errors
+      };
     } catch (error) {
       console.error('Error syncing match data:', error);
-      return false;
+      
+      // Log the error
+      const errorLog = {
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        status: 'failed'
+      };
+      
+      const logsCollection = collection(db, 'syncLogs');
+      await addDoc(logsCollection, errorLog);
+
+      throw error;
     }
   }
 }
