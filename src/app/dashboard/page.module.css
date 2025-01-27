@@ -83,15 +83,26 @@
   }
   
   /* Upcoming Matches Section */
-  .matchCards {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .matchCard {
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 10px;
-    text-align: center;
-  }  
+.liveMatches {
+  margin: 20px 0;
+}
+
+.matchCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.matchCard {
+  padding: 15px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
