@@ -143,13 +143,23 @@ export class CricketService {
     }
   }
 
-  static async updateMatchInFirebase(matchData, scorecard) {
+static async updateMatchInFirebase(matchData, scorecard, dbInstance) {
     try {
-      const matchDoc = db.collection('matches').doc(matchData.matchId);
+      // Check if we're using admin or client SDK
+      const isAdminDb = dbInstance?.collection !== undefined;
+      
+      let matchDoc;
+      if (isAdminDb) {
+        // Admin SDK
+        matchDoc = dbInstance.collection('matches').doc(matchData.matchId);
+      } else {
+        // Client SDK
+        matchDoc = doc(dbInstance, 'matches', matchData.matchId);
+      }
       
       const matchDocument = this.validateAndCleanObject({
         matchId: matchData.matchId,
-        lastUpdated: new Date(), // Firestore Admin handles Date objects
+        lastUpdated: new Date(),
         matchInfo: matchData.matchInfo,
         scorecard: scorecard,
       });
@@ -158,7 +168,12 @@ export class CricketService {
         throw new Error('Invalid match data structure');
       }
 
-      await matchDoc.set(matchDocument, { merge: true });
+      if (isAdminDb) {
+        await matchDoc.set(matchDocument, { merge: true });
+      } else {
+        await setDoc(matchDoc, matchDocument, { merge: true });
+      }
+      
       console.log(`Successfully updated Firebase for match ${matchData.matchId}`);
       return true;
     } catch (error) {
@@ -166,23 +181,28 @@ export class CricketService {
       throw error;
     }
   }
-  static async syncMatchData() {
+
+  static async syncMatchData(dbInstance) {
     try {
-       console.log('Starting match data sync...');
+      console.log('Starting match data sync...');
       const matches = await this.fetchRecentMatches();
       console.log(`Found ${matches.length} matches to sync`);
 
       const syncResults = [];
       for (const match of matches) {
         try {
+          console.log(`Fetching scorecard for match ${match.matchId}`);
           const scorecard = await this.fetchScorecard(match.matchId);
-          await this.updateMatchInFirebase(match, scorecard, db);
+          
+          console.log(`Updating Firebase for match ${match.matchId}`);
+          await this.updateMatchInFirebase(match, scorecard, dbInstance);
           
           syncResults.push({
             matchId: match.matchId,
             status: 'success'
           });
         } catch (error) {
+          console.error(`Failed to sync match ${match.matchId}:`, error);
           syncResults.push({
             matchId: match.matchId,
             status: 'failed',
