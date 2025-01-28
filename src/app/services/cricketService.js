@@ -1,4 +1,3 @@
-// services/cricketService.js
 import { db } from '../../firebase';
 import {
   collection,
@@ -36,26 +35,47 @@ export class CricketService {
       }
 
       const data = await response.json();
-      console.log('Raw API response:', data);
+      
+      // Debug: Log all series and their matches
+      console.log('Available match types:');
+      data.typeMatches?.forEach(typeMatch => {
+        console.log(`Type: ${typeMatch.matchType}`);
+        
+        typeMatch.seriesMatches?.forEach(seriesMatch => {
+          if (seriesMatch.seriesAdWrapper) {
+            console.log(`- Series ID: ${seriesMatch.seriesId}`);
+            console.log(`- Series Name: ${seriesMatch.seriesAdWrapper.seriesName}`);
+            console.log(`- Matches count: ${seriesMatch.seriesAdWrapper.matches?.length || 0}`);
+          }
+        });
+      });
 
       const bigBashMatches = [];
       
-      if (!data.typeMatches) {
-        console.warn('No typeMatches found in API response');
-        return bigBashMatches;
-      }
-
-      data.typeMatches.forEach(typeMatch => {
+      data.typeMatches?.forEach(typeMatch => {
         if (!typeMatch.seriesMatches) return;
         
         typeMatch.seriesMatches.forEach(seriesMatch => {
-          if (seriesMatch.seriesId === '8535') {
+          if (seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('big bash') ||
+              seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('bbl')) {
+            console.log('Found potential Big Bash series:', {
+              seriesId: seriesMatch.seriesId,
+              seriesName: seriesMatch.seriesAdWrapper.seriesName,
+              matchCount: seriesMatch.seriesAdWrapper.matches?.length || 0
+            });
+          }
+
+          if (seriesMatch.seriesId === '8535' || 
+              seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('big bash') ||
+              seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('bbl')) {
             const matches = seriesMatch.seriesAdWrapper?.matches || [];
             matches.forEach(match => {
               if (match.matchInfo?.matchId) {
                 bigBashMatches.push({
                   matchId: match.matchInfo.matchId.toString(),
                   matchInfo: match.matchInfo,
+                  seriesId: seriesMatch.seriesId,
+                  seriesName: seriesMatch.seriesAdWrapper.seriesName
                 });
               }
             });
@@ -63,7 +83,7 @@ export class CricketService {
         });
       });
 
-      console.log('Filtered Big Bash matches:', bigBashMatches);
+      console.log('Found Big Bash matches:', bigBashMatches);
       return bigBashMatches;
     } catch (error) {
       console.error('Error fetching matches:', error);
