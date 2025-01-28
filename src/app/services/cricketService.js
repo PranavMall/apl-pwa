@@ -35,47 +35,40 @@ export class CricketService {
       }
 
       const data = await response.json();
-      
-      // Debug: Log all series and their matches
-      console.log('Available match types:');
-      data.typeMatches?.forEach(typeMatch => {
-        console.log(`Type: ${typeMatch.matchType}`);
-        
-        typeMatch.seriesMatches?.forEach(seriesMatch => {
-          if (seriesMatch.seriesAdWrapper) {
-            console.log(`- Series ID: ${seriesMatch.seriesId}`);
-            console.log(`- Series Name: ${seriesMatch.seriesAdWrapper.seriesName}`);
-            console.log(`- Matches count: ${seriesMatch.seriesAdWrapper.matches?.length || 0}`);
-          }
-        });
-      });
-
       const bigBashMatches = [];
       
+      // Fix: Properly traverse the nested structure
       data.typeMatches?.forEach(typeMatch => {
-        if (!typeMatch.seriesMatches) return;
-        
-        typeMatch.seriesMatches.forEach(seriesMatch => {
-          if (seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('big bash') ||
-              seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('bbl')) {
-            console.log('Found potential Big Bash series:', {
-              seriesId: seriesMatch.seriesId,
-              seriesName: seriesMatch.seriesAdWrapper.seriesName,
-              matchCount: seriesMatch.seriesAdWrapper.matches?.length || 0
-            });
-          }
-
-          if (seriesMatch.seriesId === '8535' || 
-              seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('big bash') ||
-              seriesMatch.seriesAdWrapper?.seriesName?.toLowerCase().includes('bbl')) {
-            const matches = seriesMatch.seriesAdWrapper?.matches || [];
+        typeMatch.seriesMatches?.forEach(seriesMatch => {
+          // Handle both direct matches and matches within seriesAdWrapper
+          const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
+          const matches = seriesData.matches || [];
+          
+          // Check for Big Bash matches using multiple criteria
+          if (
+            seriesData.seriesId === '8535' || // Exact BBL series ID
+            seriesData.seriesName?.toLowerCase().includes('big bash') ||
+            seriesData.seriesName?.toLowerCase().includes('bbl')
+          ) {
+            console.log(`Found BBL series: ${seriesData.seriesName}`);
+            
             matches.forEach(match => {
-              if (match.matchInfo?.matchId) {
+              if (match.matchInfo) {
                 bigBashMatches.push({
                   matchId: match.matchInfo.matchId.toString(),
-                  matchInfo: match.matchInfo,
-                  seriesId: seriesMatch.seriesId,
-                  seriesName: seriesMatch.seriesAdWrapper.seriesName
+                  matchInfo: {
+                    ...match.matchInfo,
+                    team1: {
+                      ...match.matchInfo.team1,
+                      score: match.matchScore?.team1Score?.inngs1 || null
+                    },
+                    team2: {
+                      ...match.matchInfo.team2,
+                      score: match.matchScore?.team2Score?.inngs1 || null
+                    }
+                  },
+                  seriesId: seriesData.seriesId,
+                  seriesName: seriesData.seriesName
                 });
               }
             });
@@ -83,7 +76,7 @@ export class CricketService {
         });
       });
 
-      console.log('Found Big Bash matches:', bigBashMatches);
+      console.log(`Found ${bigBashMatches.length} Big Bash matches:`, bigBashMatches);
       return bigBashMatches;
     } catch (error) {
       console.error('Error fetching matches:', error);
