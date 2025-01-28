@@ -11,6 +11,24 @@ import {
 } from 'firebase/firestore';
 
 export class CricketService {
+  static validateAndCleanObject(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // Remove undefined values
+      if (value === undefined) continue;
+      
+      // Recursively clean nested objects
+      if (value && typeof value === 'object') {
+        cleaned[key] = this.validateAndCleanObject(value);
+      } else {
+        cleaned[key] = value;
+      }
+    }
+    return cleaned;
+  }
+
   static async fetchRecentMatches() {
     if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
       throw new Error('RAPID_API_KEY is not configured');
@@ -37,16 +55,13 @@ export class CricketService {
       const data = await response.json();
       const bigBashMatches = [];
       
-      // Fix: Properly traverse the nested structure
       data.typeMatches?.forEach(typeMatch => {
         typeMatch.seriesMatches?.forEach(seriesMatch => {
-          // Handle both direct matches and matches within seriesAdWrapper
           const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
           const matches = seriesData.matches || [];
           
-          // Check for Big Bash matches using multiple criteria
           if (
-            seriesData.seriesId === '8535' || // Exact BBL series ID
+            seriesData.seriesId === '8535' ||
             seriesData.seriesName?.toLowerCase().includes('big bash') ||
             seriesData.seriesName?.toLowerCase().includes('bbl')
           ) {
@@ -54,7 +69,7 @@ export class CricketService {
             
             matches.forEach(match => {
               if (match.matchInfo) {
-                bigBashMatches.push({
+                const matchData = {
                   matchId: match.matchInfo.matchId.toString(),
                   matchInfo: {
                     ...match.matchInfo,
@@ -69,7 +84,8 @@ export class CricketService {
                   },
                   seriesId: seriesData.seriesId,
                   seriesName: seriesData.seriesName
-                });
+                };
+                bigBashMatches.push(this.validateAndCleanObject(matchData));
               }
             });
           }
@@ -104,22 +120,23 @@ export class CricketService {
       }
 
       const data = await response.json();
-      console.log(`Raw scorecard data for match ${matchId}:`, data);
-
-      return {
+      
+      const scorecard = {
         team1: {
           batsmen: data.scoreCard?.[0]?.batsmen || [],
           bowlers: data.scoreCard?.[1]?.bowlers || [],
           score: data.scoreCard?.[0]?.score || '0/0',
-          teamId: data.scoreCard?.[0]?.teamId
+          teamId: data.scoreCard?.[0]?.teamId || null
         },
         team2: {
           batsmen: data.scoreCard?.[1]?.batsmen || [],
           bowlers: data.scoreCard?.[0]?.bowlers || [],
           score: data.scoreCard?.[1]?.score || '0/0',
-          teamId: data.scoreCard?.[1]?.teamId
+          teamId: data.scoreCard?.[1]?.teamId || null
         }
       };
+
+      return this.validateAndCleanObject(scorecard);
     } catch (error) {
       console.error(`Error fetching scorecard for match ${matchId}:`, error);
       throw error;
@@ -129,15 +146,21 @@ export class CricketService {
   static async updateMatchInFirebase(matchData, scorecard) {
     try {
       const matchDoc = doc(db, 'matches', matchData.matchId);
-      const matchDocument = {
+      
+      // Clean and validate the data before saving
+      const matchDocument = this.validateAndCleanObject({
         matchId: matchData.matchId,
         lastUpdated: Timestamp.now(),
         matchInfo: matchData.matchInfo,
         scorecard: scorecard,
-      };
+      });
+
+      if (!matchDocument) {
+        throw new Error('Invalid match data structure');
+      }
 
       await setDoc(matchDoc, matchDocument, { merge: true });
-      console.log(`Updated Firebase for match ${matchData.matchId}`);
+      console.log(`Successfully updated Firebase for match ${matchData.matchId}`);
       return true;
     } catch (error) {
       console.error(`Error updating match ${matchData.matchId} in Firebase:`, error);
@@ -203,7 +226,6 @@ export class CricketService {
         });
       });
 
-      console.log('Fetched matches from Firebase:', matches);
       return matches;
     } catch (error) {
       console.error('Error fetching matches from Firebase:', error);
