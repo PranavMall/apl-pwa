@@ -145,12 +145,11 @@ export class CricketService {
 
   static async updateMatchInFirebase(matchData, scorecard) {
     try {
-      const matchDoc = doc(db, 'matches', matchData.matchId);
+      const matchDoc = db.collection('matches').doc(matchData.matchId);
       
-      // Clean and validate the data before saving
       const matchDocument = this.validateAndCleanObject({
         matchId: matchData.matchId,
-        lastUpdated: Timestamp.now(),
+        lastUpdated: new Date(), // Firestore Admin handles Date objects
         matchInfo: matchData.matchInfo,
         scorecard: scorecard,
       });
@@ -159,7 +158,7 @@ export class CricketService {
         throw new Error('Invalid match data structure');
       }
 
-      await setDoc(matchDoc, matchDocument, { merge: true });
+      await matchDoc.set(matchDocument, { merge: true });
       console.log(`Successfully updated Firebase for match ${matchData.matchId}`);
       return true;
     } catch (error) {
@@ -167,28 +166,23 @@ export class CricketService {
       throw error;
     }
   }
-
   static async syncMatchData() {
     try {
-      console.log('Starting match data sync...');
+       console.log('Starting match data sync...');
       const matches = await this.fetchRecentMatches();
       console.log(`Found ${matches.length} matches to sync`);
 
       const syncResults = [];
       for (const match of matches) {
         try {
-          console.log(`Fetching scorecard for match ${match.matchId}`);
           const scorecard = await this.fetchScorecard(match.matchId);
-          
-          console.log(`Updating Firebase for match ${match.matchId}`);
-          await this.updateMatchInFirebase(match, scorecard);
+          await this.updateMatchInFirebase(match, scorecard, db);
           
           syncResults.push({
             matchId: match.matchId,
             status: 'success'
           });
         } catch (error) {
-          console.error(`Failed to sync match ${match.matchId}:`, error);
           syncResults.push({
             matchId: match.matchId,
             status: 'failed',
