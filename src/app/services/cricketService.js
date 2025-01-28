@@ -143,19 +143,9 @@ export class CricketService {
     }
   }
 
-static async updateMatchInFirebase(matchData, scorecard, dbInstance) {
+  static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
     try {
-      // Check if we're using admin or client SDK
-      const isAdminDb = dbInstance?.collection !== undefined;
-      
-      let matchDoc;
-      if (isAdminDb) {
-        // Admin SDK
-        matchDoc = dbInstance.collection('matches').doc(matchData.matchId);
-      } else {
-        // Client SDK
-        matchDoc = doc(dbInstance, 'matches', matchData.matchId);
-      }
+      const matchDoc = doc(dbInstance, 'matches', matchData.matchId);
       
       const matchDocument = this.validateAndCleanObject({
         matchId: matchData.matchId,
@@ -168,11 +158,7 @@ static async updateMatchInFirebase(matchData, scorecard, dbInstance) {
         throw new Error('Invalid match data structure');
       }
 
-      if (isAdminDb) {
-        await matchDoc.set(matchDocument, { merge: true });
-      } else {
-        await setDoc(matchDoc, matchDocument, { merge: true });
-      }
+      await setDoc(matchDoc, matchDocument, { merge: true });
       
       console.log(`Successfully updated Firebase for match ${matchData.matchId}`);
       return true;
@@ -182,7 +168,7 @@ static async updateMatchInFirebase(matchData, scorecard, dbInstance) {
     }
   }
 
-  static async syncMatchData(dbInstance) {
+  static async syncMatchData() {
     try {
       console.log('Starting match data sync...');
       const matches = await this.fetchRecentMatches();
@@ -195,7 +181,8 @@ static async updateMatchInFirebase(matchData, scorecard, dbInstance) {
           const scorecard = await this.fetchScorecard(match.matchId);
           
           console.log(`Updating Firebase for match ${match.matchId}`);
-          await this.updateMatchInFirebase(match, scorecard, dbInstance);
+          // Pass the imported db instance
+          await this.updateMatchInFirebase(match, scorecard, db);
           
           syncResults.push({
             matchId: match.matchId,
@@ -210,6 +197,7 @@ static async updateMatchInFirebase(matchData, scorecard, dbInstance) {
           });
         }
       }
+
 
       return {
         success: true,
