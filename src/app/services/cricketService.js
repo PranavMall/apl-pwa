@@ -5,7 +5,6 @@ import {
   setDoc,
   getDocs,
   query,
-  Timestamp,
   orderBy,
   limit,
 } from 'firebase/firestore';
@@ -60,11 +59,9 @@ export class CricketService {
           const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
           const matches = seriesData.matches || [];
           
-          if (
-            seriesData.seriesId === '8535' ||
-            seriesData.seriesName?.toLowerCase().includes('big bash') ||
-            seriesData.seriesName?.toLowerCase().includes('bbl')
-          ) {
+          if (seriesData.seriesId === '8535' || 
+              seriesData.seriesName?.toLowerCase().includes('big bash') || 
+              seriesData.seriesName?.toLowerCase().includes('bbl')) {
             console.log(`Found BBL series: ${seriesData.seriesName}`);
             
             matches.forEach(match => {
@@ -92,7 +89,6 @@ export class CricketService {
         });
       });
 
-      console.log(`Found ${bigBashMatches.length} Big Bash matches:`, bigBashMatches);
       return bigBashMatches;
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -100,7 +96,7 @@ export class CricketService {
     }
   }
 
-    static async fetchScorecard(matchId) {
+  static async fetchScorecard(matchId) {
     const options = {
       method: 'GET',
       headers: {
@@ -123,56 +119,52 @@ export class CricketService {
       const data = await response.json();
       console.log('Raw scorecard data:', data);
 
-      // Transform the scorecard data to match our schema
+      // Transform the new API response structure
+      const processInnings = (inning) => {
+        const batsmen = Object.values(inning.batTeamDetails.batsmenData || {}).map(bat => ({
+          name: bat.batName,
+          runs: bat.runs,
+          balls: bat.balls,
+          fours: bat.fours,
+          sixes: bat.sixes,
+          strikeRate: bat.strikeRate,
+          dismissal: bat.outDesc,
+          isBatting: !bat.outDesc // If there's no dismissal description, they're still batting
+        }));
+
+        const bowlers = Object.values(inning.bowlTeamDetails.bowlersData || {}).map(bowl => ({
+          name: bowl.bowlName,
+          overs: bowl.overs,
+          maidens: bowl.maidens,
+          runs: bowl.runs,
+          wickets: bowl.wickets,
+          economy: bowl.economy,
+          extras: {
+            wides: bowl.wides,
+            noBalls: bowl.no_balls
+          }
+        }));
+
+        return {
+          teamId: inning.batTeamDetails.batTeamId,
+          teamName: inning.batTeamDetails.batTeamName,
+          shortName: inning.batTeamDetails.batTeamShortName,
+          batsmen,
+          bowlers,
+          score: `${inning.scoreDetails.runs}/${inning.scoreDetails.wickets}`,
+          overs: inning.scoreDetails.overs,
+          runRate: inning.scoreDetails.runRate,
+          extras: inning.extrasData
+        };
+      };
+
       const scorecard = {
-        team1: {
-          teamId: data.scoreCard?.[0]?.teamId,
-          batsmen: data.scoreCard?.[0]?.batsmen?.map(batsman => ({
-            name: batsman.name,
-            runs: batsman.runs,
-            balls: batsman.balls,
-            fours: batsman.fours,
-            sixes: batsman.sixes,
-            strikeRate: batsman.strikeRate,
-            dismissal: batsman.dismissalText,
-            isBatting: batsman.isBatting
-          })) || [],
-          bowlers: data.scoreCard?.[1]?.bowlers?.map(bowler => ({
-            name: bowler.name,
-            overs: bowler.overs,
-            maidens: bowler.maidens,
-            runs: bowler.runs,
-            wickets: bowler.wickets,
-            economy: bowler.economy,
-            extras: bowler.extras
-          })) || [],
-          score: data.scoreCard?.[0]?.score || '0/0',
-          inningsId: data.scoreCard?.[0]?.inningsId
-        },
-        team2: {
-          teamId: data.scoreCard?.[1]?.teamId,
-          batsmen: data.scoreCard?.[1]?.batsmen?.map(batsman => ({
-            name: batsman.name,
-            runs: batsman.runs,
-            balls: batsman.balls,
-            fours: batsman.fours,
-            sixes: batsman.sixes,
-            strikeRate: batsman.strikeRate,
-            dismissal: batsman.dismissalText,
-            isBatting: batsman.isBatting
-          })) || [],
-          bowlers: data.scoreCard?.[0]?.bowlers?.map(bowler => ({
-            name: bowler.name,
-            overs: bowler.overs,
-            maidens: bowler.maidens,
-            runs: bowler.runs,
-            wickets: bowler.wickets,
-            economy: bowler.economy,
-            extras: bowler.extras
-          })) || [],
-          score: data.scoreCard?.[1]?.score || '0/0',
-          inningsId: data.scoreCard?.[1]?.inningsId
-        }
+        team1: processInnings(data.scoreCard[0]),
+        team2: processInnings(data.scoreCard[1]),
+        matchStatus: data.matchHeader.status,
+        result: data.matchHeader.result,
+        toss: data.matchHeader.tossResults,
+        playerOfMatch: data.matchHeader.playersOfTheMatch?.[0]?.name
       };
 
       console.log('Processed scorecard:', scorecard);
@@ -183,38 +175,39 @@ export class CricketService {
     }
   }
 
-static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
+  static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
     try {
       const matchDoc = doc(dbInstance, 'matches', matchData.matchId.toString());
       
-      // Combine match info with scorecard
       const matchDocument = this.validateAndCleanObject({
         matchId: matchData.matchId,
         lastUpdated: new Date().toISOString(),
         matchInfo: {
           ...matchData.matchInfo,
+          status: scorecard.matchStatus,
+          result: scorecard.result,
+          toss: scorecard.toss,
+          playerOfMatch: scorecard.playerOfMatch,
           team1: {
             ...matchData.matchInfo.team1,
             teamId: scorecard.team1.teamId,
-            score: scorecard.team1.score
+            score: scorecard.team1.score,
+            overs: scorecard.team1.overs,
+            runRate: scorecard.team1.runRate
           },
           team2: {
             ...matchData.matchInfo.team2,
             teamId: scorecard.team2.teamId,
-            score: scorecard.team2.score
+            score: scorecard.team2.score,
+            overs: scorecard.team2.overs,
+            runRate: scorecard.team2.runRate
           }
         },
-        scorecard: scorecard
+        scorecard
       });
-
-      if (!matchDocument) {
-        throw new Error('Invalid match data structure');
-      }
 
       console.log('Saving match document:', matchDocument);
       await setDoc(matchDoc, matchDocument, { merge: true });
-      
-      console.log(`Successfully updated Firebase for match ${matchData.matchId}`);
       return true;
     } catch (error) {
       console.error(`Error updating match ${matchData.matchId} in Firebase:`, error);
@@ -232,7 +225,7 @@ static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
       for (const match of matches) {
         try {
           const scorecard = await this.fetchScorecard(match.matchId);
-          await this.updateMatchInFirebase(match, scorecard, db);
+          await this.updateMatchInFirebase(match, scorecard);
           
           syncResults.push({
             matchId: match.matchId,
@@ -247,7 +240,6 @@ static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
           });
         }
       }
-
 
       return {
         success: true,
