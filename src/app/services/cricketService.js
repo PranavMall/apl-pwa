@@ -79,35 +79,50 @@ static async fetchScorecard(matchId) {
       }
 
       const data = await response.json();
+
+      if (!data || !data.matchHeader || !data.scoreCard) {
+        throw new Error(`Invalid scorecard response for match ${matchId}`);
+      }
+
       return this.processScorecard(data);
     } catch (error) {
       console.error(`Error fetching scorecard for match ${matchId}:`, error);
-      throw error;
+      return null;  // Return null to indicate failure
     }
-  }
+}
+
 
   static async updateMatchAndPlayers(matchId) {
     try {
       // Fetch scorecard data
       const scorecard = await this.fetchScorecard(matchId);
-      
+
+      if (!scorecard || !scorecard.matchId) {
+        throw new Error(`Invalid scorecard data for match ${matchId}`);
+      }
+
       // Update match data in Firebase
       await this.updateMatchInFirebase(matchId, scorecard);
 
       // Update player data for both teams
-      await PlayerService.updateTeamPlayers(matchId, scorecard.team1.teamId);
-      await PlayerService.updateTeamPlayers(matchId, scorecard.team2.teamId);
+      if (scorecard.team1 && scorecard.team1.teamId) {
+        await PlayerService.updateTeamPlayers(matchId, scorecard.team1.teamId);
+      }
+      if (scorecard.team2 && scorecard.team2.teamId) {
+        await PlayerService.updateTeamPlayers(matchId, scorecard.team2.teamId);
+      }
 
       return {
         success: true,
         matchId,
-        teams: [scorecard.team1.teamId, scorecard.team2.teamId]
+        teams: [scorecard.team1?.teamId, scorecard.team2?.teamId]
       };
     } catch (error) {
       console.error(`Error updating match ${matchId}:`, error);
       throw error;
     }
-  }
+}
+
 
   static processScorecard(data) {
     const processInnings = (inning) => {
