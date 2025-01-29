@@ -292,13 +292,24 @@ static async fetchScorecard(matchId) {
     }
   }
 
-  static async syncMatchData(matchIds = this.SA20_MATCH_IDS) {
+static async syncMatchData(matchIds = this.SA20_MATCH_IDS) {
     try {
-      console.log('Starting match and player data sync...');
+      console.log('syncMatchData() received matchIds:', matchIds);
+
+      if (!Array.isArray(matchIds) || matchIds.length === 0) {
+        throw new Error('matchIds is missing or not an array');
+      }
+
       const syncResults = [];
 
       for (const matchId of matchIds) {
+        if (!matchId) {
+          console.warn('Skipping undefined matchId:', matchId);
+          continue;
+        }
+
         try {
+          console.log(`Processing matchId: ${matchId}`);
           const result = await this.updateMatchAndPlayers(matchId);
           syncResults.push({
             matchId,
@@ -322,7 +333,8 @@ static async fetchScorecard(matchId) {
       console.error('Error in syncMatchData:', error);
       throw error;
     }
-  }
+}
+
 
   static async getMatchesFromFirebase() {
     try {
