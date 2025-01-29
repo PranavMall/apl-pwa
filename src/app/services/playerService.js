@@ -1,9 +1,15 @@
-// app/services/playerService.js
 import { db } from '../../firebase';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
 export class PlayerService {
-  static async fetchTeamInfo(teamId) {
+  static PLAYER_ROLES = {
+    BATSMAN: 'batsman',
+    BOWLER: 'bowler',
+    ALLROUNDER: 'allrounder',
+    WICKETKEEPER: 'wicketkeeper'
+  };
+
+  static async fetchTeamPlayers(matchId, teamId) {
     const options = {
       method: 'GET',
       headers: {
@@ -14,7 +20,7 @@ export class PlayerService {
 
     try {
       const response = await fetch(
-        `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/team/${teamId}'
+        `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/team/${teamId}`,
         options
       );
       
@@ -25,129 +31,71 @@ export class PlayerService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error(`Error fetching team info for ${teamId}:`, error);
+      console.error(`Error fetching team info for match ${matchId}, team ${teamId}:`, error);
       throw error;
     }
   }
 
   static determineRole(playerData) {
-    // Fallback role determination based on stats if API role is not available
-    const {
-      battingStyle,
-      bowlingStyle,
-      keeper,
-      role: apiRole
-    } = playerData;
+    const { battingStyle, bowlingStyle, keeper, role: apiRole } = playerData;
 
-    // If API provides role, map it to our system
     if (apiRole) {
-      if (apiRole.includes('WK') || keeper) return 'wicketkeeper';
-      if (apiRole.includes('Batsman')) return 'batsman';
-      if (apiRole.includes('Bowler')) return 'bowler';
-      if (apiRole.includes('All-Rounder')) return 'allrounder';
+      if (apiRole.includes('WK') || keeper) return this.PLAYER_ROLES.WICKETKEEPER;
+      if (apiRole.includes('All-Rounder')) return this.PLAYER_ROLES.ALLROUNDER;
+      if (apiRole.includes('Bowler')) return this.PLAYER_ROLES.BOWLER;
+      if (apiRole.includes('Batsman')) return this.PLAYER_ROLES.BATSMAN;
     }
 
-    // Fallback logic based on batting/bowling styles
-    if (keeper) return 'wicketkeeper';
-    if (bowlingStyle && battingStyle) return 'allrounder';
-    if (bowlingStyle) return 'bowler';
-    return 'batsman'; // Default to batsman if nothing else matches
+    // Fallback logic
+    if (keeper) return this.PLAYER_ROLES.WICKETKEEPER;
+    if (bowlingStyle && battingStyle) return this.PLAYER_ROLES.ALLROUNDER;
+    if (bowlingStyle) return this.PLAYER_ROLES.BOWLER;
+    return this.PLAYER_ROLES.BATSMAN;
   }
 
-  static async initializePlayerRoles() {
+  static async updatePlayerInDatabase(playerData, teamId, matchId) {
     try {
-      // List of SA20 team IDs
-      const sa20Teams = [
-        /* Add your team IDs here */
-      ];
+      const playerRef = doc(db, 'players', playerData.id.toString());
+      const role = this.determineRole(playerData);
 
-      const playerRoles = new Map();
+      const playerInfo = {
+        playerId: playerData.id,
+        name: playerData.name,
+        teamId: teamId,
+        role: role,
+        battingStyle: playerData.battingStyle,
+        bowlingStyle: playerData.bowlingStyle,
+        keeper: playerData.keeper || false,
+        captain: playerData.captain || false,
+        lastMatchId: matchId,
+        lastUpdated: new Date().toISOString()
+      };
 
-      // Fetch and process each team's players
-      for (const teamId of sa20Teams) {
-        const teamInfo = await this.fetchTeamInfo(teamId);
-        
-        teamInfo.players['playing XI'].forEach(player => {
-          playerRoles.set(player.id.toString(), {
-            role: this.determineRole(player),
-            teamId: teamId,
-            name: player.name,
-            fullName: player.fullName,
-            battingStyle: player.battingStyle,
-            bowlingStyle: player.bowlingStyle,
-            keeper: player.keeper,
-            captain: player.captain
-          });
-        });
-      }
-
-      // Update Firebase with player roles
-      const batch = db.batch();
-      
-      playerRoles.forEach((playerData, playerId) => {
-        const playerRef = doc(db, 'players', playerId);
-        batch.set(playerRef, playerData, { merge: true });
-      });
-
-      await batch.commit();
+      await setDoc(playerRef, playerInfo, { merge: true });
       return true;
     } catch (error) {
-      console.error('Error initializing player roles:', error);
+      console.error(`Error updating player ${playerData.id}:`, error);
       throw error;
     }
   }
 
-  static async updatePlayerRolesForMatch(matchData) {
+  static async updateTeamPlayers(matchId, teamId) {
     try {
-      const playerUpdates = new Map();
+      const teamData = await this.fetchTeamPlayers(matchId, teamId);
+      const batch = writeBatch(db);
+      const updates = [];
 
-      // Process both teams' players
-      [matchData.team1, matchData.team2].forEach(team => {
-        team.players?.forEach(player => {
-          const playerId = player.id.toString();
-          if (!playerUpdates.has(playerId)) {
-            playerUpdates.set(playerId, {
-              name: player.name,
-              teamId: team.teamId,
-              lastUpdated: new Date().toISOString()
-            });
-          }
-        });
-      });
-
-      // Batch update players
-      const batch = db.batch();
-      
-      for (const [playerId, data] of playerUpdates) {
-        const playerRef = doc(db, 'players', playerId);
-        batch.update(playerRef, data);
+      // Process playing XI
+      if (teamData.players && teamData.players['playing XI']) {
+        for (const player of teamData.players['playing XI']) {
+          updates.push(this.updatePlayerInDatabase(player, teamId, matchId));
+        }
       }
 
-      await batch.commit();
+      await Promise.all(updates);
       return true;
     } catch (error) {
-      console.error('Error updating player roles:', error);
-      throw error;
-    }
-  }
-
-  static async getPlayersByRole(role) {
-    try {
-      const playersRef = collection(db, 'players');
-      const q = query(playersRef, where('role', '==', role));
-      const querySnapshot = await getDocs(q);
-      
-      const players = [];
-      querySnapshot.forEach((doc) => {
-        players.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      return players;
-    } catch (error) {
-      console.error('Error fetching players by role:', error);
+      console.error(`Error updating team ${teamId} players:`, error);
       throw error;
     }
   }
