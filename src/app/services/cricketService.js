@@ -9,10 +9,17 @@ import {
   limit,
   writeBatch,
 } from 'firebase/firestore';
+import { PlayerService } from './playerService';
 
 export class CricketService {
   static SA20_SERIES_ID = '8873';
   static SA20_SERIES_NAME = 'SA20, 2025';
+
+   // Add default match IDs for SA20 matches
+  static SA20_MATCH_IDS = [
+    // Add your match IDs here
+    '106596', '106588', '106580', '106569', '106572'  // Example match IDs
+  ];
 
   static validateAndCleanObject(obj) {
     if (!obj || typeof obj !== 'object') return null;
@@ -30,14 +37,14 @@ export class CricketService {
     return cleaned;
   }
 
-  static async fetchRecentMatches(matchIds) {
+ static async fetchRecentMatches(matchIds = this.SA20_MATCH_IDS) {
     if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
       throw new Error('RAPID_API_KEY is not configured');
     }
 
     try {
-      // Since we're now focusing on SA20, we'll use the provided match IDs
-      const matches = matchIds.map(matchId => ({
+      // Use provided matchIds or fall back to default SA20_MATCH_IDS
+      const matches = (matchIds || this.SA20_MATCH_IDS).map(matchId => ({
         matchId: matchId.toString(),
         seriesId: this.SA20_SERIES_ID,
         seriesName: this.SA20_SERIES_NAME
@@ -51,17 +58,17 @@ export class CricketService {
     }
   }
 
-  static async fetchScorecard(matchId) {
+
+static async fetchScorecard(matchId) {
     const options = {
       method: 'GET',
       headers: {
         'X-RapidAPI-Key': process.env.NEXT_PUBLIC_RAPID_API_KEY,
-        'X-RapidAPI-Host': 'cricbuzz-cricket.p.rapidapi.com',
-      },
+        'X-RapidAPI-Host': 'cricbuzz-cricket.p.rapidapi.com'
+      }
     };
 
     try {
-      console.log(`Fetching scorecard for SA20 match ${matchId}`);
       const response = await fetch(
         `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/hscard`,
         options
@@ -75,6 +82,29 @@ export class CricketService {
       return this.processScorecard(data);
     } catch (error) {
       console.error(`Error fetching scorecard for match ${matchId}:`, error);
+      throw error;
+    }
+  }
+
+  static async updateMatchAndPlayers(matchId) {
+    try {
+      // Fetch scorecard data
+      const scorecard = await this.fetchScorecard(matchId);
+      
+      // Update match data in Firebase
+      await this.updateMatchInFirebase(matchId, scorecard);
+
+      // Update player data for both teams
+      await PlayerService.updateTeamPlayers(matchId, scorecard.team1.teamId);
+      await PlayerService.updateTeamPlayers(matchId, scorecard.team2.teamId);
+
+      return {
+        success: true,
+        matchId,
+        teams: [scorecard.team1.teamId, scorecard.team2.teamId]
+      };
+    } catch (error) {
+      console.error(`Error updating match ${matchId}:`, error);
       throw error;
     }
   }
@@ -247,26 +277,22 @@ export class CricketService {
     }
   }
 
-  static async syncMatchData(matchIds) {
+  static async syncMatchData(matchIds = this.SA20_MATCH_IDS) {
     try {
-      console.log('Starting SA20 match data sync...');
-      const matches = await this.fetchRecentMatches(matchIds);
-      console.log(`Found ${matches.length} matches to sync`);
-
+      console.log('Starting match and player data sync...');
       const syncResults = [];
-      for (const match of matches) {
+
+      for (const matchId of matchIds) {
         try {
-          const scorecard = await this.fetchScorecard(match.matchId);
-          await this.updateMatchInFirebase(match, scorecard);
-          
+          const result = await this.updateMatchAndPlayers(matchId);
           syncResults.push({
-            matchId: match.matchId,
-            status: 'success'
+            matchId,
+            status: 'success',
+            ...result
           });
         } catch (error) {
-          console.error(`Failed to sync match ${match.matchId}:`, error);
           syncResults.push({
-            matchId: match.matchId,
+            matchId,
             status: 'failed',
             error: error.message
           });
