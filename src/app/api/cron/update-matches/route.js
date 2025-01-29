@@ -11,17 +11,24 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if match IDs are passed via query params
-    const url = new URL(request.url);
+    // Log incoming request URL to check for query parameters
+    console.log('Incoming request URL:', request.url);
+
+    // Parse URL and retrieve match IDs if provided
+    const url = new URL(request.url, `https://${request.headers.get('host')}`);
     const matchIdsParam = url.searchParams.get('matchIds');
     let matchIds;
 
     if (matchIdsParam) {
-      matchIds = matchIdsParam.split(','); // Convert "106596,106588" to ["106596", "106588"]
+      matchIds = matchIdsParam.split(',').map(id => id.trim()); // Convert "106596,106588" to ["106596", "106588"]
       console.log(`Received matchIds from query params: ${matchIds}`);
     } else {
       matchIds = ['106596', '106588', '106580', '106569', '106572']; // Default match IDs
       console.log(`Using default matchIds: ${matchIds}`);
+    }
+
+    if (!Array.isArray(matchIds) || matchIds.length === 0) {
+      throw new Error('matchIds array is empty or invalid.');
     }
 
     console.log('Calling CricketService.syncMatchData() with matchIds:', matchIds);
