@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../firebase';
+import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import styles from './player-performance.module.css';
+import styles from './page.module.css';
 
 const PlayerPerformancePage = () => {
   const [players, setPlayers] = useState([]);
