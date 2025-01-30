@@ -3,6 +3,8 @@ import { CricketService } from '@/app/services/cricketService';
 import { PlayerService } from '@/app/services/playerService';
 import { NextResponse } from 'next/server';
 
+await cricketService.updatePlayerStats(matchId, scorecard);
+
 export async function GET(request) {
   try {
     const isVercelCron = request.headers.get('x-vercel-cron') === '1';
