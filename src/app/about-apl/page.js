@@ -1,13 +1,14 @@
 "use client";
 
 import React from 'react';
-// ... other imports
 
 const AboutAPLPage = () => {
-  // your component code
   return (
-    // your JSX
+    <div>
+      <h1>About APL</h1>
+      <p>Welcome to the About page of APL.</p>
+    </div>
   );
 };
 
-export default AboutAPLPage;  // Make sure this export is present
+export default AboutAPLPage;
