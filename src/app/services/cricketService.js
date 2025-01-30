@@ -230,7 +230,7 @@ static async fetchRecentMatches() {
   static async updatePlayerStats(matchId, scorecard, dbInstance = db) {
     try {
       const processPlayerStats = async (playerData, teamData, isFirstInnings) => {
-        const playerRef = doc(dbInstance, 'players', playerData.playerId.toString());
+        const playerRef = doc(dbInstance, 'players', playerData.playerId);
         
         await runTransaction(dbInstance, async (transaction) => {
           const playerDoc = await transaction.get(playerRef);
