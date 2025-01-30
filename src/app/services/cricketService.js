@@ -28,7 +28,17 @@ export class CricketService {
     }
     return cleaned;
   }
+  
+  class CricketService {
+  constructor() {
+    this.db = db;
+  }
 
+  // Helper method to create a consistent ID from player name
+  createPlayerDocId(playerName) {
+    return playerName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  }
+  
 static async fetchRecentMatches() {
     if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
       throw new Error('RAPID_API_KEY is not configured');
@@ -227,25 +237,27 @@ static async fetchRecentMatches() {
     }
   }
 
-   static async updatePlayerStats(matchId, scorecard, dbInstance = db) {
+  async updatePlayerStats(matchId, scorecard, dbInstance = db) {
     try {
       console.log('Starting player stats update for match:', matchId);
       
-      const processPlayerStats = async (playerName, teamData, teamId) => {
+      const processPlayerStats = async (playerName, teamData) => {
         try {
-          // Create a sanitized player ID from the name
-          const playerId = playerName.toLowerCase().replace(/\s+/g, '-');
-          const playerRef = doc(dbInstance, 'players', playerId);
+          if (!playerName) {
+            console.error('Missing player name');
+            return;
+          }
+
+          const playerDocId = this.createPlayerDocId(playerName);
+          const playerRef = doc(dbInstance, 'players', playerDocId);
           
           await runTransaction(dbInstance, async (transaction) => {
             const playerDoc = await transaction.get(playerRef);
             const currentStats = playerDoc.exists() ? playerDoc.data() : {};
             
-            // Initialize or update basic stats
             const stats = {
-              playerId,
               name: playerName,
-              teamId,
+              teamId: teamData.teamId,
               matches: (currentStats.matches || 0) + 1,
               runs: currentStats.runs || 0,
               balls: currentStats.balls || 0,
@@ -332,18 +344,22 @@ static async fetchRecentMatches() {
         }
       };
 
-      // Process both teams
-      const team1Players = new Set(scorecard.team1.batsmen.map(b => b.name)
-        .concat(scorecard.team1.bowlers.map(b => b.name)));
-      const team2Players = new Set(scorecard.team2.batsmen.map(b => b.name)
-        .concat(scorecard.team2.bowlers.map(b => b.name)));
+      // Get unique players from both teams
+      const team1Players = new Set([
+        ...scorecard.team1.batsmen.map(b => b.name),
+        ...scorecard.team1.bowlers.map(b => b.name)
+      ]);
+      const team2Players = new Set([
+        ...scorecard.team2.batsmen.map(b => b.name),
+        ...scorecard.team2.bowlers.map(b => b.name)
+      ]);
 
       const updatePromises = [
         ...Array.from(team1Players).map(playerName => 
-          processPlayerStats(playerName, scorecard.team1, scorecard.team1.teamId)
+          processPlayerStats(playerName, scorecard.team1)
         ),
         ...Array.from(team2Players).map(playerName => 
-          processPlayerStats(playerName, scorecard.team2, scorecard.team2.teamId)
+          processPlayerStats(playerName, scorecard.team2)
         )
       ];
 
