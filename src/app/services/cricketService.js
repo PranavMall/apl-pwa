@@ -8,6 +8,7 @@ import {
   orderBy,
   limit,
 } from 'firebase/firestore';
+import { PlayerService } from './playerService';  // Add this import
 
 export class CricketService {
   static validateAndCleanObject(obj) {
@@ -238,9 +239,16 @@ static async fetchRecentMatches() {
           const scorecard = await this.fetchScorecard(match.matchId);
           await this.updateMatchInFirebase(match, scorecard);
           
-          // Add player update logic here
-          await PlayerService.updateTeamPlayers(match.matchId, match.matchInfo.team1.teamId);
-          await PlayerService.updateTeamPlayers(match.matchId, match.matchInfo.team2.teamId);
+          // Add try-catch block for player updates
+          try {
+            console.log(`Updating players for match ${match.matchId}`);
+            await PlayerService.updateTeamPlayers(match.matchId, match.matchInfo.team1.teamId);
+            await PlayerService.updateTeamPlayers(match.matchId, match.matchInfo.team2.teamId);
+            console.log(`Successfully updated players for match ${match.matchId}`);
+          } catch (playerError) {
+            console.error(`Error updating players for match ${match.matchId}:`, playerError);
+            // Continue with next match even if player update fails
+          }
           
           syncResults.push({
             matchId: match.matchId,
