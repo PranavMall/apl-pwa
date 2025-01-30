@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import styles from './page.module.css';
 
 const PlayerPerformancePage = () => {
@@ -31,7 +31,17 @@ const PlayerPerformancePage = () => {
       const playersData = [];
       
       querySnapshot.forEach((doc) => {
-        playersData.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        // Calculate additional statistics
+        const enhancedData = {
+          id: doc.id,
+          ...data,
+          battingAverage: data.runs && data.matches ? (data.runs / data.matches).toFixed(2) : 0,
+          strikeRate: data.runs && data.balls ? ((data.runs / data.balls) * 100).toFixed(2) : 0,
+          bowlingAverage: data.bowlingRuns && data.wickets ? (data.bowlingRuns / data.wickets).toFixed(2) : 0,
+          economy: data.bowlingRuns && data.bowlingBalls ? ((data.bowlingRuns / data.bowlingBalls) * 6).toFixed(2) : 0
+        };
+        playersData.push(enhancedData);
       });
       
       setPlayers(playersData);
@@ -50,9 +60,9 @@ const PlayerPerformancePage = () => {
     setSortConfig({ key, direction });
 
     const sortedPlayers = [...players].sort((a, b) => {
-      if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-      if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
-      return 0;
+      const valueA = parseFloat(a[key]) || 0;
+      const valueB = parseFloat(b[key]) || 0;
+      return direction === 'asc' ? valueA - valueB : valueB - valueA;
     });
 
     setPlayers(sortedPlayers);
@@ -66,8 +76,8 @@ const PlayerPerformancePage = () => {
             <td className={styles.tableCell}>{player.battingStyle || '-'}</td>
             <td className={styles.tableCell}>{player.matches || 0}</td>
             <td className={styles.tableCell}>{player.runs || 0}</td>
-            <td className={styles.tableCell}>{player.average || 0}</td>
-            <td className={styles.tableCell}>{player.strikeRate || 0}</td>
+            <td className={styles.tableCell}>{player.battingAverage}</td>
+            <td className={styles.tableCell}>{player.strikeRate}</td>
             <td className={styles.tableCell}>{player.fifties || 0}</td>
             <td className={styles.tableCell}>{player.hundreds || 0}</td>
           </>
@@ -79,8 +89,8 @@ const PlayerPerformancePage = () => {
             <td className={styles.tableCell}>{player.bowlingStyle || '-'}</td>
             <td className={styles.tableCell}>{player.matches || 0}</td>
             <td className={styles.tableCell}>{player.wickets || 0}</td>
-            <td className={styles.tableCell}>{player.economy || 0}</td>
-            <td className={styles.tableCell}>{player.average || 0}</td>
+            <td className={styles.tableCell}>{player.economy}</td>
+            <td className={styles.tableCell}>{player.bowlingAverage}</td>
             <td className={styles.tableCell}>{player.fiveWickets || 0}</td>
           </>
         );
@@ -91,8 +101,8 @@ const PlayerPerformancePage = () => {
             <td className={styles.tableCell}>{player.matches || 0}</td>
             <td className={styles.tableCell}>{player.runs || 0}</td>
             <td className={styles.tableCell}>{player.wickets || 0}</td>
-            <td className={styles.tableCell}>{player.battingAverage || 0}</td>
-            <td className={styles.tableCell}>{player.bowlingAverage || 0}</td>
+            <td className={styles.tableCell}>{player.battingAverage}</td>
+            <td className={styles.tableCell}>{player.bowlingAverage}</td>
           </>
         );
       
@@ -120,7 +130,7 @@ const PlayerPerformancePage = () => {
           { key: 'battingStyle', label: 'Batting Style' },
           { key: 'matches', label: 'Matches' },
           { key: 'runs', label: 'Runs' },
-          { key: 'average', label: 'Average' },
+          { key: 'battingAverage', label: 'Average' },
           { key: 'strikeRate', label: 'Strike Rate' },
           { key: 'fifties', label: '50s' },
           { key: 'hundreds', label: '100s' }
@@ -133,7 +143,7 @@ const PlayerPerformancePage = () => {
           { key: 'matches', label: 'Matches' },
           { key: 'wickets', label: 'Wickets' },
           { key: 'economy', label: 'Economy' },
-          { key: 'average', label: 'Average' },
+          { key: 'bowlingAverage', label: 'Average' },
           { key: 'fiveWickets', label: '5 Wickets' }
         ];
       
