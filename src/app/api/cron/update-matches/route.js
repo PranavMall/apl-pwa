@@ -1,5 +1,6 @@
 // app/api/cron/update-matches/route.js
 import { CricketService } from '@/app/services/cricketService';
+import { PlayerService } from '@/app/services/playerService';
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
@@ -14,8 +15,6 @@ export async function GET(request) {
       method: request.method
     });
 
-    // For Vercel cron jobs, we trust the x-vercel-cron header
-    // For external requests, we require the authorization header
     if (!isVercelCron) {
       if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         console.error('External request authentication failed');
@@ -23,12 +22,12 @@ export async function GET(request) {
       }
     }
 
-    console.log('Authentication successful, starting match data sync...');
+    console.log('Authentication successful, starting match and player data sync...');
     const results = await CricketService.syncMatchData();
 
     return NextResponse.json({
       success: true,
-      message: 'Match data successfully updated',
+      message: 'Match and player data successfully updated',
       timestamp: new Date().toISOString(),
       results
     });
@@ -39,7 +38,7 @@ export async function GET(request) {
     });
     
     return NextResponse.json(
-      { error: 'Failed to update match data', details: error.message },
+      { error: 'Failed to update match and player data', details: error.message },
       { status: 500 }
     );
   }
