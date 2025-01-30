@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
+// import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
+// import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
 import styles from './page.module.css';
 
 const PlayerPerformancePage = () => {
