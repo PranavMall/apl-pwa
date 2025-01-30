@@ -28,7 +28,7 @@ export class CricketService {
     return cleaned;
   }
 
-  static async fetchRecentMatches() {
+static async fetchRecentMatches() {
     if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
       throw new Error('RAPID_API_KEY is not configured');
     }
@@ -52,20 +52,30 @@ export class CricketService {
       }
 
       const data = await response.json();
-      const bigBashMatches = [];
+      const sa20Matches = [];
+      
+      // Add debug logging
+      console.log('API Response:', JSON.stringify(data, null, 2));
       
       data.typeMatches?.forEach(typeMatch => {
         typeMatch.seriesMatches?.forEach(seriesMatch => {
           const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
           const matches = seriesData.matches || [];
           
-          if (seriesData.seriesId === '8873' || 
-              seriesData.seriesName?.toLowerCase().includes('SA20, 2025') || 
-              seriesData.seriesName?.toLowerCase().includes('SA20')) {
-            console.log(`Found BBL series: ${seriesData.seriesName}`);
+          // Debug logging for each series
+          console.log('Processing series:', {
+            id: seriesData.seriesId,
+            name: seriesData.seriesName
+          });
+          
+          // Updated condition to match SA20 series
+          if (seriesData.seriesName?.toLowerCase().includes('sa20') || 
+              seriesData.seriesName?.toLowerCase().includes('sa20, 2025')) {
+            console.log(`Found SA20 series: ${seriesData.seriesName}`);
             
             matches.forEach(match => {
               if (match.matchInfo) {
+                console.log(`Processing match: ${match.matchInfo.matchId}`);
                 const matchData = {
                   matchId: match.matchInfo.matchId.toString(),
                   matchInfo: {
@@ -82,14 +92,15 @@ export class CricketService {
                   seriesId: seriesData.seriesId,
                   seriesName: seriesData.seriesName
                 };
-                bigBashMatches.push(this.validateAndCleanObject(matchData));
+                sa20Matches.push(this.validateAndCleanObject(matchData));
               }
             });
           }
         });
       });
 
-      return bigBashMatches;
+      console.log(`Total SA20 matches found: ${sa20Matches.length}`);
+      return sa20Matches;
     } catch (error) {
       console.error('Error fetching matches:', error);
       throw error;
@@ -227,6 +238,10 @@ export class CricketService {
           const scorecard = await this.fetchScorecard(match.matchId);
           await this.updateMatchInFirebase(match, scorecard);
           
+          // Add player update logic here
+          await PlayerService.updateTeamPlayers(match.matchId, match.matchInfo.team1.teamId);
+          await PlayerService.updateTeamPlayers(match.matchId, match.matchInfo.team2.teamId);
+          
           syncResults.push({
             matchId: match.matchId,
             status: 'success'
@@ -240,7 +255,6 @@ export class CricketService {
           });
         }
       }
-
       return {
         success: true,
         matchesSynced: syncResults
