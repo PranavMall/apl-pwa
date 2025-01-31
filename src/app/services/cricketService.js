@@ -237,6 +237,7 @@ static async fetchRecentMatches() {
     }
   }
 
+    // Update this method to be an async method with proper error handling
   async updatePlayerStats(matchId, scorecard, dbInstance = db) {
     try {
       console.log('Starting player stats update for match:', matchId);
@@ -371,7 +372,6 @@ static async fetchRecentMatches() {
       throw error;
     }
   }
-}
 
 static async syncMatchData() {
     try {
@@ -380,13 +380,15 @@ static async syncMatchData() {
       console.log(`Found ${matches.length} matches to sync`);
 
       const syncResults = [];
+      const cricketServiceInstance = new CricketService();
+
       for (const match of matches) {
         try {
           const scorecard = await this.fetchScorecard(match.matchId);
           await this.updateMatchInFirebase(match, scorecard);
           
-          // Add player stats update
-          await this.updatePlayerStats(match.matchId, scorecard);
+          // Use the instance method for updating player stats
+          await cricketServiceInstance.updatePlayerStats(match.matchId, scorecard);
           
           syncResults.push({
             matchId: match.matchId,
