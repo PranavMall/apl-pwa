@@ -1,9 +1,7 @@
 // app/api/cron/update-matches/route.js
+// app/api/cron/update-matches/route.js
 import { cricketService } from '@/app/services/cricketService';
-import { PlayerService } from '@/app/services/playerService';
 import { NextResponse } from 'next/server';
-
-await cricketService.updatePlayerStatsFromMatch(matchId, scorecard);
 
 export async function GET(request) {
   try {
