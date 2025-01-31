@@ -311,15 +311,17 @@ export class CricketService {
 
       // Process players from both teams
       const processTeamPlayers = async (teamData) => {
-        const players = [
-          ...teamData.batsmen.map(b => b.name),
-          ...teamData.bowlers.map(b => b.name)
-        ];
-
-        for (const playerName of players) {
-          await updatePlayerStats(playerName, teamData);
-        }
-      };
+      for (const playerName of [...teamData.batsmen.map(b => b.name), ...teamData.bowlers.map(b => b.name)]) {
+        await PlayerService.updatePlayerInDatabase({
+          id: playerName,
+          name: playerName,
+          battingStyle: teamData.batsmen.find(b => b.name === playerName)?.battingStyle,
+          bowlingStyle: teamData.bowlers.find(b => b.name === playerName)?.bowlingStyle,
+          keeper: teamData.batsmen.find(b => b.name === playerName)?.keeper || false,
+          captain: teamData.batsmen.find(b => b.name === playerName)?.captain || false
+        }, teamData.teamId, matchId);
+      }
+    };
 
       // Process both team's players
       await processTeamPlayers(scorecard.team1);
