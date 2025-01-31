@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { PlayerService } from './playerService';
 
-export class CricketService {
+export class cricketService {
   // Static utility method for object validation
   static validateAndCleanObject(obj) {
     if (!obj || typeof obj !== 'object') return null;
