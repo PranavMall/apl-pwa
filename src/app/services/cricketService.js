@@ -7,7 +7,8 @@ import {
   query,
   orderBy,
   limit,
-  runTransaction
+  runTransaction,
+  getDoc
 } from 'firebase/firestore';
 import { PlayerService } from './playerService';
 
@@ -273,71 +274,140 @@ static async syncMatchData() {
   }
 
   // Static method to update player stats from match
-  static async updatePlayerStatsFromMatch(matchId, scorecard) {
+async updatePlayerStats(matchId, scorecard, dbInstance = db) {
   try {
     console.log('Starting player stats update for match:', matchId);
-
-    const updatePlayerStats = async (playerName, teamData) => {
+    
+    const processPlayerStats = async (playerName, teamData) => {
       try {
-        // Create a unique player document ID
-        const playerDocId = playerName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        const playerRef = doc(db, 'players', playerDocId);
+        if (!playerName) {
+          console.error('Missing player name');
+          return;
+        }
 
-        await runTransaction(db, async (transaction) => {
+        // First, try to find the player in the players collection by name
+        const playersRef = collection(dbInstance, 'players');
+        const q = query(playersRef, where('name', '==', playerName));
+        const playerSnapshot = await getDocs(q);
+        
+        let playerDocId;
+        let existingPlayerData;
+        
+        if (!playerSnapshot.empty) {
+          // Use existing player document
+          playerDocId = playerSnapshot.docs[0].id;
+          existingPlayerData = playerSnapshot.docs[0].data();
+        } else {
+          // Create new player document using PlayerService
+          const playerInfo = {
+            name: playerName,
+            teamId: teamData.teamId,
+            // Set default role based on performance in match
+            role: determinePlayerRole(teamData, playerName)
+          };
+          playerDocId = PlayerService.createPlayerDocId(playerName);
+          await PlayerService.updatePlayerInDatabase(playerInfo, teamData.teamId, matchId);
+          existingPlayerData = playerInfo;
+        }
+
+        const playerRef = doc(dbInstance, 'players', playerDocId);
+        
+        await runTransaction(dbInstance, async (transaction) => {
           const playerDoc = await transaction.get(playerRef);
           const currentStats = playerDoc.exists() ? playerDoc.data() : {};
-
-          // Determine player role
-          const role = await PlayerService.determineRole({
-            name: playerName,
-            // Add fallback checks
-            battingStyle: teamData.batsmen?.find(b => b.name === playerName)?.battingStyle || '',
-            bowlingStyle: teamData.bowlers?.find(b => b.name === playerName)?.bowlingStyle || ''
-          });
-
+          
           const stats = {
             name: playerName,
             teamId: teamData.teamId,
-            role: role,
             matches: (currentStats.matches || 0) + 1,
+            runs: currentStats.runs || 0,
+            balls: currentStats.balls || 0,
+            fours: currentStats.fours || 0,
+            sixes: currentStats.sixes || 0,
+            fifties: currentStats.fifties || 0,
+            hundreds: currentStats.hundreds || 0,
+            wickets: currentStats.wickets || 0,
+            economy: currentStats.economy || 0,
+            bowlingBalls: currentStats.bowlingBalls || 0,
+            bowlingRuns: currentStats.bowlingRuns || 0,
+            fiveWickets: currentStats.fiveWickets || 0,
+            catches: currentStats.catches || 0,
+            stumpings: currentStats.stumpings || 0,
+            dismissals: (currentStats.catches || 0) + (currentStats.stumpings || 0),
             lastMatchId: matchId,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            // Preserve existing player data
+            battingStyle: existingPlayerData.battingStyle || currentStats.battingStyle,
+            bowlingStyle: existingPlayerData.bowlingStyle || currentStats.bowlingStyle,
+            role: existingPlayerData.role || currentStats.role,
+            playerId: existingPlayerData.playerId || currentStats.playerId
           };
 
-          // Batting stats
-          const battingData = teamData.batsmen?.find(b => b.name === playerName);
+          // Update batting stats
+          const battingData = teamData.batsmen.find(b => b.name === playerName);
           if (battingData) {
-            stats.runs = (currentStats.runs || 0) + parseInt(battingData.runs || 0);
-            stats.balls = (currentStats.balls || 0) + parseInt(battingData.balls || 0);
-            stats.fours = (currentStats.fours || 0) + parseInt(battingData.fours || 0);
-            stats.sixes = (currentStats.sixes || 0) + parseInt(battingData.sixes || 0);
+            console.log(`Processing batting stats for ${playerName}:`, battingData);
+            
+            const newRuns = parseInt(battingData.runs || 0);
+            stats.runs += newRuns;
+            stats.balls += parseInt(battingData.balls || 0);
+            stats.fours += parseInt(battingData.fours || 0);
+            stats.sixes += parseInt(battingData.sixes || 0);
 
-            // Milestone tracking
-            stats.fifties = (currentStats.fifties || 0) + (battingData.runs >= 50 && battingData.runs < 100 ? 1 : 0);
-            stats.hundreds = (currentStats.hundreds || 0) + (battingData.runs >= 100 ? 1 : 0);
+            if (newRuns >= 50 && newRuns < 100) {
+              stats.fifties += 1;
+            } else if (newRuns >= 100) {
+              stats.hundreds += 1;
+            }
+
+            stats.battingAverage = stats.matches > 0 ? 
+              (stats.runs / stats.matches).toFixed(2) : "0.00";
+            stats.strikeRate = stats.balls > 0 ? 
+              ((stats.runs / stats.balls) * 100).toFixed(2) : "0.00";
           }
 
-          // Bowling stats
-          const bowlingData = teamData.bowlers?.find(b => b.name === playerName);
+          // Update bowling stats
+          const bowlingData = teamData.bowlers.find(b => b.name === playerName);
           if (bowlingData) {
+            console.log(`Processing bowling stats for ${playerName}:`, bowlingData);
+            
             const wickets = parseInt(bowlingData.wickets || 0);
             const overs = parseFloat(bowlingData.overs || 0);
             const bowlingRuns = parseInt(bowlingData.runs || 0);
+            
+            stats.wickets += wickets;
+            stats.bowlingBalls += Math.floor(overs) * 6 + (overs % 1) * 10;
+            stats.bowlingRuns += bowlingRuns;
 
-            stats.wickets = (currentStats.wickets || 0) + wickets;
-            stats.bowlingBalls = (currentStats.bowlingBalls || 0) + Math.floor(overs) * 6 + (overs % 1) * 10;
-            stats.bowlingRuns = (currentStats.bowlingRuns || 0) + bowlingRuns;
-            stats.fiveWickets = (currentStats.fiveWickets || 0) + (wickets >= 5 ? 1 : 0);
+            if (wickets >= 5) {
+              stats.fiveWickets += 1;
+            }
+
+            stats.bowlingAverage = stats.wickets > 0 ? 
+              (stats.bowlingRuns / stats.wickets).toFixed(2) : "0.00";
+            stats.economy = stats.bowlingBalls > 0 ? 
+              ((stats.bowlingRuns / stats.bowlingBalls) * 6).toFixed(2) : "0.00";
           }
 
-          // Calculate additional derived stats
-          if (stats.matches > 0) {
-            stats.battingAverage = stats.runs ? (stats.runs / stats.matches).toFixed(2) : '0.00';
-            stats.strikeRate = stats.balls ? ((stats.runs / stats.balls) * 100).toFixed(2) : '0.00';
-            stats.bowlingAverage = stats.wickets ? (stats.bowlingRuns / stats.wickets).toFixed(2) : '0.00';
-            stats.economy = stats.bowlingBalls ? ((stats.bowlingRuns / stats.bowlingBalls) * 6).toFixed(2) : '0.00';
+          // Update fielding stats from dismissals
+          teamData.batsmen.forEach(b => {
+            if (b.dismissal) {
+              if (b.dismissal.includes(`c ${playerName}`)) {
+                stats.catches += 1;
+                stats.dismissals += 1;
+              } else if (b.dismissal.includes(`st ${playerName}`)) {
+                stats.stumpings += 1;
+                stats.dismissals += 1;
+              }
+            }
+          });
+
+          // Update player role if needed based on performance
+          if (!stats.role) {
+            stats.role = determinePlayerRole(stats);
           }
 
+          console.log(`Saving stats for ${playerName}:`, stats);
           await transaction.set(playerRef, stats, { merge: true });
         });
       } catch (error) {
@@ -346,37 +416,35 @@ static async syncMatchData() {
       }
     };
 
-    // Process players from both teams
-    const processTeamPlayers = async (teamData) => {
-      if (!teamData.batsmen || !teamData.bowlers) {
-        console.error('Invalid team data:', teamData);
-        return;
-      }
-
-      const allPlayers = [
-        ...teamData.batsmen.map(b => b.name).filter(Boolean), 
-        ...teamData.bowlers.map(b => b.name).filter(Boolean)
-      ];
-
-      for (const playerName of new Set(allPlayers)) {
-        await PlayerService.updatePlayerInDatabase({
-          id: playerName,
-          name: playerName,
-          battingStyle: teamData.batsmen?.find(b => b.name === playerName)?.battingStyle,
-          bowlingStyle: teamData.bowlers?.find(b => b.name === playerName)?.bowlingStyle,
-          keeper: false,
-          captain: false
-        }, teamData.teamId, matchId);
-
-        await updatePlayerStats(playerName, teamData);
-      }
+    // Helper function to determine player role based on performance
+    const determinePlayerRole = (stats) => {
+      if (stats.stumpings > 0) return PlayerService.PLAYER_ROLES.WICKETKEEPER;
+      if (stats.wickets > 0 && stats.runs > 0) return PlayerService.PLAYER_ROLES.ALLROUNDER;
+      if (stats.wickets > 0) return PlayerService.PLAYER_ROLES.BOWLER;
+      return PlayerService.PLAYER_ROLES.BATSMAN;
     };
 
-    // Process both team's players
-    await processTeamPlayers(scorecard.team1);
-    await processTeamPlayers(scorecard.team2);
+    // Get unique players from both teams
+    const team1Players = new Set([
+      ...scorecard.team1.batsmen.map(b => b.name),
+      ...scorecard.team1.bowlers.map(b => b.name)
+    ]);
+    const team2Players = new Set([
+      ...scorecard.team2.batsmen.map(b => b.name),
+      ...scorecard.team2.bowlers.map(b => b.name)
+    ]);
 
-    console.log('Successfully updated player stats for match', matchId);
+    const updatePromises = [
+      ...Array.from(team1Players).map(playerName => 
+        processPlayerStats(playerName, scorecard.team1)
+      ),
+      ...Array.from(team2Players).map(playerName => 
+        processPlayerStats(playerName, scorecard.team2)
+      )
+    ];
+
+    await Promise.all(updatePromises);
+    console.log('Successfully updated all player stats');
     return true;
   } catch (error) {
     console.error('Error updating player stats:', error);
