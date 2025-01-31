@@ -1,5 +1,5 @@
 // app/api/cron/update-matches/route.js
-import { CricketService } from '@/app/services/cricketService';
+import { cricketService } from '@/app/services/cricketService';
 import { PlayerService } from '@/app/services/playerService';
 import { NextResponse } from 'next/server';
 
