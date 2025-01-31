@@ -25,7 +25,7 @@ export async function GET(request) {
     }
 
     console.log('Authentication successful, starting match and player data sync...');
-    const results = await CricketService.syncMatchData();
+    const results = await cricketService.syncMatchData();
 
     return NextResponse.json({
       success: true,
