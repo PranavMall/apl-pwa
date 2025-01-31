@@ -1,6 +1,6 @@
 import { db } from '../../firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
-import { CricketService } from './cricketService';
+import { cricketService } from './cricketService';
 
 export class PlayerService {
   static PLAYER_ROLES = {
