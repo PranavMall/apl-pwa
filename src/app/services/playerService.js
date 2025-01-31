@@ -1,5 +1,6 @@
 import { db } from '../../firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { CricketService } from './cricketService';
 
 export class PlayerService {
   static PLAYER_ROLES = {
@@ -53,31 +54,31 @@ export class PlayerService {
     return this.PLAYER_ROLES.BATSMAN;
   }
 
-  static async updatePlayerInDatabase(playerData, teamId, matchId) {
-    try {
-      const playerRef = doc(db, 'players', playerData.id.toString());
-      const role = this.determineRole(playerData);
+static async updatePlayerInDatabase(playerData, teamId, matchId) {
+  try {
+    const playerRef = doc(db, 'players', playerData.id.toString());
+    const role = this.determineRole(playerData);
 
-      const playerInfo = {
-        playerId: playerData.id,
-        name: playerData.name,
-        teamId: teamId,
-        role: role,
-        battingStyle: playerData.battingStyle,
-        bowlingStyle: playerData.bowlingStyle,
-        keeper: playerData.keeper || false,
-        captain: playerData.captain || false,
-        lastMatchId: matchId,
-        lastUpdated: new Date().toISOString()
-      };
+    const playerInfo = {
+      playerId: playerData.id,
+      name: playerData.name,
+      teamId: teamId,
+      role: role,
+      battingStyle: playerData.battingStyle,
+      bowlingStyle: playerData.bowlingStyle,
+      keeper: playerData.keeper || false,
+      captain: playerData.captain || false,
+      lastMatchId: matchId,
+      lastUpdated: new Date().toISOString()
+    };
 
-      await setDoc(playerRef, playerInfo, { merge: true });
-      return true;
-    } catch (error) {
-      console.error(`Error updating player ${playerData.id}:`, error);
-      throw error;
-    }
+    await setDoc(playerRef, playerInfo, { merge: true });
+    return true;
+  } catch (error) {
+    console.error(`Error updating player ${playerData.id}:`, error);
+    throw error;
   }
+}
 
   static async updateTeamPlayers(matchId, teamId) {
     try {
