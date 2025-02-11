@@ -5,22 +5,24 @@ import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
+import { PlayerService } from '../services/playerService';
 import styles from './page.module.css';
 
 const PlayerPerformancePage = () => {
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeRole, setActiveRole] = useState('batsman');
+  const [activeRole, setActiveRole] = useState(PlayerService.PLAYER_ROLES.BATSMAN);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   useEffect(() => {
-    fetchData();
+    fetchPlayers();
   }, [activeRole]);
 
-  const fetchData = async () => {
+const fetchPlayers = async () => {
     try {
       setLoading(true);
+      console.log('Fetching players for role:', activeRole);
       
       // Fetch matches first
       const matchesRef = collection(db, 'matches');
@@ -31,7 +33,7 @@ const PlayerPerformancePage = () => {
       });
       setMatches(matchesData);
 
-      // Fetch players
+      // Fetch players with role
       const playersRef = collection(db, 'players');
       const roleQuery = query(
         playersRef,
@@ -54,9 +56,10 @@ const PlayerPerformancePage = () => {
         playersData.push(enhancedData);
       });
       
+      console.log('Found players:', playersData.length);
       setPlayers(playersData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching players:', error);
     } finally {
       setLoading(false);
     }
@@ -80,40 +83,61 @@ const PlayerPerformancePage = () => {
     };
 
     matches.forEach(match => {
-      const { scorecard } = match;
-      if (!scorecard?.team1 || !scorecard?.team2) return;
+      if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
 
-      // Process batting stats
-      [scorecard.team1, scorecard.team2].forEach(team => {
-        const battingData = team.batsmen?.find(b => b.name === playerName);
-        if (battingData) {
-          stats.matches++;
-          stats.runs += parseInt(battingData.runs) || 0;
-          stats.balls += parseInt(battingData.balls) || 0;
-          stats.fours += parseInt(battingData.fours) || 0;
-          stats.sixes += parseInt(battingData.sixes) || 0;
-          
-          const runs = parseInt(battingData.runs) || 0;
-          if (runs >= 50 && runs < 100) stats.fifties++;
-          if (runs >= 100) stats.hundreds++;
+      // Process both teams
+      [match.scorecard.team1, match.scorecard.team2].forEach(team => {
+        // Handle batting stats
+        const batsmen = team.batsmen || [];
+        if (Array.isArray(batsmen)) {
+          const battingData = batsmen.find(b => b?.name === playerName);
+          if (battingData) {
+            stats.matches++;
+            stats.runs += parseInt(battingData.runs) || 0;
+            stats.balls += parseInt(battingData.balls) || 0;
+            stats.fours += parseInt(battingData.fours) || 0;
+            stats.sixes += parseInt(battingData.sixes) || 0;
+            
+            const runs = parseInt(battingData.runs) || 0;
+            if (runs >= 50 && runs < 100) stats.fifties++;
+            if (runs >= 100) stats.hundreds++;
+          }
         }
 
-        // Process bowling stats
-        const bowlingData = team.bowlers?.find(b => b.name === playerName);
-        if (bowlingData) {
-          if (!stats.matches) stats.matches++;
-          stats.wickets += parseInt(bowlingData.wickets) || 0;
-          stats.bowlingRuns += parseInt(bowlingData.runs) || 0;
-          const overs = parseFloat(bowlingData.overs) || 0;
-          stats.overs += overs;
+        // Handle bowling stats
+        const bowlers = team.bowlers || [];
+        if (Array.isArray(bowlers)) {
+          const bowlingData = bowlers.find(b => b?.name === playerName);
+          if (bowlingData) {
+            if (!stats.matches) stats.matches++;
+            stats.wickets += parseInt(bowlingData.wickets) || 0;
+            stats.bowlingRuns += parseInt(bowlingData.runs) || 0;
+            const overs = parseFloat(bowlingData.overs) || 0;
+            stats.overs += overs;
+          }
+        }
+
+        // Handle fielding stats
+        if (Array.isArray(batsmen)) {
+          batsmen.forEach(batsman => {
+            if (batsman?.dismissal) {
+              if (batsman.dismissal.includes(`c ${playerName}`)) {
+                stats.catches++;
+              } else if (batsman.dismissal.includes(`st ${playerName}`)) {
+                stats.stumpings++;
+              }
+            }
+          });
         }
       });
     });
 
-    // Calculate averages and rates
-    stats.battingAverage = stats.runs && stats.matches ? (stats.runs / stats.matches).toFixed(2) : '0.00';
-    stats.strikeRate = stats.runs && stats.balls ? ((stats.runs / stats.balls) * 100).toFixed(2) : '0.00';
-    stats.economyRate = stats.bowlingRuns && stats.overs ? (stats.bowlingRuns / (stats.overs * 6)).toFixed(2) : '0.00';
+    // Calculate derived statistics
+    stats.dismissals = stats.catches + stats.stumpings;
+    stats.battingAverage = stats.matches > 0 ? (stats.runs / stats.matches).toFixed(2) : '0.00';
+    stats.strikeRate = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(2) : '0.00';
+    stats.economyRate = stats.overs > 0 ? (stats.bowlingRuns / (stats.overs * 6)).toFixed(2) : '0.00';
+    stats.bowlingAverage = stats.wickets > 0 ? (stats.bowlingRuns / stats.wickets).toFixed(2) : '0.00';
 
     return stats;
   };
@@ -126,6 +150,11 @@ const PlayerPerformancePage = () => {
     setSortConfig({ key, direction });
 
     const sortedPlayers = [...players].sort((a, b) => {
+      if (key === 'name') {
+        return direction === 'asc' 
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      }
       const valueA = parseFloat(a[key]) || 0;
       const valueB = parseFloat(b[key]) || 0;
       return direction === 'asc' ? valueA - valueB : valueB - valueA;
@@ -136,7 +165,7 @@ const PlayerPerformancePage = () => {
 
   const renderPlayerStats = (player) => {
     switch (activeRole) {
-      case 'batsman':
+      case PlayerService.PLAYER_ROLES.BATSMAN:
         return (
           <>
             <td className={styles.tableCell}>{player.battingStyle || '-'}</td>
@@ -149,7 +178,7 @@ const PlayerPerformancePage = () => {
           </>
         );
       
-      case 'bowler':
+      case PlayerService.PLAYER_ROLES.BOWLER:
         return (
           <>
             <td className={styles.tableCell}>{player.bowlingStyle || '-'}</td>
@@ -161,7 +190,7 @@ const PlayerPerformancePage = () => {
           </>
         );
       
-      case 'allrounder':
+      case PlayerService.PLAYER_ROLES.ALLROUNDER:
         return (
           <>
             <td className={styles.tableCell}>{player.matches || 0}</td>
@@ -172,7 +201,7 @@ const PlayerPerformancePage = () => {
           </>
         );
       
-      case 'wicketkeeper':
+      case PlayerService.PLAYER_ROLES.WICKETKEEPER:
         return (
           <>
             <td className={styles.tableCell}>{player.matches || 0}</td>
@@ -187,7 +216,7 @@ const PlayerPerformancePage = () => {
 
   const getTableHeaders = () => {
     switch (activeRole) {
-      case 'batsman':
+      case PlayerService.PLAYER_ROLES.BATSMAN:
         return [
           { key: 'name', label: 'Name' },
           { key: 'battingStyle', label: 'Batting Style' },
@@ -199,7 +228,7 @@ const PlayerPerformancePage = () => {
           { key: 'hundreds', label: '100s' }
         ];
       
-      case 'bowler':
+      case PlayerService.PLAYER_ROLES.BOWLER:
         return [
           { key: 'name', label: 'Name' },
           { key: 'bowlingStyle', label: 'Bowling Style' },
@@ -210,7 +239,7 @@ const PlayerPerformancePage = () => {
           { key: 'fiveWickets', label: '5 Wickets' }
         ];
       
-      case 'allrounder':
+      case PlayerService.PLAYER_ROLES.ALLROUNDER:
         return [
           { key: 'name', label: 'Name' },
           { key: 'matches', label: 'Matches' },
@@ -220,7 +249,7 @@ const PlayerPerformancePage = () => {
           { key: 'bowlingAverage', label: 'Bowling Avg' }
         ];
       
-      case 'wicketkeeper':
+      case PlayerService.PLAYER_ROLES.WICKETKEEPER:
         return [
           { key: 'name', label: 'Name' },
           { key: 'matches', label: 'Matches' },
@@ -232,10 +261,6 @@ const PlayerPerformancePage = () => {
     }
   };
 
-  if (loading) {
-    return <div className={styles.loading}>Loading players...</div>;
-  }
-
   return (
     <div className={styles.container}>
       <Card className="w-full">
@@ -243,15 +268,31 @@ const PlayerPerformancePage = () => {
           <CardTitle>Player Performance Statistics</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeRole} onValueChange={setActiveRole}>
+          <Tabs 
+            value={activeRole} 
+            onValueChange={(value) => setActiveRole(value)}
+          >
             <TabsList>
-              <TabsTrigger value="batsman">Batsmen</TabsTrigger>
-              <TabsTrigger value="bowler">Bowlers</TabsTrigger>
-              <TabsTrigger value="allrounder">All-rounders</TabsTrigger>
-              <TabsTrigger value="wicketkeeper">Wicket-keepers</TabsTrigger>
+              <TabsTrigger value={PlayerService.PLAYER_ROLES.BATSMAN}>
+                Batsmen
+              </TabsTrigger>
+              <TabsTrigger value={PlayerService.PLAYER_ROLES.BOWLER}>
+                Bowlers
+              </TabsTrigger>
+              <TabsTrigger value={PlayerService.PLAYER_ROLES.ALLROUNDER}>
+                All-rounders
+              </TabsTrigger>
+              <TabsTrigger value={PlayerService.PLAYER_ROLES.WICKETKEEPER}>
+                Wicket-keepers
+              </TabsTrigger>
             </TabsList>
 
-            {['batsman', 'bowler', 'allrounder', 'wicketkeeper'].map((role) => (
+            {[
+              PlayerService.PLAYER_ROLES.BATSMAN,
+              PlayerService.PLAYER_ROLES.BOWLER,
+              PlayerService.PLAYER_ROLES.ALLROUNDER,
+              PlayerService.PLAYER_ROLES.WICKETKEEPER
+            ].map((role) => (
               <TabsContent key={role} value={role}>
                 <div className={styles.tableWrapper}>
                   <table className={styles.table}>
