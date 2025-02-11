@@ -69,8 +69,9 @@ const fetchPlayers = async () => {
         if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
 
         [match.scorecard.team1, match.scorecard.team2].forEach(team => {
-          // Check batting stats
-          team.batsmen?.forEach(batsman => {
+          // Check batting stats - handle batsmen data as an object
+          const batsmenData = team.batsmen || {};
+          Object.values(batsmenData).forEach(batsman => {
             if (batsman.name === playerData.name) {
               playerStats.matches++;
               playerStats.runs += parseInt(batsman.runs) || 0;
@@ -84,8 +85,9 @@ const fetchPlayers = async () => {
             }
           });
 
-          // Check bowling stats
-          team.bowlers?.forEach(bowler => {
+          // Check bowling stats - handle bowlers data as an object
+          const bowlersData = team.bowlers || {};
+          Object.values(bowlersData).forEach(bowler => {
             if (bowler.name === playerData.name) {
               if (!playerStats.matches) playerStats.matches++;
               playerStats.wickets += parseInt(bowler.wickets) || 0;
@@ -100,7 +102,7 @@ const fetchPlayers = async () => {
           });
 
           // Check dismissals (for catches and stumpings)
-          team.batsmen?.forEach(batsman => {
+          Object.values(batsmenData).forEach(batsman => {
             if (batsman.dismissal) {
               if (batsman.dismissal.includes(`c ${playerData.name}`)) {
                 playerStats.catches++;
