@@ -163,7 +163,7 @@ export class cricketService {
 
     try {
       const response = await fetch(
-        `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/scard`,
+        `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/hscard`,
         options
       );
 
@@ -179,7 +179,7 @@ export class cricketService {
         matchStatus: data.matchHeader?.status || '',
         result: data.matchHeader?.result || '',
         toss: data.matchHeader?.tossResults || '',
-        playerOfMatch: data.matchHeader?.playerOfTheMatch?.[0]?.name || '',
+        playerOfMatch: data.matchHeader?.playerOfMatch?.[0]?.name || '',
         team1: {
           teamId: data.scoreCard?.[0]?.teamId,
           teamName: data.scoreCard?.[0]?.batTeamName || '',
