@@ -238,45 +238,48 @@ export class cricketService {
     }));
   }
 
-  static async syncMatchData() {
-    try {
-      console.log('Starting match data sync...');
-      const matches = await this.fetchRecentMatches();
-      console.log(`Found ${matches.length} matches to sync`);
+static async syncMatchData() {
+  try {
+    console.log('Starting match data sync...');
+    const matches = await this.fetchRecentMatches();
+    console.log(`Found ${matches.length} matches to sync`);
 
-      const syncResults = [];
-      for (const match of matches) {
-        try {
-          console.log(`Processing match ${match.matchId}`);
-          const scorecard = await this.fetchScorecard(match.matchId);
-          await this.updateMatchInFirebase(match, scorecard);
-          await this.updatePlayerStats(match.matchId, scorecard);
-          
-          syncResults.push({
-            matchId: match.matchId,
-            status: 'success'
-          });
-          
-          console.log(`Successfully synced match ${match.matchId}`);
-        } catch (error) {
-          console.error(`Failed to sync match ${match.matchId}:`, error);
-          syncResults.push({
-            matchId: match.matchId,
-            status: 'failed',
-            error: error.message
-          });
-        }
+    const syncResults = [];
+    for (const match of matches) {
+      try {
+        console.log(`Processing match ${match.matchId}`);
+        const scorecard = await this.fetchScorecard(match.matchId);
+        await this.updateMatchInFirebase(match, scorecard);
+        // Use the new PlayerService method
+        await PlayerService.updatePlayerStats(match.matchId, scorecard);
+        
+        syncResults.push({
+          matchId: match.matchId,
+          status: 'success'
+        });
+        
+        console.log(`Successfully synced match ${match.matchId}`);
+      } catch (error) {
+        console.error(`Failed to sync match ${match.matchId}:`, error);
+        syncResults.push({
+          matchId: match.matchId,
+          status: 'failed',
+          error: error.message
+        });
       }
-      
-      return {
-        success: true,
-        matchesSynced: syncResults
-      };
-    } catch (error) {
-      console.error('Error in syncMatchData:', error);
-      throw error;
     }
+    
+    return {
+      success: true,
+      matchesSynced: syncResults
+    };
+  } catch (error) {
+    console.error('Error in syncMatchData:', error);
+    throw error;
   }
+}
+  
+  
   static async getMatchesFromFirebase() {
     try {
       const matchesRef = collection(db, 'matches');
