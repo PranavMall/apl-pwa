@@ -187,6 +187,31 @@ export class cricketService {
       throw error;
     }
   }
+  static async getMatchesFromFirebase() {
+    try {
+      const matchesRef = collection(db, 'matches');
+      const q = query(
+        matchesRef,
+        orderBy('matchInfo.startDate', 'desc'),
+        limit(10)  // Limit to last 10 matches, adjust as needed
+      );
+
+      const querySnapshot = await getDocs(q);
+      const matches = [];
+
+      querySnapshot.forEach((doc) => {
+        matches.push({
+          matchId: doc.id,
+          ...doc.data()
+        });
+      });
+
+      return matches;
+    } catch (error) {
+      console.error('Error fetching matches from Firebase:', error);
+      throw error;
+    }
+  }
 
   static async updatePlayerStats(matchId, scorecard, dbInstance = db) {
     try {
