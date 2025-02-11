@@ -38,19 +38,28 @@ export default function LoginPage() {
   };
 
   // Handle Email/Password Sign-Up
-  const handleSignUp = async (e) => {
+const handleSignUp = async (e) => {
     e.preventDefault();
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Save user details to Firestore
+      // Create user document
       const userDoc = doc(db, "users", result.user.uid);
       await setDoc(userDoc, {
         name,
         email: result.user.email,
         photoURL: null,
         createdAt: new Date(),
+        // Fantasy cricket specific fields
+        registrationDate: new Date(),
+        referralCount: 0,
+        totalPoints: 0,
+        rank: 0
       });
+
+      // Initialize user's tournament stats if there's an active tournament
+      // You might want to check for active tournaments first
+      await FantasyService.initializeUserTournamentStats(result.user.uid, "bbl-2024");
 
       console.log("Sign-Up successful!");
       router.push("/dashboard");
@@ -60,29 +69,35 @@ export default function LoginPage() {
     }
   };
 
-  // Handle Google Sign-In
+  // Modified Google Sign-In handler
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
-
-    // Add scopes and custom parameters
     provider.addScope("profile");
     provider.addScope("email");
     provider.setCustomParameters({
-      prompt: "select_account", // Force account selection each time
+      prompt: "select_account"
     });
 
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Save user details to Firestore
+      // Create/update user document
       const userDoc = doc(db, "users", user.uid);
       await setDoc(userDoc, {
         name: user.displayName,
         email: user.email,
         photoURL: user.photoURL,
         createdAt: new Date(),
-      });
+        // Fantasy cricket specific fields
+        registrationDate: new Date(),
+        referralCount: 0,
+        totalPoints: 0,
+        rank: 0
+      }, { merge: true });
+
+      // Initialize user's tournament stats if there's an active tournament
+      await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
 
       console.log("Google Sign-In successful!");
       router.push("/dashboard");
