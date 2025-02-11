@@ -183,20 +183,20 @@ export class cricketService {
         team1: {
           teamId: data.scoreCard?.[0]?.teamId,
           teamName: data.scoreCard?.[0]?.batTeamName || '',
-          score: formatScore(data.scoreCard?.[0]),
+          score: this.formatScore(data.scoreCard?.[0]),
           overs: data.scoreCard?.[0]?.overs || '0',
           runRate: data.scoreCard?.[0]?.runRate || '0',
-          batsmen: processBatsmen(data.scoreCard?.[0]?.batsman || []),
-          bowlers: processBowlers(data.scoreCard?.[1]?.bowler || [])
+          batsmen: this.processBatsmen(data.scoreCard?.[0]?.batsman || []),
+          bowlers: this.processBowlers(data.scoreCard?.[1]?.bowler || [])
         },
         team2: {
           teamId: data.scoreCard?.[1]?.teamId,
           teamName: data.scoreCard?.[1]?.batTeamName || '',
-          score: formatScore(data.scoreCard?.[1]),
+          score: this.formatScore(data.scoreCard?.[1]),
           overs: data.scoreCard?.[1]?.overs || '0',
           runRate: data.scoreCard?.[1]?.runRate || '0',
-          batsmen: processBatsmen(data.scoreCard?.[1]?.batsman || []),
-          bowlers: processBowlers(data.scoreCard?.[0]?.bowler || [])
+          batsmen: this.processBatsmen(data.scoreCard?.[1]?.batsman || []),
+          bowlers: this.processBowlers(data.scoreCard?.[0]?.bowler || [])
         }
       };
 
@@ -207,14 +207,14 @@ export class cricketService {
     }
   }
 
-  static formatScore(inningsData) {
+   static formatScore(inningsData) {
     if (!inningsData) return '';
     const wickets = inningsData.wickets || 0;
     const runs = inningsData.runs || 0;
     return `${runs}/${wickets}`;
   }
 
-  static processBatsmen(batsmenData) {
+   static processBatsmen(batsmenData) {
     return (batsmenData || []).map(batsman => ({
       name: batsman.name,
       runs: batsman.runs || '0',
