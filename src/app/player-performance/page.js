@@ -64,13 +64,16 @@ const PlayerPerformancePage = () => {
 
         // Process each match for this player
         matches.forEach(match => {
-          const { scorecard } = match;
-          if (!scorecard?.team1 || !scorecard?.team2) return;
+          if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
 
-          [scorecard.team1, scorecard.team2].forEach(team => {
+          [match.scorecard.team1, match.scorecard.team2].forEach(team => {
             // Process batting stats
-            if (team.batsmen) {
-              const battingData = team.batsmen.find(b => b?.name === playerData.name);
+            const batsmen = team.batTeamDetails?.batsmenData;
+            if (batsmen && typeof batsmen === 'object') {
+              // Convert object values to array and find player
+              const battingData = Object.values(batsmen)
+                .find(b => b?.batName === playerData.name);
+              
               if (battingData) {
                 playerStats.matches++;
                 playerStats.runs += parseInt(battingData.runs) || 0;
@@ -85,8 +88,12 @@ const PlayerPerformancePage = () => {
             }
 
             // Process bowling stats
-            if (team.bowlers) {
-              const bowlingData = team.bowlers.find(b => b?.name === playerData.name);
+            const bowlers = team.bowlTeamDetails?.bowlersData;
+            if (bowlers && typeof bowlers === 'object') {
+              // Convert object values to array and find player
+              const bowlingData = Object.values(bowlers)
+                .find(b => b?.bowlName === playerData.name);
+              
               if (bowlingData) {
                 if (!playerStats.matches) playerStats.matches++;
                 playerStats.wickets += parseInt(bowlingData.wickets) || 0;
@@ -97,13 +104,14 @@ const PlayerPerformancePage = () => {
             }
 
             // Process dismissals for wicketkeepers and fielders
-            if (team.batsmen) {
-              team.batsmen.forEach(batsman => {
-                if (batsman?.dismissal) {
-                  if (batsman.dismissal.includes(`c ${playerData.name}`)) {
+            const dismissals = team.batTeamDetails?.batsmenData;
+            if (dismissals && typeof dismissals === 'object') {
+              Object.values(dismissals).forEach(batsman => {
+                if (batsman?.outDesc) {
+                  if (batsman.outDesc.includes(`c ${playerData.name}`)) {
                     playerStats.catches++;
                     playerStats.dismissals++;
-                  } else if (batsman.dismissal.includes(`st ${playerData.name}`)) {
+                  } else if (batsman.outDesc.includes(`st ${playerData.name}`)) {
                     playerStats.stumpings++;
                     playerStats.dismissals++;
                   }
@@ -130,7 +138,6 @@ const PlayerPerformancePage = () => {
         });
       }
       
-      console.log('Found players:', playersData.length);
       setPlayers(playersData);
     } catch (error) {
       console.error('Error fetching players:', error);
