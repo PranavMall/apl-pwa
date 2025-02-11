@@ -148,6 +148,96 @@ export class cricketService {
     }
   }
 
+  static async fetchScorecard(matchId) {
+    if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
+      throw new Error('RAPID_API_KEY is not configured');
+    }
+
+    const options = {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.NEXT_PUBLIC_RAPID_API_KEY,
+        'X-RapidAPI-Host': 'cricbuzz-cricket.p.rapidapi.com'
+      }
+    };
+
+    try {
+      const response = await fetch(
+        `https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/${matchId}/scard`,
+        options
+      );
+
+      if (!response.ok) {
+        throw new Error(`Scorecard API responded with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Process and format scorecard data
+      const scorecard = {
+        matchId: matchId,
+        matchStatus: data.matchHeader?.status || '',
+        result: data.matchHeader?.result || '',
+        toss: data.matchHeader?.tossResults || '',
+        playerOfMatch: data.matchHeader?.playerOfTheMatch?.[0]?.name || '',
+        team1: {
+          teamId: data.scoreCard?.[0]?.teamId,
+          teamName: data.scoreCard?.[0]?.batTeamName || '',
+          score: formatScore(data.scoreCard?.[0]),
+          overs: data.scoreCard?.[0]?.overs || '0',
+          runRate: data.scoreCard?.[0]?.runRate || '0',
+          batsmen: processBatsmen(data.scoreCard?.[0]?.batsman || []),
+          bowlers: processBowlers(data.scoreCard?.[1]?.bowler || [])
+        },
+        team2: {
+          teamId: data.scoreCard?.[1]?.teamId,
+          teamName: data.scoreCard?.[1]?.batTeamName || '',
+          score: formatScore(data.scoreCard?.[1]),
+          overs: data.scoreCard?.[1]?.overs || '0',
+          runRate: data.scoreCard?.[1]?.runRate || '0',
+          batsmen: processBatsmen(data.scoreCard?.[1]?.batsman || []),
+          bowlers: processBowlers(data.scoreCard?.[0]?.bowler || [])
+        }
+      };
+
+      return this.validateAndCleanObject(scorecard);
+    } catch (error) {
+      console.error(`Error fetching scorecard for match ${matchId}:`, error);
+      throw error;
+    }
+  }
+
+  static formatScore(inningsData) {
+    if (!inningsData) return '';
+    const wickets = inningsData.wickets || 0;
+    const runs = inningsData.runs || 0;
+    return `${runs}/${wickets}`;
+  }
+
+  static processBatsmen(batsmenData) {
+    return (batsmenData || []).map(batsman => ({
+      name: batsman.name,
+      runs: batsman.runs || '0',
+      balls: batsman.balls || '0',
+      fours: batsman.fours || '0',
+      sixes: batsman.sixes || '0',
+      strikeRate: batsman.strikeRate || '0',
+      dismissal: batsman.dismissalText || ''
+    }));
+  }
+
+  static processBowlers(bowlersData) {
+    return (bowlersData || []).map(bowler => ({
+      name: bowler.name,
+      overs: bowler.overs || '0',
+      maidens: bowler.maidens || '0',
+      runs: bowler.runs || '0',
+      wickets: bowler.wickets || '0',
+      economy: bowler.economy || '0',
+      extras: bowler.extras || '0'
+    }));
+  }
+
   static async syncMatchData() {
     try {
       console.log('Starting match data sync...');
