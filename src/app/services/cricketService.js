@@ -173,31 +173,17 @@ export class cricketService {
 
       const data = await response.json();
       
-      // Process and format scorecard data
+      // Process and format scorecard data based on new API structure
       const scorecard = {
         matchId: matchId,
         matchStatus: data.matchHeader?.status || '',
         result: data.matchHeader?.result || '',
-        toss: data.matchHeader?.tossResults || '',
-        playerOfMatch: data.matchHeader?.playerOfMatch?.[0]?.name || '',
-        team1: {
-          teamId: data.scoreCard?.[0]?.teamId,
-          teamName: data.scoreCard?.[0]?.batTeamName || '',
-          score: this.formatScore(data.scoreCard?.[0]),
-          overs: data.scoreCard?.[0]?.overs || '0',
-          runRate: data.scoreCard?.[0]?.runRate || '0',
-          batsmen: this.processBatsmen(data.scoreCard?.[0]?.batsman || []),
-          bowlers: this.processBowlers(data.scoreCard?.[1]?.bowler || [])
-        },
-        team2: {
-          teamId: data.scoreCard?.[1]?.teamId,
-          teamName: data.scoreCard?.[1]?.batTeamName || '',
-          score: this.formatScore(data.scoreCard?.[1]),
-          overs: data.scoreCard?.[1]?.overs || '0',
-          runRate: data.scoreCard?.[1]?.runRate || '0',
-          batsmen: this.processBatsmen(data.scoreCard?.[1]?.batsman || []),
-          bowlers: this.processBowlers(data.scoreCard?.[0]?.bowler || [])
-        }
+        toss: data.matchHeader?.tossResults?.decision 
+          ? `${data.matchHeader.tossResults.tossWinnerName} chose to ${data.matchHeader.tossResults.decision}`
+          : '',
+        playerOfMatch: data.matchHeader?.playersOfTheMatch?.[0]?.name || '',
+        team1: this.processTeamInnings(data.scoreCard?.[0], data.matchHeader?.team1),
+        team2: this.processTeamInnings(data.scoreCard?.[1], data.matchHeader?.team2)
       };
 
       return this.validateAndCleanObject(scorecard);
@@ -207,36 +193,56 @@ export class cricketService {
     }
   }
 
-   static formatScore(inningsData) {
-    if (!inningsData) return '';
-    const wickets = inningsData.wickets || 0;
-    const runs = inningsData.runs || 0;
+  static processTeamInnings(inningsData, teamInfo) {
+    if (!inningsData) return {};
+
+    return {
+      teamId: teamInfo?.id || inningsData?.batTeamDetails?.batTeamId,
+      teamName: teamInfo?.name || inningsData?.batTeamDetails?.batTeamName || '',
+      score: this.formatScore(inningsData?.scoreDetails),
+      overs: inningsData?.scoreDetails?.overs?.toString() || '0',
+      runRate: inningsData?.scoreDetails?.runRate?.toString() || '0',
+      batsmen: this.processBatsmenNew(inningsData?.batTeamDetails?.batsmenData),
+      bowlers: this.processBowlersNew(inningsData?.bowlTeamDetails?.bowlersData)
+    };
+  }
+
+  static processBatsmenNew(batsmenData) {
+    if (!batsmenData) return [];
+    
+    return Object.values(batsmenData).map(batsman => ({
+      name: batsman.batName,
+      runs: batsman.runs?.toString() || '0',
+      balls: batsman.balls?.toString() || '0',
+      fours: batsman.fours?.toString() || '0',
+      sixes: batsman.sixes?.toString() || '0',
+      strikeRate: batsman.strikeRate?.toString() || '0',
+      dismissal: batsman.outDesc || ''
+    }));
+  }
+
+  static processBowlersNew(bowlersData) {
+    if (!bowlersData) return [];
+    
+    return Object.values(bowlersData).map(bowler => ({
+      name: bowler.bowlName,
+      overs: bowler.overs?.toString() || '0',
+      maidens: bowler.maidens?.toString() || '0',
+      runs: bowler.runs?.toString() || '0',
+      wickets: bowler.wickets?.toString() || '0',
+      economy: bowler.economy?.toString() || '0',
+      extras: (bowler.no_balls + bowler.wides)?.toString() || '0'
+    }));
+  }
+
+  static formatScore(scoreDetails) {
+    if (!scoreDetails) return '';
+    const wickets = scoreDetails.wickets || 0;
+    const runs = scoreDetails.runs || 0;
     return `${runs}/${wickets}`;
   }
 
-   static processBatsmen(batsmenData) {
-    return (batsmenData || []).map(batsman => ({
-      name: batsman.name,
-      runs: batsman.runs || '0',
-      balls: batsman.balls || '0',
-      fours: batsman.fours || '0',
-      sixes: batsman.sixes || '0',
-      strikeRate: batsman.strikeRate || '0',
-      dismissal: batsman.dismissalText || ''
-    }));
-  }
-
-  static processBowlers(bowlersData) {
-    return (bowlersData || []).map(bowler => ({
-      name: bowler.name,
-      overs: bowler.overs || '0',
-      maidens: bowler.maidens || '0',
-      runs: bowler.runs || '0',
-      wickets: bowler.wickets || '0',
-      economy: bowler.economy || '0',
-      extras: bowler.extras || '0'
-    }));
-  }
+  
 
 static async syncMatchData() {
   try {
