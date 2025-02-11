@@ -20,131 +20,127 @@ const PlayerPerformancePage = () => {
     fetchPlayers();
   }, [activeRole]);
 
-  const fetchPlayers = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching players for role:', activeRole);
+const fetchPlayers = async () => {
+  try {
+    setLoading(true);
+    console.log('Fetching players for role:', activeRole);
 
-      // First get matches using cricketService
-      const matches = await cricketService.getMatchesFromFirebase();
-      console.log('Fetched matches:', matches.length);
+    // First get all matches
+    const matches = await cricketService.getMatchesFromFirebase();
+    console.log('Fetched matches:', matches.length);
 
-      // Fetch players with role
-      const playersRef = collection(db, 'players');
-      const roleQuery = query(
-        playersRef,
-        where('role', '==', activeRole),
-        orderBy('name', 'asc')
-      );
+    // Fetch players with role
+    const playersRef = collection(db, 'players');
+    const roleQuery = query(
+      playersRef,
+      where('role', '==', activeRole),
+      orderBy('name', 'asc')
+    );
+    
+    const querySnapshot = await getDocs(roleQuery);
+    const playersData = [];
+
+    // Process each player
+    for (const doc of querySnapshot.docs) {
+      const playerData = doc.data();
       
-      const querySnapshot = await getDocs(roleQuery);
-      const playersData = [];
-      
-      // Process each player
-      for (const doc of querySnapshot.docs) {
-        const playerData = doc.data();
-        
-        // Calculate stats for each match
-        let playerStats = {
-          matches: 0,
-          runs: 0,
-          balls: 0,
-          fours: 0,
-          sixes: 0,
-          fifties: 0,
-          hundreds: 0,
-          wickets: 0,
-          overs: 0,
-          economyRate: 0,
-          bowlingRuns: 0,
-          catches: 0,
-          stumpings: 0,
-          dismissals: 0
-        };
+      // Initialize stats
+      let playerStats = {
+        name: playerData.name,
+        matches: 0,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        fifties: 0,
+        hundreds: 0,
+        wickets: 0,
+        bowlingRuns: 0,
+        bowlingBalls: 0,
+        catches: 0,
+        stumpings: 0,
+        dismissals: 0,
+        battingStyle: playerData.battingStyle,
+        bowlingStyle: playerData.bowlingStyle
+      };
 
-        // Process each match for this player
-        matches.forEach(match => {
-          if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
+      // Go through each match
+      matches.forEach(match => {
+        if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
 
-          [match.scorecard.team1, match.scorecard.team2].forEach(team => {
-            // Process batting stats
-            const batsmen = team.batTeamDetails?.batsmenData;
-            if (batsmen && typeof batsmen === 'object') {
-              // Convert object values to array and find player
-              const battingData = Object.values(batsmen)
-                .find(b => b?.batName === playerData.name);
-              
-              if (battingData) {
-                playerStats.matches++;
-                playerStats.runs += parseInt(battingData.runs) || 0;
-                playerStats.balls += parseInt(battingData.balls) || 0;
-                playerStats.fours += parseInt(battingData.fours) || 0;
-                playerStats.sixes += parseInt(battingData.sixes) || 0;
+        [match.scorecard.team1, match.scorecard.team2].forEach(team => {
+          // Check batting stats
+          team.batsmen?.forEach(batsman => {
+            if (batsman.name === playerData.name) {
+              playerStats.matches++;
+              playerStats.runs += parseInt(batsman.runs) || 0;
+              playerStats.balls += parseInt(batsman.balls) || 0;
+              playerStats.fours += parseInt(batsman.fours) || 0;
+              playerStats.sixes += parseInt(batsman.sixes) || 0;
 
-                const runs = parseInt(battingData.runs) || 0;
-                if (runs >= 50 && runs < 100) playerStats.fifties++;
-                if (runs >= 100) playerStats.hundreds++;
-              }
+              const runs = parseInt(batsman.runs) || 0;
+              if (runs >= 50 && runs < 100) playerStats.fifties++;
+              if (runs >= 100) playerStats.hundreds++;
             }
+          });
 
-            // Process bowling stats
-            const bowlers = team.bowlTeamDetails?.bowlersData;
-            if (bowlers && typeof bowlers === 'object') {
-              // Convert object values to array and find player
-              const bowlingData = Object.values(bowlers)
-                .find(b => b?.bowlName === playerData.name);
+          // Check bowling stats
+          team.bowlers?.forEach(bowler => {
+            if (bowler.name === playerData.name) {
+              if (!playerStats.matches) playerStats.matches++;
+              playerStats.wickets += parseInt(bowler.wickets) || 0;
+              playerStats.bowlingRuns += parseInt(bowler.runs) || 0;
               
-              if (bowlingData) {
-                if (!playerStats.matches) playerStats.matches++;
-                playerStats.wickets += parseInt(bowlingData.wickets) || 0;
-                playerStats.bowlingRuns += parseInt(bowlingData.runs) || 0;
-                const overs = parseFloat(bowlingData.overs) || 0;
-                playerStats.overs += overs;
-              }
+              // Convert overs to balls
+              const overs = parseFloat(bowler.overs) || 0;
+              const fullOvers = Math.floor(overs);
+              const partOver = (overs % 1) * 10;
+              playerStats.bowlingBalls += (fullOvers * 6) + partOver;
             }
+          });
 
-            // Process dismissals for wicketkeepers and fielders
-            const dismissals = team.batTeamDetails?.batsmenData;
-            if (dismissals && typeof dismissals === 'object') {
-              Object.values(dismissals).forEach(batsman => {
-                if (batsman?.outDesc) {
-                  if (batsman.outDesc.includes(`c ${playerData.name}`)) {
-                    playerStats.catches++;
-                    playerStats.dismissals++;
-                  } else if (batsman.outDesc.includes(`st ${playerData.name}`)) {
-                    playerStats.stumpings++;
-                    playerStats.dismissals++;
-                  }
-                }
-              });
+          // Check dismissals (for catches and stumpings)
+          team.batsmen?.forEach(batsman => {
+            if (batsman.dismissal) {
+              if (batsman.dismissal.includes(`c ${playerData.name}`)) {
+                playerStats.catches++;
+                playerStats.dismissals++;
+              } else if (batsman.dismissal.includes(`st ${playerData.name}`)) {
+                playerStats.stumpings++;
+                playerStats.dismissals++;
+              }
             }
           });
         });
+      });
 
-        // Calculate averages and rates
-        playerStats.battingAverage = playerStats.matches > 0 ? 
-          (playerStats.runs / playerStats.matches).toFixed(2) : '0.00';
-        playerStats.strikeRate = playerStats.balls > 0 ? 
-          ((playerStats.runs / playerStats.balls) * 100).toFixed(2) : '0.00';
-        playerStats.economyRate = playerStats.overs > 0 ? 
-          (playerStats.bowlingRuns / (playerStats.overs * 6)).toFixed(2) : '0.00';
-        playerStats.bowlingAverage = playerStats.wickets > 0 ? 
-          (playerStats.bowlingRuns / playerStats.wickets).toFixed(2) : '0.00';
-
-        playersData.push({
-          id: doc.id,
-          ...playerData,
-          ...playerStats
-        });
-      }
+      // Calculate averages and rates
+      playerStats.battingAverage = playerStats.matches > 0 ? 
+        (playerStats.runs / playerStats.matches).toFixed(2) : '0.00';
       
-      setPlayers(playersData);
-    } catch (error) {
-      console.error('Error fetching players:', error);
-    } finally {
-      setLoading(false);
+      playerStats.strikeRate = playerStats.balls > 0 ? 
+        ((playerStats.runs / playerStats.balls) * 100).toFixed(2) : '0.00';
+      
+      playerStats.economyRate = playerStats.bowlingBalls > 0 ? 
+        ((playerStats.bowlingRuns / playerStats.bowlingBalls) * 6).toFixed(2) : '0.00';
+      
+      playerStats.bowlingAverage = playerStats.wickets > 0 ? 
+        (playerStats.bowlingRuns / playerStats.wickets).toFixed(2) : '0.00';
+
+      playersData.push({
+        id: doc.id,
+        ...playerData,
+        ...playerStats
+      });
     }
-  };
+    
+    setPlayers(playersData);
+  } catch (error) {
+    console.error('Error fetching players:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
 
   const calculatePlayerStats = (playerName, matches) => {
