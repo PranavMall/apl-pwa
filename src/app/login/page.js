@@ -11,6 +11,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { auth, db } from "../../firebase"; // Adjust path to your firebase.js and Firestore initialization
 import styles from "./page.module.css";
+import { FantasyService } from "../services/fantasyService";
 
 export default function LoginPage() {
   const router = useRouter();
