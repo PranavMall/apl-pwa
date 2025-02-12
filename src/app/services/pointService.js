@@ -66,6 +66,122 @@ export class PointService {
     return points;
   }
 
+// These methods should be added to your pointService.js file
+static async getUserTeam(userId, matchId) {
+  try {
+    // Get match info to get tournament ID
+    const matchDoc = await getDoc(doc(db, 'matches', matchId));
+    if (!matchDoc.exists()) {
+      throw new Error('Match not found');
+    }
+    const match = matchDoc.data();
+    const tournamentId = match.seriesId;
+
+    // Get user's team for this tournament
+    const userTeamDoc = await getDoc(doc(db, 'userTeams', `${userId}_${tournamentId}`));
+    if (!userTeamDoc.exists()) {
+      throw new Error('User team not found');
+    }
+    
+    return userTeamDoc.data();
+  } catch (error) {
+    console.error('Error getting user team:', error);
+    throw error;
+  }
+}
+
+static findPlayerBattingData(scorecard, playerId) {
+  try {
+    // Check both innings
+    for (const inning of scorecard) {
+      const batTeamDetails = inning.batTeamDetails;
+      if (!batTeamDetails?.batsmenData) continue;
+
+      // Look through all batsmen
+      for (const batsman of Object.values(batTeamDetails.batsmenData)) {
+        if (batsman.batId.toString() === playerId.toString()) {
+          return {
+            runs: batsman.runs,
+            balls: batsman.balls,
+            fours: batsman.boundaries, // API uses 'boundaries' for fours
+            sixes: batsman.sixers,
+            outDesc: batsman.outDesc
+          };
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error finding batting data:', error);
+    return null;
+  }
+}
+
+static findPlayerBowlingData(scorecard, playerId) {
+  try {
+    // Check both innings
+    for (const inning of scorecard) {
+      const bowlTeamDetails = inning.bowlTeamDetails;
+      if (!bowlTeamDetails?.bowlersData) continue;
+
+      // Look through all bowlers
+      for (const bowler of Object.values(bowlTeamDetails.bowlersData)) {
+        if (bowler.bowlerId.toString() === playerId.toString()) {
+          return {
+            wickets: bowler.wickets,
+            maidens: bowler.maidens,
+            runs: bowler.runs,
+            overs: bowler.overs
+          };
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error finding bowling data:', error);
+    return null;
+  }
+}
+
+static findPlayerFieldingData(scorecard, playerId) {
+  try {
+    let fieldingData = {
+      catches: 0,
+      stumpings: 0,
+      directThrows: 0
+    };
+
+    // Go through both innings
+    for (const inning of scorecard) {
+      const batTeamDetails = inning.batTeamDetails;
+      if (!batTeamDetails?.batsmenData) continue;
+
+      // Check dismissals for catches and stumpings
+      for (const batsman of Object.values(batTeamDetails.batsmenData)) {
+        if (batsman.outDesc) {
+          // Check for catches
+          if (batsman.outDesc.includes('c') && 
+              batsman.fielderId1.toString() === playerId.toString()) {
+            fieldingData.catches++;
+          }
+          // Check for stumpings
+          if (batsman.outDesc.includes('st') && 
+              batsman.fielderId1.toString() === playerId.toString()) {
+            fieldingData.stumpings++;
+          }
+          // For direct throws, we would need additional data from API
+          // Currently API doesn't distinguish direct throws
+        }
+      }
+    }
+
+    return fieldingData;
+  } catch (error) {
+    console.error('Error finding fielding data:', error);
+    return null;
+  }
+}
+  
   // Calculate bowling points
   static calculateBowlingPoints(bowlingData) {
     let points = 0;
