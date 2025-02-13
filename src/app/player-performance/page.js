@@ -44,7 +44,20 @@ const fetchPlayers = async () => {
     for (const doc of querySnapshot.docs) {
       const playerData = doc.data();
       
-      // Initialize stats
+      // Get player's fantasy points from last 5 matches
+      const pointsQuery = query(
+        collection(db, 'playerPoints'),
+        where('playerId', '==', doc.id),
+        orderBy('timestamp', 'desc'),
+        limit(5)
+      );
+      
+      const pointsSnapshot = await getDocs(pointsQuery);
+      const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
+        return sum + (pointDoc.data().points || 0);
+      }, 0);
+
+      // Initialize stats with fantasy points
       let playerStats = {
         name: playerData.name,
         matches: 0,
@@ -61,15 +74,16 @@ const fetchPlayers = async () => {
         stumpings: 0,
         dismissals: 0,
         battingStyle: playerData.battingStyle,
-        bowlingStyle: playerData.bowlingStyle
+        bowlingStyle: playerData.bowlingStyle,
+        fantasyPoints: totalFantasyPoints
       };
 
-      // Go through each match
+      // Process matches for player statistics
       matches.forEach(match => {
         if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
 
         [match.scorecard.team1, match.scorecard.team2].forEach(team => {
-          // Check batting stats - handle batsmen data as an object
+          // Check batting stats
           const batsmenData = team.batsmen || {};
           Object.values(batsmenData).forEach(batsman => {
             if (batsman.name === playerData.name) {
@@ -85,7 +99,7 @@ const fetchPlayers = async () => {
             }
           });
 
-          // Check bowling stats - handle bowlers data as an object
+          // Check bowling stats
           const bowlersData = team.bowlers || {};
           Object.values(bowlersData).forEach(bowler => {
             if (bowler.name === playerData.name) {
@@ -93,7 +107,6 @@ const fetchPlayers = async () => {
               playerStats.wickets += parseInt(bowler.wickets) || 0;
               playerStats.bowlingRuns += parseInt(bowler.runs) || 0;
               
-              // Convert overs to balls
               const overs = parseFloat(bowler.overs) || 0;
               const fullOvers = Math.floor(overs);
               const partOver = (overs % 1) * 10;
@@ -101,7 +114,7 @@ const fetchPlayers = async () => {
             }
           });
 
-          // Check dismissals (for catches and stumpings)
+          // Check fielding stats
           Object.values(batsmenData).forEach(batsman => {
             if (batsman.dismissal) {
               if (batsman.dismissal.includes(`c ${playerData.name}`)) {
@@ -243,7 +256,8 @@ const fetchPlayers = async () => {
     setPlayers(sortedPlayers);
   };
 
-  const renderPlayerStats = (player) => {
+const renderPlayerStats = (player) => {
+  const renderRoleSpecificStats = () => {
     switch (activeRole) {
       case PlayerService.PLAYER_ROLES.BATSMAN:
         return (
@@ -294,52 +308,59 @@ const fetchPlayers = async () => {
     }
   };
 
-  const getTableHeaders = () => {
-    switch (activeRole) {
-      case PlayerService.PLAYER_ROLES.BATSMAN:
-        return [
-          { key: 'name', label: 'Name' },
-          { key: 'battingStyle', label: 'Batting Style' },
-          { key: 'matches', label: 'Matches' },
-          { key: 'runs', label: 'Runs' },
-          { key: 'battingAverage', label: 'Average' },
-          { key: 'strikeRate', label: 'Strike Rate' },
-          { key: 'fifties', label: '50s' },
-          { key: 'hundreds', label: '100s' }
-        ];
-      
-      case PlayerService.PLAYER_ROLES.BOWLER:
-        return [
-          { key: 'name', label: 'Name' },
-          { key: 'bowlingStyle', label: 'Bowling Style' },
-          { key: 'matches', label: 'Matches' },
-          { key: 'wickets', label: 'Wickets' },
-          { key: 'economyRate', label: 'Economy' },
-          { key: 'bowlingAverage', label: 'Average' },
-          { key: 'fiveWickets', label: '5 Wickets' }
-        ];
-      
-      case PlayerService.PLAYER_ROLES.ALLROUNDER:
-        return [
-          { key: 'name', label: 'Name' },
-          { key: 'matches', label: 'Matches' },
-          { key: 'runs', label: 'Runs' },
-          { key: 'wickets', label: 'Wickets' },
-          { key: 'battingAverage', label: 'Batting Avg' },
-          { key: 'bowlingAverage', label: 'Bowling Avg' }
-        ];
-      
-      case PlayerService.PLAYER_ROLES.WICKETKEEPER:
-        return [
-          { key: 'name', label: 'Name' },
-          { key: 'matches', label: 'Matches' },
-          { key: 'runs', label: 'Runs' },
-          { key: 'dismissals', label: 'Dismissals' },
-          { key: 'stumpings', label: 'Stumpings' },
-          { key: 'catches', label: 'Catches' }
-        ];
-    }
+  return (
+    <>
+      <td className={styles.tableCell}>{player.name}</td>
+      {renderRoleSpecificStats()}
+      <td className={styles.tableCell}>{player.fantasyPoints || 0}</td>
+    </>
+  );
+};
+
+const getTableHeaders = () => {
+  const baseHeaders = [
+    { key: 'name', label: 'Name' }
+  ];
+
+  const roleSpecificHeaders = {
+    [PlayerService.PLAYER_ROLES.BATSMAN]: [
+      { key: 'battingStyle', label: 'Batting Style' },
+      { key: 'matches', label: 'Matches' },
+      { key: 'runs', label: 'Runs' },
+      { key: 'battingAverage', label: 'Average' },
+      { key: 'strikeRate', label: 'Strike Rate' },
+      { key: 'fifties', label: '50s' },
+      { key: 'hundreds', label: '100s' }
+    ],
+    [PlayerService.PLAYER_ROLES.BOWLER]: [
+      { key: 'bowlingStyle', label: 'Bowling Style' },
+      { key: 'matches', label: 'Matches' },
+      { key: 'wickets', label: 'Wickets' },
+      { key: 'economyRate', label: 'Economy' },
+      { key: 'bowlingAverage', label: 'Average' },
+      { key: 'fiveWickets', label: '5 Wickets' }
+    ],
+    [PlayerService.PLAYER_ROLES.ALLROUNDER]: [
+      { key: 'matches', label: 'Matches' },
+      { key: 'runs', label: 'Runs' },
+      { key: 'wickets', label: 'Wickets' },
+      { key: 'battingAverage', label: 'Batting Avg' },
+      { key: 'bowlingAverage', label: 'Bowling Avg' }
+    ],
+    [PlayerService.PLAYER_ROLES.WICKETKEEPER]: [
+      { key: 'matches', label: 'Matches' },
+      { key: 'runs', label: 'Runs' },
+      { key: 'dismissals', label: 'Dismissals' },
+      { key: 'stumpings', label: 'Stumpings' },
+      { key: 'catches', label: 'Catches' }
+    ]
   };
+
+  // Add fantasy points header to all roles
+  const fantasyHeader = { key: 'fantasyPoints', label: 'Fantasy Points' };
+
+  return [...baseHeaders, ...roleSpecificHeaders[activeRole], fantasyHeader];
+};
 
   return (
     <div className={styles.container}>
