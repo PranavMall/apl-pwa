@@ -11,6 +11,7 @@ import {
   where
 } from 'firebase/firestore';
 import { PlayerService } from './playerService';
+import { PointService } from './pointService';
 
 export class cricketService {
   static validateAndCleanObject(obj) {
@@ -256,8 +257,12 @@ static async syncMatchData() {
         console.log(`Processing match ${match.matchId}`);
         const scorecard = await this.fetchScorecard(match.matchId);
         await this.updateMatchInFirebase(match, scorecard);
-        // Use the new PlayerService method
+        
+        // Use the PlayerService method
         await PlayerService.updatePlayerStats(match.matchId, scorecard);
+        
+        // Add point calculation here
+        await this.calculateMatchPoints(match.matchId, scorecard);
         
         syncResults.push({
           matchId: match.matchId,
@@ -283,6 +288,67 @@ static async syncMatchData() {
     console.error('Error in syncMatchData:', error);
     throw error;
   }
+}
+  
+  // Add new method for point calculations
+static async calculateMatchPoints(matchId, scorecard) {
+  try {
+    console.log(`Calculating points for match ${matchId}`);
+    
+    // 1. Calculate points for all players in the match
+    const players = this.getAllPlayersFromScorecard(scorecard);
+    for (const player of players) {
+      await PointService.calculatePlayerMatchPoints(player.id, matchId);
+    }
+
+    // 2. Get all users who have selected these players
+    const userTeamsSnapshot = await getDocs(
+      query(collection(db, 'userTeams'))
+    );
+
+    // 3. Calculate points for each user
+    const userUpdatePromises = userTeamsSnapshot.docs.map(doc => {
+      const userData = doc.data();
+      return PointService.calculateUserMatchPoints(userData.userId, matchId);
+    });
+
+    await Promise.all(userUpdatePromises);
+    console.log(`Points calculation completed for match ${matchId}`);
+    return true;
+  } catch (error) {
+    console.error('Error calculating match points:', error);
+    throw error;
+  }
+}
+
+  // Helper method to get all players from scorecard
+static getAllPlayersFromScorecard(scorecard) {
+  const players = new Set();
+  
+  // Process both innings
+  scorecard.scoreCard.forEach(innings => {
+    // Get batsmen
+    Object.values(innings.batTeamDetails?.batsmenData || {}).forEach(batsman => {
+      if (batsman.batId) {
+        players.add({
+          id: batsman.batId,
+          name: batsman.batName
+        });
+      }
+    });
+
+    // Get bowlers
+    Object.values(innings.bowlTeamDetails?.bowlersData || {}).forEach(bowler => {
+      if (bowler.bowlerId) {
+        players.add({
+          id: bowler.bowlerId,
+          name: bowler.bowlName
+        });
+      }
+    });
+  });
+
+  return Array.from(players);
 }
   
   
