@@ -47,7 +47,7 @@ const fetchPlayers = async () => {
       // Get player's fantasy points from last 5 matches
       const pointsQuery = query(
         collection(db, 'playerPoints'),
-        where('playerId', '==', doc.id),
+        where('playerId', '==', cricketService.createPlayerDocId(playerData.name)),
         orderBy('timestamp', 'desc'),
         limit(5)
       );
