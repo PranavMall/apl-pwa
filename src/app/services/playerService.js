@@ -1,5 +1,5 @@
 import { db } from '../../firebase';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch, runTransaction,increment } from 'firebase/firestore';
 import { cricketService } from './cricketService';
 
 export class PlayerService {
@@ -133,6 +133,38 @@ export class PlayerService {
       throw error;
     }
   }
+
+  static async savePlayerMatchPoints(playerId, matchId, points) {
+  try {
+    // First check if player exists in players collection
+    const playerDocRef = doc(db, 'players', playerId);
+    const playerDoc = await getDoc(playerDocRef);
+    
+    if (!playerDoc.exists()) {
+      console.error(`Player ${playerId} not found in players collection`);
+      return;
+    }
+
+    // Save points
+    const pointsDocRef = doc(db, 'playerPoints', `${playerId}_${matchId}`);
+    await setDoc(pointsDocRef, {
+      playerId,
+      matchId,
+      points,
+      timestamp: new Date()
+    });
+
+    // Update total points in player document
+    await updateDoc(playerDocRef, {
+      totalFantasyPoints: increment(points)
+    });
+
+    console.log(`Saved ${points} points for player ${playerId} in match ${matchId}`);
+  } catch (error) {
+    console.error('Error saving player match points:', error);
+    throw error;
+  }
+}
 
   static getUniquePlayersFromTeam(teamData) {
     return new Set([
