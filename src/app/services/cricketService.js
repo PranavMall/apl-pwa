@@ -325,33 +325,37 @@ static async calculateMatchPoints(matchId, scorecard) {
 static getAllPlayersFromScorecard(scorecard) {
   const players = new Set();
   
-  // First check if we have a valid scorecard
-  if (!scorecard || !scorecard.team1 || !scorecard.team2) {
+  // Check if we have valid scorecard
+  if (!scorecard || !scorecard.scoreCard) {
     console.log('Invalid scorecard structure:', scorecard);
     return [];
   }
 
-  // Process both teams
-  [scorecard.team1, scorecard.team2].forEach(team => {
-    // Get batsmen
-    (team.batsmen || []).forEach(batsman => {
-      if (batsman.name) {
-        players.add({
-          id: cricketService.createPlayerDocId(batsman.name),
-          name: batsman.name
-        });
-      }
-    });
+  // Process each innings in the scorecard
+  scorecard.scoreCard.forEach(innings => {
+    // Get batsmen from batsmenData
+    if (innings.batTeamDetails?.batsmenData) {
+      Object.values(innings.batTeamDetails.batsmenData).forEach(batsman => {
+        if (batsman.batName) {
+          players.add({
+            id: cricketService.createPlayerDocId(batsman.batName),
+            name: batsman.batName
+          });
+        }
+      });
+    }
 
-    // Get bowlers
-    (team.bowlers || []).forEach(bowler => {
-      if (bowler.name) {
-        players.add({
-          id: cricketService.createPlayerDocId(bowler.name),
-          name: bowler.name
-        });
-      }
-    });
+    // Get bowlers from bowlersData
+    if (innings.bowlTeamDetails?.bowlersData) {
+      Object.values(innings.bowlTeamDetails.bowlersData).forEach(bowler => {
+        if (bowler.bowlName) {
+          players.add({
+            id: cricketService.createPlayerDocId(bowler.bowlName),
+            name: bowler.bowlName
+          });
+        }
+      });
+    }
   });
 
   return Array.from(players);
