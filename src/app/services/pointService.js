@@ -214,46 +214,49 @@ static findPlayerFieldingData(scorecard, playerId) {
   }
 
   // Calculate total points for a player in a match
-  static async calculatePlayerMatchPoints(playerId, matchId) {
-    try {
-      const matchDoc = await getDoc(doc(db, 'matches', matchId));
-      if (!matchDoc.exists()) {
-        throw new Error('Match not found');
-      }
-
-      const match = matchDoc.data();
-      let totalPoints = 0;
-
-      // Match participation points
-      totalPoints += this.POINTS.MATCH.PLAYED;
-
-      // Process batting
-      if (match.scorecard) {
-        const battingData = this.findPlayerBattingData(match.scorecard, playerId);
-        if (battingData) {
-          totalPoints += this.calculateBattingPoints(battingData);
-        }
-
-        const bowlingData = this.findPlayerBowlingData(match.scorecard, playerId);
-        if (bowlingData) {
-          totalPoints += this.calculateBowlingPoints(bowlingData);
-        }
-
-        const fieldingData = this.findPlayerFieldingData(match.scorecard, playerId);
-        if (fieldingData) {
-          totalPoints += this.calculateFieldingPoints(fieldingData);
-        }
-      }
-
-      // Save points to database
-      await this.savePlayerMatchPoints(playerId, matchId, totalPoints);
-
-      return totalPoints;
-    } catch (error) {
-      console.error('Error calculating player match points:', error);
-      throw error;
+static async calculatePlayerMatchPoints(playerId, matchId) {
+  try {
+    console.log('Calculating points for player:', playerId, 'match:', matchId);
+    const matchDoc = await getDoc(doc(db, 'matches', matchId));
+    if (!matchDoc.exists()) {
+      console.log('Match not found:', matchId);
+      return 0;
     }
+
+    const match = matchDoc.data();
+    let totalPoints = 0;
+
+    // Match participation points
+    totalPoints += this.POINTS.MATCH.PLAYED;
+    console.log('Base match points:', totalPoints);
+
+    // Process batting & bowling points
+    if (match.scorecard) {
+      const battingData = this.findPlayerBattingData(match.scorecard, playerId);
+      if (battingData) {
+        const battingPoints = this.calculateBattingPoints(battingData);
+        console.log('Batting points:', battingPoints);
+        totalPoints += battingPoints;
+      }
+
+      const bowlingData = this.findPlayerBowlingData(match.scorecard, playerId);
+      if (bowlingData) {
+        const bowlingPoints = this.calculateBowlingPoints(bowlingData);
+        console.log('Bowling points:', bowlingPoints);
+        totalPoints += bowlingPoints;
+      }
+    }
+
+    // Save points to database
+    await this.savePlayerMatchPoints(playerId, matchId, totalPoints);
+    console.log('Final points for player:', totalPoints);
+
+    return totalPoints;
+  } catch (error) {
+    console.error('Error calculating player match points:', error);
+    throw error;
   }
+}
 
   // Calculate user points for a match
   static async calculateUserMatchPoints(userId, matchId) {
