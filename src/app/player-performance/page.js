@@ -44,18 +44,20 @@ const fetchPlayers = async () => {
     for (const doc of querySnapshot.docs) {
       const playerData = doc.data();
       
-      // Get player's fantasy points from last 5 matches
-      const pointsQuery = query(
-        collection(db, 'playerPoints'),
-        where('playerId', '==', cricketService.createPlayerDocId(playerData.name)),
-        orderBy('timestamp', 'desc'),
-        limit(5)
-      );
-      
-      const pointsSnapshot = await getDocs(pointsQuery);
-      const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
-        return sum + (pointDoc.data().points || 0);
-      }, 0);
+// In fetchPlayers function, update the points query:
+const pointsQuery = query(
+  collection(db, 'playerPoints'),
+  where('playerId', '==', cricketService.createPlayerDocId(playerData.name)), // Use the same ID creation method
+  orderBy('timestamp', 'desc'),
+  limit(10)
+);
+
+const pointsSnapshot = await getDocs(pointsQuery);
+const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
+  const points = pointDoc.data().points || 0;
+  console.log(`Points for ${playerData.name}:`, points); // Add this for debugging
+  return sum + points;
+}, 0);
 
       // Initialize stats with fantasy points
       let playerStats = {
