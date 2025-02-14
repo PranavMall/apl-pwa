@@ -143,6 +143,133 @@ static findPlayerBowlingData(scorecard, playerId) {
   }
 }
 
+  static async calculateMatchPoints(matchId, scorecard) {
+  try {
+    // Store combined performance for each player
+    const playerPerformances = new Map();
+
+    // Process both innings
+    scorecard.scoreCard.forEach(innings => {
+      // Process batting performances
+      if (innings.batTeamDetails?.batsmenData) {
+        Object.values(innings.batTeamDetails.batsmenData).forEach(batsman => {
+          const playerName = batsman.batName;
+          if (!playerPerformances.has(playerName)) {
+            playerPerformances.set(playerName, {
+              batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
+              bowling: { wickets: 0, runs: 0, overs: 0, maidens: 0 }
+            });
+          }
+          
+          const performance = playerPerformances.get(playerName);
+          // Add batting stats
+          performance.batting.runs += parseInt(batsman.runs) || 0;
+          performance.batting.balls += parseInt(batsman.balls) || 0;
+          performance.batting.fours += parseInt(batsman.fours) || 0;
+          performance.batting.sixes += parseInt(batsman.sixes) || 0;
+        });
+      }
+
+      // Process bowling performances
+      if (innings.bowlTeamDetails?.bowlersData) {
+        Object.values(innings.bowlTeamDetails.bowlersData).forEach(bowler => {
+          const playerName = bowler.bowlName;
+          if (!playerPerformances.has(playerName)) {
+            playerPerformances.set(playerName, {
+              batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
+              bowling: { wickets: 0, runs: 0, overs: 0, maidens: 0 }
+            });
+          }
+          
+          const performance = playerPerformances.get(playerName);
+          // Add bowling stats
+          performance.bowling.wickets += parseInt(bowler.wickets) || 0;
+          performance.bowling.runs += parseInt(bowler.runs) || 0;
+          performance.bowling.overs += parseFloat(bowler.overs) || 0;
+          performance.bowling.maidens += parseInt(bowler.maidens) || 0;
+        });
+      }
+    });
+
+    // Calculate and update points for each player
+    for (const [playerName, performance] of playerPerformances) {
+      // Calculate total points for this match
+      const points = this.calculatePointsFromPerformance(performance);
+      
+      // Find player in Player DB by name
+      const playersRef = collection(db, 'players');
+      const q = query(playersRef, where('name', '==', playerName));
+      const playerSnapshot = await getDocs(q);
+      
+      if (!playerSnapshot.empty) {
+        const playerDoc = playerSnapshot.docs[0];
+        const playerRef = doc(db, 'players', playerDoc.id);
+        
+        // Update totalFantasyPoints atomically
+        await runTransaction(db, async (transaction) => {
+          const player = await transaction.get(playerRef);
+          const currentPoints = player.data().totalFantasyPoints || 0;
+          
+          transaction.update(playerRef, {
+            totalFantasyPoints: currentPoints + points,
+            lastMatchId: matchId,
+            lastUpdated: new Date().toISOString()
+          });
+        });
+
+        // Store match-specific points
+        await setDoc(doc(db, 'playerPoints', `${playerDoc.id}_${matchId}`), {
+          playerId: playerDoc.id,
+          matchId,
+          points,
+          performance,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error calculating match points:', error);
+    throw error;
+  }
+}
+  static calculatePointsFromPerformance(performance) {
+  let points = 0;
+  
+  // Batting points
+  points += performance.batting.runs * this.POINTS.BATTING.RUN;
+  points += performance.batting.fours * this.POINTS.BATTING.BOUNDARY_4;
+  points += performance.batting.sixes * this.POINTS.BATTING.BOUNDARY_6;
+  
+  // Batting milestones
+  if (performance.batting.runs >= 100) {
+    points += this.POINTS.BATTING.MILESTONE_100;
+  } else if (performance.batting.runs >= 50) {
+    points += this.POINTS.BATTING.MILESTONE_50;
+  } else if (performance.batting.runs >= 25) {
+    points += this.POINTS.BATTING.MILESTONE_25;
+  }
+  
+  // Duck (if applicable)
+  if (performance.batting.balls > 0 && performance.batting.runs === 0) {
+    points += this.POINTS.BATTING.DUCK;
+  }
+  
+  // Bowling points
+  points += performance.bowling.wickets * this.POINTS.BOWLING.WICKET;
+  points += performance.bowling.maidens * this.POINTS.BOWLING.MAIDEN;
+  
+  // Bowling milestones
+  if (performance.bowling.wickets >= 5) {
+    points += this.POINTS.BOWLING.FIVE_WICKETS;
+  } else if (performance.bowling.wickets >= 4) {
+    points += this.POINTS.BOWLING.FOUR_WICKETS;
+  } else if (performance.bowling.wickets >= 3) {
+    points += this.POINTS.BOWLING.THREE_WICKETS;
+  }
+  
+  return points;
+}
+
 static findPlayerFieldingData(scorecard, playerId) {
   try {
     let fieldingData = {
