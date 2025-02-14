@@ -297,8 +297,13 @@ static async calculateMatchPoints(matchId, scorecard) {
     
     // 1. Calculate points for all players in the match
     const players = this.getAllPlayersFromScorecard(scorecard);
+    console.log('Players found in match:', players);
+
     for (const player of players) {
-      await PointService.calculatePlayerMatchPoints(player.id, matchId);
+       // player.name comes from scorecard
+      // Create ID consistently using the same method used in Players DB
+      const playerId = this.createPlayerDocId(player.name);
+      await PointService.calculatePlayerMatchPoints(playerId, player.name, matchId);
     }
 
     // 2. Get all users who have selected these players
