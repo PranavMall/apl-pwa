@@ -325,24 +325,30 @@ static async calculateMatchPoints(matchId, scorecard) {
 static getAllPlayersFromScorecard(scorecard) {
   const players = new Set();
   
-  // Process both innings
-  scorecard.scoreCard.forEach(innings => {
+  // First check if we have a valid scorecard
+  if (!scorecard || !scorecard.team1 || !scorecard.team2) {
+    console.log('Invalid scorecard structure:', scorecard);
+    return [];
+  }
+
+  // Process both teams
+  [scorecard.team1, scorecard.team2].forEach(team => {
     // Get batsmen
-    Object.values(innings.batTeamDetails?.batsmenData || {}).forEach(batsman => {
-      if (batsman.batId) {
+    (team.batsmen || []).forEach(batsman => {
+      if (batsman.name) {
         players.add({
-          id: batsman.batId,
-          name: batsman.batName
+          id: cricketService.createPlayerDocId(batsman.name),
+          name: batsman.name
         });
       }
     });
 
     // Get bowlers
-    Object.values(innings.bowlTeamDetails?.bowlersData || {}).forEach(bowler => {
-      if (bowler.bowlerId) {
+    (team.bowlers || []).forEach(bowler => {
+      if (bowler.name) {
         players.add({
-          id: bowler.bowlerId,
-          name: bowler.bowlName
+          id: cricketService.createPlayerDocId(bowler.name),
+          name: bowler.name
         });
       }
     });
