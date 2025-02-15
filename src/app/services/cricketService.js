@@ -246,52 +246,165 @@ export class cricketService {
   
 
 static async syncMatchData() {
-    try {
-      console.log('Starting match data sync...');
-      const matches = await this.fetchRecentMatches();
-      console.log(`Found ${matches.length} matches to sync`);
+  try {
+    console.log('Starting match data sync...');
+    const matches = await this.fetchRecentMatches();
+    console.log(`Found ${matches.length} matches to sync`);
 
-      const syncResults = [];
-      for (const match of matches) {
+    const syncResults = [];
+    for (const match of matches) {
+      try {
+        console.log(`Processing match ${match.matchId}`);
+        const scorecard = await this.fetchScorecard(match.matchId);
+        await this.updateMatchInFirebase(match, scorecard);
+        
+        // Update player stats first
+        await this.updatePlayerStats(match.matchId, scorecard);
+        
+        // Points calculation
         try {
-          console.log(`Processing match ${match.matchId}`);
-          const scorecard = await this.fetchScorecard(match.matchId);
-          await this.updateMatchInFirebase(match, scorecard);
+          console.log('Starting points calculation...');
+          const players = this.getAllPlayersFromScorecard(scorecard);
           
-          // Points calculation
-          try {
-            console.log('Starting points calculation...');
-            await PointService.calculateMatchPoints(match.matchId, scorecard);
-            console.log(`Points calculated for match ${match.matchId}`);
-          } catch (pointsError) {
-            console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
+          // Calculate points for each player
+          for (const player of players) {
+            try {
+              const playerId = this.createPlayerDocId(player.name);
+              // Find player's batting data
+              const battingData = this.findPlayerBattingData(scorecard.scoreCard, player.name);
+              // Find player's bowling data
+              const bowlingData = this.findPlayerBowlingData(scorecard.scoreCard, player.name);
+              // Find player's fielding data
+              const fieldingData = this.findPlayerFieldingData(scorecard.scoreCard, player.name);
+              
+              // Calculate points components
+              let totalPoints = 0;
+              
+              if (battingData) {
+                totalPoints += PointService.calculateBattingPoints(battingData);
+              }
+              
+              if (bowlingData) {
+                totalPoints += PointService.calculateBowlingPoints(bowlingData);
+              }
+              
+              if (fieldingData) {
+                totalPoints += PointService.calculateFieldingPoints(fieldingData);
+              }
+              
+              // Add match participation points
+              totalPoints += PointService.POINTS.MATCH.PLAYED;
+              
+              // Save the points
+              await PointService.savePlayerMatchPoints(playerId, match.matchId, totalPoints);
+              console.log(`Saved ${totalPoints} points for player ${player.name}`);
+            } catch (playerError) {
+              console.error(`Error calculating points for player ${player.name}:`, playerError);
+            }
           }
           
-          syncResults.push({
-            matchId: match.matchId,
-            status: 'success'
-          });
-          
-          console.log(`Successfully synced match ${match.matchId}`);
-        } catch (error) {
-          console.error(`Failed to sync match ${match.matchId}:`, error);
-          syncResults.push({
-            matchId: match.matchId,
-            status: 'failed',
-            error: error.message
-          });
+          console.log(`Points calculated for match ${match.matchId}`);
+        } catch (pointsError) {
+          console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
         }
+        
+        syncResults.push({
+          matchId: match.matchId,
+          status: 'success'
+        });
+        
+        console.log(`Successfully synced match ${match.matchId}`);
+      } catch (error) {
+        console.error(`Failed to sync match ${match.matchId}:`, error);
+        syncResults.push({
+          matchId: match.matchId,
+          status: 'failed',
+          error: error.message
+        });
       }
-      
-      return {
-        success: true,
-        matchesSynced: syncResults
-      };
-    } catch (error) {
-      console.error('Error in syncMatchData:', error);
-      throw error;
+    }
+    
+    return {
+      success: true,
+      matchesSynced: syncResults
+    };
+  } catch (error) {
+    console.error('Error in syncMatchData:', error);
+    throw error;
+  }
+  }
+
+  // Add these helper methods to cricketService.js
+
+static findPlayerBattingData(scoreCard, playerName) {
+  if (!Array.isArray(scoreCard)) return null;
+  
+  for (const innings of scoreCard) {
+    const batsmenData = innings?.batTeamDetails?.batsmenData;
+    if (!batsmenData) continue;
+    
+    for (const batsman of Object.values(batsmenData)) {
+      if (batsman.batName === playerName) {
+        return {
+          runs: parseInt(batsman.runs) || 0,
+          balls: parseInt(batsman.balls) || 0,
+          fours: parseInt(batsman.boundaries) || 0,
+          sixes: parseInt(batsman.sixers) || 0,
+          outDesc: batsman.outDesc || ''
+        };
+      }
     }
   }
+  return null;
+}
+
+static findPlayerBowlingData(scoreCard, playerName) {
+  if (!Array.isArray(scoreCard)) return null;
+  
+  for (const innings of scoreCard) {
+    const bowlersData = innings?.bowlTeamDetails?.bowlersData;
+    if (!bowlersData) continue;
+    
+    for (const bowler of Object.values(bowlersData)) {
+      if (bowler.bowlName === playerName) {
+        return {
+          wickets: parseInt(bowler.wickets) || 0,
+          maidens: parseInt(bowler.maidens) || 0,
+          runs: parseInt(bowler.runs) || 0,
+          overs: parseFloat(bowler.overs) || 0
+        };
+      }
+    }
+  }
+  return null;
+}
+
+static findPlayerFieldingData(scoreCard, playerName) {
+  if (!Array.isArray(scoreCard)) return null;
+  
+  let fieldingData = {
+    catches: 0,
+    stumpings: 0,
+    directThrows: 0
+  };
+  
+  for (const innings of scoreCard) {
+    const batsmenData = innings?.batTeamDetails?.batsmenData;
+    if (!batsmenData) continue;
+    
+    for (const batsman of Object.values(batsmenData)) {
+      if (!batsman.outDesc) continue;
+      
+      if (batsman.outDesc.includes(`c ${playerName}`)) {
+        fieldingData.catches++;
+      } else if (batsman.outDesc.includes(`st ${playerName}`)) {
+        fieldingData.stumpings++;
+      }
+    }
+  }
+  
+  return fieldingData;
+}
   
   // Add new method for point calculations
 static async calculateMatchPoints(matchId, scorecard) {
