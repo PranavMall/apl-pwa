@@ -257,14 +257,15 @@ static async syncMatchData() {
         console.log(`Processing match ${match.matchId}`);
         const scorecard = await this.fetchScorecard(match.matchId);
         await this.updateMatchInFirebase(match, scorecard);
-        // Add this line - Calculate fantasy points after updating match
-      await PointService.calculateMatchPoints(match.matchId, scorecard);
         
-        // Use the PlayerService method
-        await PlayerService.updatePlayerStats(match.matchId, scorecard);
-        
-        // Add point calculation here
-        await this.calculateMatchPoints(match.matchId, scorecard);
+        // Add point calculation - make sure to use proper error handling
+        try {
+          await PointService.calculateMatchPoints(match.matchId, scorecard);
+          console.log(`Points calculated for match ${match.matchId}`);
+        } catch (pointsError) {
+          console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
+          // Continue with next match even if points calculation fails
+        }
         
         syncResults.push({
           matchId: match.matchId,
