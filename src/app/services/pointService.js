@@ -145,6 +145,12 @@ static findPlayerBowlingData(scorecard, playerId) {
 
   static async calculateMatchPoints(matchId, scorecard) {
   try {
+    console.log('Starting points calculation for match:', matchId);
+      if (!scorecard?.scoreCard) {
+        console.error('Invalid scorecard structure:', scorecard);
+        return;
+      }
+    
     // Store combined performance for each player
     const playerPerformances = new Map();
 
