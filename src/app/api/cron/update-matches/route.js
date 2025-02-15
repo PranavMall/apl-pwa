@@ -1,6 +1,7 @@
 // app/api/cron/update-matches/route.js
 // app/api/cron/update-matches/route.js
 import { cricketService } from '@/app/services/cricketService';
+import { PointService } from '@/app/services/pointService';
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
