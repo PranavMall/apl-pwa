@@ -44,92 +44,43 @@ const fetchPlayers = async () => {
     for (const doc of querySnapshot.docs) {
       const playerData = doc.data();
       
-// In fetchPlayers function, update the points query:
-const pointsQuery = query(
-  collection(db, 'playerPoints'),
-  where('playerId', '==', cricketService.createPlayerDocId(playerData.name)), // Use the same ID creation method
-  orderBy('timestamp', 'desc'),
-  limit(10)
-);
+      // Get player's points from playerPoints collection
+      const pointsQuery = query(
+        collection(db, 'playerPoints'),
+        where('playerId', '==', doc.id),
+        orderBy('timestamp', 'desc')
+      );
 
-const pointsSnapshot = await getDocs(pointsQuery);
-const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
-  const points = pointDoc.data().points || 0;
-  console.log(`Points for ${playerData.name}:`, points); // Add this for debugging
-  return sum + points;
-}, 0);
+      const pointsSnapshot = await getDocs(pointsQuery);
+      const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
+        const points = pointDoc.data().points || 0;
+        console.log(`Points for ${playerData.name}:`, points); // Debug log
+        return sum + points;
+      }, 0);
+
+      console.log(`Total fantasy points for ${playerData.name}:`, totalFantasyPoints); // Debug log
 
       // Initialize stats with fantasy points
       let playerStats = {
+        id: doc.id,
         name: playerData.name,
-        matches: 0,
-        runs: 0,
-        balls: 0,
-        fours: 0,
-        sixes: 0,
-        fifties: 0,
-        hundreds: 0,
-        wickets: 0,
-        bowlingRuns: 0,
-        bowlingBalls: 0,
-        catches: 0,
-        stumpings: 0,
-        dismissals: 0,
+        matches: playerData.matches || 0,
+        runs: playerData.runs || 0,
+        balls: playerData.balls || 0,
+        fours: playerData.fours || 0,
+        sixes: playerData.sixes || 0,
+        fifties: playerData.fifties || 0,
+        hundreds: playerData.hundreds || 0,
+        wickets: playerData.wickets || 0,
+        bowlingRuns: playerData.bowlingRuns || 0,
+        bowlingBalls: playerData.bowlingBalls || 0,
+        catches: playerData.catches || 0,
+        stumpings: playerData.stumpings || 0,
+        dismissals: playerData.dismissals || 0,
         battingStyle: playerData.battingStyle,
         bowlingStyle: playerData.bowlingStyle,
         fantasyPoints: totalFantasyPoints
       };
-
-      // Process matches for player statistics
-      matches.forEach(match => {
-        if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
-
-        [match.scorecard.team1, match.scorecard.team2].forEach(team => {
-          // Check batting stats
-          const batsmenData = team.batsmen || {};
-          Object.values(batsmenData).forEach(batsman => {
-            if (batsman.name === playerData.name) {
-              playerStats.matches++;
-              playerStats.runs += parseInt(batsman.runs) || 0;
-              playerStats.balls += parseInt(batsman.balls) || 0;
-              playerStats.fours += parseInt(batsman.fours) || 0;
-              playerStats.sixes += parseInt(batsman.sixes) || 0;
-
-              const runs = parseInt(batsman.runs) || 0;
-              if (runs >= 50 && runs < 100) playerStats.fifties++;
-              if (runs >= 100) playerStats.hundreds++;
-            }
-          });
-
-          // Check bowling stats
-          const bowlersData = team.bowlers || {};
-          Object.values(bowlersData).forEach(bowler => {
-            if (bowler.name === playerData.name) {
-              if (!playerStats.matches) playerStats.matches++;
-              playerStats.wickets += parseInt(bowler.wickets) || 0;
-              playerStats.bowlingRuns += parseInt(bowler.runs) || 0;
-              
-              const overs = parseFloat(bowler.overs) || 0;
-              const fullOvers = Math.floor(overs);
-              const partOver = (overs % 1) * 10;
-              playerStats.bowlingBalls += (fullOvers * 6) + partOver;
-            }
-          });
-
-          // Check fielding stats
-          Object.values(batsmenData).forEach(batsman => {
-            if (batsman.dismissal) {
-              if (batsman.dismissal.includes(`c ${playerData.name}`)) {
-                playerStats.catches++;
-                playerStats.dismissals++;
-              } else if (batsman.dismissal.includes(`st ${playerData.name}`)) {
-                playerStats.stumpings++;
-                playerStats.dismissals++;
-              }
-            }
-          });
-        });
-      });
 
       // Calculate averages and rates
       playerStats.battingAverage = playerStats.matches > 0 ? 
@@ -144,11 +95,7 @@ const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
       playerStats.bowlingAverage = playerStats.wickets > 0 ? 
         (playerStats.bowlingRuns / playerStats.wickets).toFixed(2) : '0.00';
 
-      playersData.push({
-        id: doc.id,
-        ...playerData,
-        ...playerStats
-      });
+      playersData.push(playerStats);
     }
     
     setPlayers(playersData);
@@ -258,7 +205,7 @@ const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
     setPlayers(sortedPlayers);
   };
 
-const renderPlayerStats = (player) => {
+const renderPlayerStats = () => {
   const renderRoleSpecificStats = () => {
     switch (activeRole) {
       case PlayerService.PLAYER_ROLES.BATSMAN:
@@ -314,7 +261,7 @@ const renderPlayerStats = (player) => {
     <>
       <td className={styles.tableCell}>{player.name}</td>
       {renderRoleSpecificStats()}
-      <td className={styles.tableCell}>{player.fantasyPoints || 0}</td>
+      <td className={styles.tableCell}>{Math.round(player.fantasyPoints) || 0}</td>
     </>
   );
 };
