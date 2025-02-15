@@ -270,12 +270,13 @@ static async syncMatchData() {
           for (const player of players) {
             try {
               const playerId = this.createPlayerDocId(player.name);
+              
               // Find player's batting data
-              const battingData = this.findPlayerBattingData(scorecard.scoreCard, player.name);
+              const battingData = this.findPlayerBattingData(scorecard, player.name);
               // Find player's bowling data
-              const bowlingData = this.findPlayerBowlingData(scorecard.scoreCard, player.name);
+              const bowlingData = this.findPlayerBowlingData(scorecard, player.name);
               // Find player's fielding data
-              const fieldingData = this.findPlayerFieldingData(scorecard.scoreCard, player.name);
+              const fieldingData = this.findPlayerFieldingData(scorecard, player.name);
               
               // Calculate points components
               let totalPoints = 0;
@@ -332,7 +333,7 @@ static async syncMatchData() {
     console.error('Error in syncMatchData:', error);
     throw error;
   }
-  }
+}
 
   // Add these helper methods to cricketService.js
 
