@@ -205,7 +205,9 @@ const fetchPlayers = async () => {
     setPlayers(sortedPlayers);
   };
 
-const renderPlayerStats = () => {
+const renderPlayerStats = (player) => {  // Make sure player is passed as parameter
+  if (!player) return null;  // Add null check
+  
   const renderRoleSpecificStats = () => {
     switch (activeRole) {
       case PlayerService.PLAYER_ROLES.BATSMAN:
@@ -254,6 +256,9 @@ const renderPlayerStats = () => {
             <td className={styles.tableCell}>{player.catches || 0}</td>
           </>
         );
+      
+      default:
+        return null;
     }
   };
 
@@ -312,73 +317,67 @@ const getTableHeaders = () => {
 };
 
   return (
-    <div className={styles.container}>
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Player Performance Statistics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs 
-            value={activeRole} 
-            onValueChange={(value) => setActiveRole(value)}
-          >
-            <TabsList>
-              <TabsTrigger value={PlayerService.PLAYER_ROLES.BATSMAN}>
-                Batsmen
-              </TabsTrigger>
-              <TabsTrigger value={PlayerService.PLAYER_ROLES.BOWLER}>
-                Bowlers
-              </TabsTrigger>
-              <TabsTrigger value={PlayerService.PLAYER_ROLES.ALLROUNDER}>
-                All-rounders
-              </TabsTrigger>
-              <TabsTrigger value={PlayerService.PLAYER_ROLES.WICKETKEEPER}>
-                Wicket-keepers
-              </TabsTrigger>
-            </TabsList>
+  <div className={styles.container}>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Player Performance Statistics</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs 
+          value={activeRole} 
+          onValueChange={(value) => setActiveRole(value)}
+        >
+          <TabsList>
+            <TabsTrigger value={PlayerService.PLAYER_ROLES.BATSMAN}>
+              Batsmen
+            </TabsTrigger>
+            <TabsTrigger value={PlayerService.PLAYER_ROLES.BOWLER}>
+              Bowlers
+            </TabsTrigger>
+            <TabsTrigger value={PlayerService.PLAYER_ROLES.ALLROUNDER}>
+              All-rounders
+            </TabsTrigger>
+            <TabsTrigger value={PlayerService.PLAYER_ROLES.WICKETKEEPER}>
+              Wicket-keepers
+            </TabsTrigger>
+          </TabsList>
 
-            {[
-              PlayerService.PLAYER_ROLES.BATSMAN,
-              PlayerService.PLAYER_ROLES.BOWLER,
-              PlayerService.PLAYER_ROLES.ALLROUNDER,
-              PlayerService.PLAYER_ROLES.WICKETKEEPER
-            ].map((role) => (
-              <TabsContent key={role} value={role}>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        {getTableHeaders().map((header) => (
-                          <th
-                            key={header.key}
-                            className={styles.tableHeader}
-                            onClick={() => sortPlayers(header.key)}
-                          >
-                            {header.label}
-                            {sortConfig.key === header.key && (
-                              <span>{sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}</span>
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {players.map((player) => (
-                        <tr key={player.id} className={styles.tableRow}>
-                          <td className={styles.tableCell}>{player.name}</td>
-                          {renderPlayerStats(player)}
-                        </tr>
+          {Object.values(PlayerService.PLAYER_ROLES).map((role) => (
+            <TabsContent key={role} value={role}>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      {getTableHeaders().map((header) => (
+                        <th
+                          key={header.key}
+                          className={styles.tableHeader}
+                          onClick={() => sortPlayers(header.key)}
+                        >
+                          {header.label}
+                          {sortConfig.key === header.key && (
+                            <span>{sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}</span>
+                          )}
+                        </th>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
-  );
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {players.map((player) => (
+                      <tr key={player.id} className={styles.tableRow}>
+                        {renderPlayerStats(player)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </CardContent>
+    </Card>
+  </div>
+);
 };
 
 export default PlayerPerformancePage;
