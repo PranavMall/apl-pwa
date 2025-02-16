@@ -54,33 +54,85 @@ const fetchPlayers = async () => {
       const pointsSnapshot = await getDocs(pointsQuery);
       const totalFantasyPoints = pointsSnapshot.docs.reduce((sum, pointDoc) => {
         const points = pointDoc.data().points || 0;
-        console.log(`Points for ${playerData.name}:`, points); // Debug log
         return sum + points;
       }, 0);
 
-      console.log(`Total fantasy points for ${playerData.name}:`, totalFantasyPoints); // Debug log
-
-      // Initialize stats with fantasy points
+      // Initialize stats
       let playerStats = {
         id: doc.id,
         name: playerData.name,
-        matches: playerData.matches || 0,
-        runs: playerData.runs || 0,
-        balls: playerData.balls || 0,
-        fours: playerData.fours || 0,
-        sixes: playerData.sixes || 0,
-        fifties: playerData.fifties || 0,
-        hundreds: playerData.hundreds || 0,
-        wickets: playerData.wickets || 0,
-        bowlingRuns: playerData.bowlingRuns || 0,
-        bowlingBalls: playerData.bowlingBalls || 0,
-        catches: playerData.catches || 0,
-        stumpings: playerData.stumpings || 0,
-        dismissals: playerData.dismissals || 0,
+        matches: 0,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        fifties: 0,
+        hundreds: 0,
+        wickets: 0,
+        bowlingRuns: 0,
+        bowlingBalls: 0,
+        catches: 0,
+        stumpings: 0,
+        dismissals: 0,
         battingStyle: playerData.battingStyle,
         bowlingStyle: playerData.bowlingStyle,
         fantasyPoints: totalFantasyPoints
       };
+
+      // Process matches for player statistics
+      matches.forEach(match => {
+        if (!match?.scorecard?.team1 || !match?.scorecard?.team2) return;
+
+        [match.scorecard.team1, match.scorecard.team2].forEach(team => {
+          // Check batting stats
+          if (team.batsmen) {
+            Object.values(team.batsmen).forEach(batsman => {
+              if (batsman.name === playerData.name) {
+                playerStats.matches++;
+                playerStats.runs += parseInt(batsman.runs) || 0;
+                playerStats.balls += parseInt(batsman.balls) || 0;
+                playerStats.fours += parseInt(batsman.fours) || 0;
+                playerStats.sixes += parseInt(batsman.sixes) || 0;
+
+                const runs = parseInt(batsman.runs) || 0;
+                if (runs >= 50 && runs < 100) playerStats.fifties++;
+                if (runs >= 100) playerStats.hundreds++;
+              }
+            });
+          }
+
+          // Check bowling stats
+          if (team.bowlers) {
+            Object.values(team.bowlers).forEach(bowler => {
+              if (bowler.name === playerData.name) {
+                if (!playerStats.matches) playerStats.matches++;
+                playerStats.wickets += parseInt(bowler.wickets) || 0;
+                playerStats.bowlingRuns += parseInt(bowler.runs) || 0;
+                
+                const overs = parseFloat(bowler.overs) || 0;
+                const fullOvers = Math.floor(overs);
+                const partOver = (overs % 1) * 10;
+                playerStats.bowlingBalls += (fullOvers * 6) + partOver;
+              }
+            });
+          }
+
+          // Check fielding stats
+          if (team.batsmen) {
+            Object.values(team.batsmen).forEach(batsman => {
+              if (batsman.dismissal) {
+                if (batsman.dismissal.includes(`c ${playerData.name}`)) {
+                  playerStats.catches++;
+                  playerStats.dismissals++;
+                } else if (batsman.dismissal.includes(`st ${playerData.name}`)) {
+                  playerStats.stumpings++;
+                  playerStats.dismissals++;
+                }
+              }
+            });
+          }
+        });
+      });
 
       // Calculate averages and rates
       playerStats.battingAverage = playerStats.matches > 0 ? 
@@ -205,9 +257,7 @@ const fetchPlayers = async () => {
     setPlayers(sortedPlayers);
   };
 
-const renderPlayerStats = (player) => {  // Make sure player is passed as parameter
-  if (!player) return null;  // Add null check
-  
+const renderPlayerStats = (player) => {
   const renderRoleSpecificStats = () => {
     switch (activeRole) {
       case PlayerService.PLAYER_ROLES.BATSMAN:
@@ -220,6 +270,7 @@ const renderPlayerStats = (player) => {  // Make sure player is passed as parame
             <td className={styles.tableCell}>{player.strikeRate}</td>
             <td className={styles.tableCell}>{player.fifties || 0}</td>
             <td className={styles.tableCell}>{player.hundreds || 0}</td>
+            <td className={styles.tableCell}>{Math.round(player.fantasyPoints) || 0}</td>
           </>
         );
       
@@ -232,6 +283,7 @@ const renderPlayerStats = (player) => {  // Make sure player is passed as parame
             <td className={styles.tableCell}>{player.economyRate}</td>
             <td className={styles.tableCell}>{player.bowlingAverage}</td>
             <td className={styles.tableCell}>{player.fiveWickets || 0}</td>
+            <td className={styles.tableCell}>{Math.round(player.fantasyPoints) || 0}</td>
           </>
         );
       
@@ -243,6 +295,7 @@ const renderPlayerStats = (player) => {  // Make sure player is passed as parame
             <td className={styles.tableCell}>{player.wickets || 0}</td>
             <td className={styles.tableCell}>{player.battingAverage}</td>
             <td className={styles.tableCell}>{player.bowlingAverage}</td>
+            <td className={styles.tableCell}>{Math.round(player.fantasyPoints) || 0}</td>
           </>
         );
       
@@ -254,11 +307,9 @@ const renderPlayerStats = (player) => {  // Make sure player is passed as parame
             <td className={styles.tableCell}>{player.dismissals || 0}</td>
             <td className={styles.tableCell}>{player.stumpings || 0}</td>
             <td className={styles.tableCell}>{player.catches || 0}</td>
+            <td className={styles.tableCell}>{Math.round(player.fantasyPoints) || 0}</td>
           </>
         );
-      
-      default:
-        return null;
     }
   };
 
@@ -266,7 +317,6 @@ const renderPlayerStats = (player) => {  // Make sure player is passed as parame
     <>
       <td className={styles.tableCell}>{player.name}</td>
       {renderRoleSpecificStats()}
-      <td className={styles.tableCell}>{Math.round(player.fantasyPoints) || 0}</td>
     </>
   );
 };
