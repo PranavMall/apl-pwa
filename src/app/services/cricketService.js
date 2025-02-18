@@ -255,78 +255,68 @@ static async syncMatchData() {
     for (const match of matches) {
       try {
         console.log(`Processing match ${match.matchId}`);
+        
+        // Fetch and validate scorecard
         const scorecard = await this.fetchScorecard(match.matchId);
+        if (!scorecard || !scorecard.scoreCard) {
+          throw new Error('Invalid scorecard data structure');
+        }
+
+        // Update match data in Firebase
         await this.updateMatchInFirebase(match, scorecard);
         
-        // Update player stats first
-        await this.updatePlayerStats(match.matchId, scorecard);
-        
-        // Points calculation
+        // Calculate and store points
         try {
-          console.log('Starting points calculation...');
-          const players = this.getAllPlayersFromScorecard(scorecard);
-          
-          // Calculate points for each player
-          for (const player of players) {
-            try {
-              const playerId = this.createPlayerDocId(player.name);
-              
-              // Find player's batting data
-              const battingData = this.findPlayerBattingData(scorecard, player.name);
-              // Find player's bowling data
-              const bowlingData = this.findPlayerBowlingData(scorecard, player.name);
-              // Find player's fielding data
-              const fieldingData = this.findPlayerFieldingData(scorecard, player.name);
-              
-              // Calculate points components
-              let totalPoints = 0;
-              
-              if (battingData) {
-                totalPoints += PointService.calculateBattingPoints(battingData);
-              }
-              
-              if (bowlingData) {
-                totalPoints += PointService.calculateBowlingPoints(bowlingData);
-              }
-              
-              if (fieldingData) {
-                totalPoints += PointService.calculateFieldingPoints(fieldingData);
-              }
-              
-              // Add match participation points
-              totalPoints += PointService.POINTS.MATCH.PLAYED;
-              
-              // Save the points
-              await PointService.savePlayerMatchPoints(playerId, match.matchId, totalPoints);
-              console.log(`Saved ${totalPoints} points for player ${player.name}`);
-            } catch (playerError) {
-              console.error(`Error calculating points for player ${player.name}:`, playerError);
-            }
-          }
-          
-          console.log(`Points calculated for match ${match.matchId}`);
+          console.log(`Starting points calculation for match ${match.matchId}`);
+          await PointService.calculateMatchPoints(match.matchId, scorecard);
+          console.log(`Successfully calculated points for match ${match.matchId}`);
+
+          syncResults.push({
+            matchId: match.matchId,
+            status: 'success',
+            pointsCalculated: true
+          });
         } catch (pointsError) {
           console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
+          // Continue with next match even if points calculation fails
+          syncResults.push({
+            matchId: match.matchId,
+            status: 'partial',
+            error: `Points calculation failed: ${pointsError.message}`,
+            pointsCalculated: false
+          });
         }
-        
-        syncResults.push({
-          matchId: match.matchId,
-          status: 'success'
-        });
-        
-        console.log(`Successfully synced match ${match.matchId}`);
-      } catch (error) {
-        console.error(`Failed to sync match ${match.matchId}:`, error);
+      } catch (matchError) {
+        console.error(`Failed to sync match ${match.matchId}:`, matchError);
         syncResults.push({
           matchId: match.matchId,
           status: 'failed',
-          error: error.message
+          error: matchError.message,
+          pointsCalculated: false
         });
       }
     }
-    
+
+    // Log summary of sync operation
+    const successCount = syncResults.filter(r => r.status === 'success').length;
+    const failedCount = syncResults.filter(r => r.status === 'failed').length;
+    const partialCount = syncResults.filter(r => r.status === 'partial').length;
+
+    console.log('Sync Summary:', {
+      total: matches.length,
+      success: successCount,
+      failed: failedCount,
+      partial: partialCount
+    });
+
     return {
       success: true,
+      summary: {
+        total: matches.length,
+        success: successCount,
+        failed: failedCount,
+        partial: partialCount
+      },
       matchesSynced: syncResults
     };
   } catch (error) {
@@ -334,7 +324,6 @@ static async syncMatchData() {
     throw error;
   }
 }
-
   // Add these helper methods to cricketService.js
 
 static findPlayerBattingData(scorecard, playerName) {
