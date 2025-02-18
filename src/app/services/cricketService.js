@@ -71,8 +71,8 @@ export class cricketService {
           const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
           const matches = seriesData.matches || [];
           
-          if (seriesData.seriesName?.toLowerCase().includes('sa20') || 
-              seriesData.seriesName?.toLowerCase().includes('sa20, 2025')) {
+          if (seriesData.seriesName?.toLowerCase().includes('Pakistan ODI Tri-Series, 2025') || 
+              seriesData.seriesName?.toLowerCase().includes('Pakistan ODI Tri-Series, 2025')) {
             console.log(`Found SA20 series: ${seriesData.seriesName}`);
             
             matches.forEach(match => {
