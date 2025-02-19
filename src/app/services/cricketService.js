@@ -371,27 +371,25 @@ static async syncMatchData() {
         await this.updateMatchInFirebase(match, processedScorecard);
         
         // Calculate and store points
-        try {
-          console.log(`Starting points calculation for match ${match.matchId}`);
-          // Create an instance of PointService if needed
-          const pointService = new PointService();
-          await pointService.calculateMatchPoints(match.matchId, processedScorecard);
-          console.log(`Successfully calculated points for match ${match.matchId}`);
+try {
+  console.log(`Starting points calculation for match ${match.matchId}`);
+  await PointService.calculateMatchPoints(match.matchId, processedScorecard);
+  console.log(`Successfully calculated points for match ${match.matchId}`);
 
-          syncResults.push({
-            matchId: match.matchId,
-            status: 'success',
-            pointsCalculated: true
-          });
-        } catch (pointsError) {
-          console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
-          syncResults.push({
-            matchId: match.matchId,
-            status: 'partial',
-            error: `Points calculation failed: ${pointsError.message}`,
-            pointsCalculated: false
-          });
-        }
+  syncResults.push({
+    matchId: match.matchId,
+    status: 'success',
+    pointsCalculated: true
+  });
+} catch (pointsError) {
+  console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
+  syncResults.push({
+    matchId: match.matchId,
+    status: 'partial',
+    error: `Points calculation failed: ${pointsError.message}`,
+    pointsCalculated: false
+  });
+}
       } catch (matchError) {
         console.error(`Failed to sync match ${match.matchId}:`, matchError);
         syncResults.push({
