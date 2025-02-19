@@ -327,6 +327,8 @@ static processFieldingStats(scorecard) {
     return `${runs}/${wickets}`;
   }
 
+// In cricketService.js
+
 static async syncMatchData() {
   try {
     console.log('Starting match data sync...');
@@ -347,9 +349,6 @@ static async syncMatchData() {
           console.error('Scorecard response is null or undefined');
           throw new Error('Failed to fetch scorecard');
         }
-
-        // Log the actual response for debugging
-        console.log('Processed scorecard keys:', Object.keys(processedScorecard));
 
         // Validate the processed scorecard structure
         if (!processedScorecard.team1 || !processedScorecard.team2) {
@@ -374,7 +373,9 @@ static async syncMatchData() {
         // Calculate and store points
         try {
           console.log(`Starting points calculation for match ${match.matchId}`);
-          await PointService.calculateMatchPoints(match.matchId, processedScorecard);
+          // Create an instance of PointService if needed
+          const pointService = new PointService();
+          await pointService.calculateMatchPoints(match.matchId, processedScorecard);
           console.log(`Successfully calculated points for match ${match.matchId}`);
 
           syncResults.push({
@@ -402,17 +403,9 @@ static async syncMatchData() {
       }
     }
 
-    // Log summary
     const successCount = syncResults.filter(r => r.status === 'success').length;
     const failedCount = syncResults.filter(r => r.status === 'failed').length;
     const partialCount = syncResults.filter(r => r.status === 'partial').length;
-
-    console.log('Sync Summary:', {
-      total: matches.length,
-      success: successCount,
-      failed: failedCount,
-      partial: partialCount
-    });
 
     return {
       success: true,
@@ -602,23 +595,34 @@ static getAllPlayersFromScorecard(scorecard) {
 static async getMatchesFromFirebase() {
   try {
     const matchesRef = collection(db, 'matches');
+    
+    // Remove the limit to get all matches and add ordering
     const q = query(
       matchesRef,
       where('matchInfo.seriesName', '==', 'Pakistan ODI Tri-Series, 2025'),
-      orderBy('matchInfo.startDate', 'desc'),
-      limit(10)
+      orderBy('matchInfo.startDate', 'desc')
     );
 
     const querySnapshot = await getDocs(q);
     const matches = [];
 
     querySnapshot.forEach((doc) => {
-      matches.push({
-        matchId: doc.id,
-        ...doc.data()
-      });
+      // Add additional logging to debug match data
+      console.log(`Processing match document ${doc.id}:`, doc.data());
+      
+      const matchData = doc.data();
+      // Only add matches that have complete data
+      if (matchData.matchInfo && matchData.scorecard) {
+        matches.push({
+          matchId: doc.id,
+          ...matchData
+        });
+      } else {
+        console.warn(`Skipping match ${doc.id} due to incomplete data`);
+      }
     });
 
+    console.log(`Found ${matches.length} matches in Firebase`);
     return matches;
   } catch (error) {
     console.error('Error fetching matches from Firebase:', error);
