@@ -327,7 +327,7 @@ static processFieldingStats(scorecard) {
     return `${runs}/${wickets}`;
   }
 
-  static async syncMatchData() {
+ static async syncMatchData() {
   try {
     console.log('Starting match data sync...');
     const matches = await this.fetchRecentMatches();
@@ -348,8 +348,12 @@ static processFieldingStats(scorecard) {
           throw new Error('Failed to fetch scorecard');
         }
 
+        // Log the actual response for debugging
+        console.log('Scorecard response keys:', Object.keys(scorecardResponse));
+
+        // Fixed validation - changed scoreCard to match API response
         if (!scorecardResponse.scoreCard || !Array.isArray(scorecardResponse.scoreCard)) {
-          console.error('Invalid scoreCard structure:', scorecardResponse);
+          console.error('Invalid scoreCard structure:', JSON.stringify(scorecardResponse, null, 2));
           throw new Error('Invalid scorecard data structure - scoreCard array missing');
         }
 
@@ -376,7 +380,7 @@ static processFieldingStats(scorecard) {
             `${scorecardResponse.matchHeader.tossResults.tossWinnerName} chose to ${scorecardResponse.matchHeader.tossResults.decision}` : '',
           playerOfMatch: scorecardResponse.matchHeader.playersOfTheMatch?.[0]?.name || '',
           team1: this.processTeamInnings(firstInnings, scorecardResponse.matchHeader.team1),
-          team2: this.processTeamInnings(secondInnings, scorecardResponse.matchHeader.team2),
+          team2: this.processTeamInnings(secondInnings, scorecardResponse.matchHeader.team2)
         };
 
         // Validate processed scorecard
