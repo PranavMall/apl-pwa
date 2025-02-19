@@ -68,7 +68,7 @@ export class DatabaseInitializer {
     try {
       // Initialize current tournament
       const tournamentData = {
-        name: "BBL 2024",
+        name: "Pakistan ODI Tri-Series, 2025",
         startDate: new Date("2024-02-11"),
         endDate: new Date("2024-03-11"),
         registrationDeadline: new Date("2024-02-10"),
