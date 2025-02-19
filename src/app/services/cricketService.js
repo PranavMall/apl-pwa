@@ -327,7 +327,7 @@ static processFieldingStats(scorecard) {
     return `${runs}/${wickets}`;
   }
 
- static async syncMatchData() {
+static async syncMatchData() {
   try {
     console.log('Starting match data sync...');
     const matches = await this.fetchRecentMatches();
@@ -339,55 +339,34 @@ static processFieldingStats(scorecard) {
         console.log(`Processing match ${match.matchId}`);
         
         // Fetch scorecard
-        const scorecardResponse = await this.fetchScorecard(match.matchId);
+        const processedScorecard = await this.fetchScorecard(match.matchId);
         
         // Add detailed validation logging
         console.log('Validating scorecard response for match:', match.matchId);
-        if (!scorecardResponse) {
+        if (!processedScorecard) {
           console.error('Scorecard response is null or undefined');
           throw new Error('Failed to fetch scorecard');
         }
 
         // Log the actual response for debugging
-        console.log('Scorecard response keys:', Object.keys(scorecardResponse));
+        console.log('Processed scorecard keys:', Object.keys(processedScorecard));
 
-        // Fixed validation - changed scoreCard to match API response
-        if (!scorecardResponse.scoreCard || !Array.isArray(scorecardResponse.scoreCard)) {
-          console.error('Invalid scoreCard structure:', JSON.stringify(scorecardResponse, null, 2));
-          throw new Error('Invalid scorecard data structure - scoreCard array missing');
+        // Validate the processed scorecard structure
+        if (!processedScorecard.team1 || !processedScorecard.team2) {
+          console.error('Missing team data in processed scorecard:', JSON.stringify(processedScorecard, null, 2));
+          throw new Error('Invalid scorecard data structure - missing team data');
         }
 
-        if (!scorecardResponse.matchHeader) {
-          console.error('Missing matchHeader in response:', scorecardResponse);
-          throw new Error('Invalid scorecard data structure - matchHeader missing');
-        }
-
-        // Process innings data
-        const firstInnings = scorecardResponse.scoreCard[0];
-        const secondInnings = scorecardResponse.scoreCard[1];
-
-        if (!firstInnings || !secondInnings) {
-          console.error('Missing innings data:', { firstInnings, secondInnings });
-          throw new Error('Invalid scorecard data structure - innings data incomplete');
-        }
-
-        // Create processed scorecard
-        const processedScorecard = {
-          matchId: match.matchId,
-          matchStatus: scorecardResponse.status || scorecardResponse.matchHeader.status,
-          result: scorecardResponse.matchHeader.result,
-          toss: scorecardResponse.matchHeader.tossResults ? 
-            `${scorecardResponse.matchHeader.tossResults.tossWinnerName} chose to ${scorecardResponse.matchHeader.tossResults.decision}` : '',
-          playerOfMatch: scorecardResponse.matchHeader.playersOfTheMatch?.[0]?.name || '',
-          team1: this.processTeamInnings(firstInnings, scorecardResponse.matchHeader.team1),
-          team2: this.processTeamInnings(secondInnings, scorecardResponse.matchHeader.team2)
+        // Validate team data structure
+        const validateTeamData = (team, teamNumber) => {
+          if (!team.batsmen || !team.bowlers) {
+            console.error(`Missing batsmen or bowlers data in team${teamNumber}:`, team);
+            throw new Error(`Invalid team${teamNumber} data structure - missing player data`);
+          }
         };
 
-        // Validate processed scorecard
-        if (!processedScorecard.team1 || !processedScorecard.team2) {
-          console.error('Failed to process team innings:', processedScorecard);
-          throw new Error('Failed to process team innings data');
-        }
+        validateTeamData(processedScorecard.team1, 1);
+        validateTeamData(processedScorecard.team2, 2);
 
         // Update match data in Firebase
         await this.updateMatchInFirebase(match, processedScorecard);
