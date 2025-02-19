@@ -51,39 +51,36 @@ const fetchPlayers = async () => {
       // Get player's points only for tournament matches
       const pointsQuery = query(
         collection(db, 'playerPoints'),
-        where('name', '==', playerData.name),
         where('matchId', 'in', matchIds)
       );
 
       const pointsSnapshot = await getDocs(pointsQuery);
-      let totalFantasyPoints = 0;
+      let totalPoints = 0;
       let matchPerformances = [];
 
       // Calculate total points and collect performance data
       pointsSnapshot.docs.forEach(pointDoc => {
         const pointData = pointDoc.data();
-        totalFantasyPoints += pointData.points || 0;
-        if (pointData.performance) {
-          matchPerformances.push({
-            matchId: pointData.matchId,
-            points: pointData.points,
-            performance: pointData.performance
-          });
+        if (pointData.playerId === doc.id) {
+          totalPoints += pointData.points || 0;
+          if (pointData.performance) {
+            matchPerformances.push({
+              matchId: pointData.matchId,
+              points: pointData.points,
+              performance: pointData.performance
+            });
+          }
         }
       });
 
       // Only add players who have participated in the tournament
       if (matchPerformances.length > 0) {
-        // Calculate performance statistics
-        const stats = calculatePlayerStats(matchPerformances);
-
         playersData.push({
           id: doc.id,
           name: playerData.name,
-          ...stats,
-          battingStyle: playerData.battingStyle,
-          bowlingStyle: playerData.bowlingStyle,
-          fantasyPoints: totalFantasyPoints
+          fantasyPoints: totalPoints,
+          ...playerData,
+          ...calculatePlayerStats(matchPerformances)
         });
       }
     }
