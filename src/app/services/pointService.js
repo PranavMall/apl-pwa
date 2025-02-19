@@ -246,5 +246,6 @@ static async storePlayerMatchPoints(playerId, matchId, points, performance) {
 
   return stats;
 }
+}
 
   
