@@ -201,47 +201,124 @@ static async fetchRecentMatches() {
     }
   }
 
-  static processTeamInnings(inningsData, teamInfo) {
-    if (!inningsData) return {};
-
+static processBatsmenData(batsmenData) {
+  if (!batsmenData) return [];
+  
+  return Object.values(batsmenData).map(batsman => {
+    // Create consistent player identification
+    const playerName = batsman.batName;
+    const playerDocId = this.createPlayerDocId(playerName);
+    
     return {
-      teamId: teamInfo?.id || inningsData?.batTeamDetails?.batTeamId,
-      teamName: teamInfo?.name || inningsData?.batTeamDetails?.batTeamName || '',
-      score: this.formatScore(inningsData?.scoreDetails),
-      overs: inningsData?.scoreDetails?.overs?.toString() || '0',
-      runRate: inningsData?.scoreDetails?.runRate?.toString() || '0',
-      batsmen: this.processBatsmenNew(inningsData?.batTeamDetails?.batsmenData),
-      bowlers: this.processBowlersNew(inningsData?.bowlTeamDetails?.bowlersData)
+      id: playerDocId,  // Add this for database consistency
+      name: playerName, // Keep the original name for display
+      runs: parseInt(batsman.runs) || 0,
+      balls: parseInt(batsman.balls) || 0,
+      fours: parseInt(batsman.fours) || 0,
+      sixes: parseInt(batsman.sixes) || 0,
+      strikeRate: parseFloat(batsman.strikeRate) || 0,
+      dismissal: batsman.outDesc || '',
+      isCaptain: batsman.isCaptain || false,
+      isKeeper: batsman.isKeeper || false
     };
-  }
+  });
+}
 
-  static processBatsmenNew(batsmenData) {
-    if (!batsmenData) return [];
+static processBowlersData(bowlersData) {
+  if (!bowlersData) return [];
+  
+  return Object.values(bowlersData).map(bowler => {
+    // Create consistent player identification
+    const playerName = bowler.bowlName;
+    const playerDocId = this.createPlayerDocId(playerName);
     
-    return Object.values(batsmenData).map(batsman => ({
-      name: batsman.batName,
-      runs: batsman.runs?.toString() || '0',
-      balls: batsman.balls?.toString() || '0',
-      fours: batsman.fours?.toString() || '0',
-      sixes: batsman.sixes?.toString() || '0',
-      strikeRate: batsman.strikeRate?.toString() || '0',
-      dismissal: batsman.outDesc || ''
-    }));
-  }
+    return {
+      id: playerDocId,  // Add this for database consistency
+      name: playerName, // Keep the original name for display
+      overs: parseFloat(bowler.overs) || 0,
+      maidens: parseInt(bowler.maidens) || 0,
+      runs: parseInt(bowler.runs) || 0,
+      wickets: parseInt(bowler.wickets) || 0,
+      economy: parseFloat(bowler.economy) || 0,
+      extras: (parseInt(bowler.no_balls) || 0) + (parseInt(bowler.wides) || 0),
+      isCaptain: bowler.isCaptain || false
+    };
+  });
+}
 
-  static processBowlersNew(bowlersData) {
-    if (!bowlersData) return [];
-    
-    return Object.values(bowlersData).map(bowler => ({
-      name: bowler.bowlName,
-      overs: bowler.overs?.toString() || '0',
-      maidens: bowler.maidens?.toString() || '0',
-      runs: bowler.runs?.toString() || '0',
-      wickets: bowler.wickets?.toString() || '0',
-      economy: bowler.economy?.toString() || '0',
-      extras: (bowler.no_balls + bowler.wides)?.toString() || '0'
-    }));
-  }
+static processTeamInnings(inningsData, teamInfo) {
+  if (!inningsData || !teamInfo) return null;
+
+  const scoreDetails = inningsData.scoreDetails;
+  const batsmenData = inningsData.batTeamDetails.batsmenData;
+  const bowlersData = inningsData.bowlTeamDetails.bowlersData;
+
+  return {
+    teamId: teamInfo.id,
+    teamName: teamInfo.name,
+    teamShortName: teamInfo.shortName,
+    score: `${scoreDetails.runs}/${scoreDetails.wickets}`,
+    overs: scoreDetails.overs.toString(),
+    runRate: scoreDetails.runRate.toString(),
+    batsmen: this.processBatsmenData(batsmenData),
+    bowlers: this.processBowlersData(bowlersData),
+    extras: inningsData.extrasData || {}
+  };
+}
+
+// Helper method to process dismissals and fielding points
+static processFieldingStats(scorecard) {
+  const fieldingStats = new Map();
+
+  // Process both innings
+  [scorecard.team1, scorecard.team2].forEach(team => {
+    if (!team?.batsmen) return;
+
+    team.batsmen.forEach(batsman => {
+      if (!batsman.dismissal) return;
+
+      // Extract fielder names from dismissals
+      const catchMatch = batsman.dismissal.match(/c\s+([^b]+)b/);
+      const stumpMatch = batsman.dismissal.match(/st\s+([^b]+)b/);
+
+      if (catchMatch) {
+        const fielderName = catchMatch[1].trim();
+        const fielderId = this.createPlayerDocId(fielderName);
+        
+        if (!fieldingStats.has(fielderId)) {
+          fieldingStats.set(fielderId, {
+            name: fielderName,
+            id: fielderId,
+            catches: 0,
+            stumpings: 0,
+            runouts: 0
+          });
+        }
+        fieldingStats.get(fielderId).catches++;
+      }
+
+      if (stumpMatch) {
+        const stumperName = stumpMatch[1].trim();
+        const stumperId = this.createPlayerDocId(stumperName);
+        
+        if (!fieldingStats.has(stumperId)) {
+          fieldingStats.set(stumperId, {
+            name: stumperName,
+            id: stumperId,
+            catches: 0,
+            stumpings: 0,
+            runouts: 0
+          });
+        }
+        fieldingStats.get(stumperId).stumpings++;
+      }
+    });
+  });
+
+  return Array.from(fieldingStats.values());
+}
+
+
 
   static formatScore(scoreDetails) {
     if (!scoreDetails) return '';
@@ -250,9 +327,7 @@ static async fetchRecentMatches() {
     return `${runs}/${wickets}`;
   }
 
-  
-
-static async syncMatchData() {
+  static async syncMatchData() {
   try {
     console.log('Starting match data sync...');
     const matches = await this.fetchRecentMatches();
@@ -263,19 +338,60 @@ static async syncMatchData() {
       try {
         console.log(`Processing match ${match.matchId}`);
         
-        // Fetch and validate scorecard
-        const scorecard = await this.fetchScorecard(match.matchId);
-        if (!scorecard || !scorecard.scoreCard) {
-          throw new Error('Invalid scorecard data structure');
+        // Fetch scorecard
+        const scorecardResponse = await this.fetchScorecard(match.matchId);
+        
+        // Add detailed validation logging
+        console.log('Validating scorecard response for match:', match.matchId);
+        if (!scorecardResponse) {
+          console.error('Scorecard response is null or undefined');
+          throw new Error('Failed to fetch scorecard');
+        }
+
+        if (!scorecardResponse.scoreCard || !Array.isArray(scorecardResponse.scoreCard)) {
+          console.error('Invalid scoreCard structure:', scorecardResponse);
+          throw new Error('Invalid scorecard data structure - scoreCard array missing');
+        }
+
+        if (!scorecardResponse.matchHeader) {
+          console.error('Missing matchHeader in response:', scorecardResponse);
+          throw new Error('Invalid scorecard data structure - matchHeader missing');
+        }
+
+        // Process innings data
+        const firstInnings = scorecardResponse.scoreCard[0];
+        const secondInnings = scorecardResponse.scoreCard[1];
+
+        if (!firstInnings || !secondInnings) {
+          console.error('Missing innings data:', { firstInnings, secondInnings });
+          throw new Error('Invalid scorecard data structure - innings data incomplete');
+        }
+
+        // Create processed scorecard
+        const processedScorecard = {
+          matchId: match.matchId,
+          matchStatus: scorecardResponse.status || scorecardResponse.matchHeader.status,
+          result: scorecardResponse.matchHeader.result,
+          toss: scorecardResponse.matchHeader.tossResults ? 
+            `${scorecardResponse.matchHeader.tossResults.tossWinnerName} chose to ${scorecardResponse.matchHeader.tossResults.decision}` : '',
+          playerOfMatch: scorecardResponse.matchHeader.playersOfTheMatch?.[0]?.name || '',
+          team1: this.processTeamInnings(firstInnings, scorecardResponse.matchHeader.team1),
+          team2: this.processTeamInnings(secondInnings, scorecardResponse.matchHeader.team2),
+        };
+
+        // Validate processed scorecard
+        if (!processedScorecard.team1 || !processedScorecard.team2) {
+          console.error('Failed to process team innings:', processedScorecard);
+          throw new Error('Failed to process team innings data');
         }
 
         // Update match data in Firebase
-        await this.updateMatchInFirebase(match, scorecard);
+        await this.updateMatchInFirebase(match, processedScorecard);
         
         // Calculate and store points
         try {
           console.log(`Starting points calculation for match ${match.matchId}`);
-          await PointService.calculateMatchPoints(match.matchId, scorecard);
+          await PointService.calculateMatchPoints(match.matchId, processedScorecard);
           console.log(`Successfully calculated points for match ${match.matchId}`);
 
           syncResults.push({
@@ -285,7 +401,6 @@ static async syncMatchData() {
           });
         } catch (pointsError) {
           console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
-          // Continue with next match even if points calculation fails
           syncResults.push({
             matchId: match.matchId,
             status: 'partial',
@@ -304,7 +419,7 @@ static async syncMatchData() {
       }
     }
 
-    // Log summary of sync operation
+    // Log summary
     const successCount = syncResults.filter(r => r.status === 'success').length;
     const failedCount = syncResults.filter(r => r.status === 'failed').length;
     const partialCount = syncResults.filter(r => r.status === 'partial').length;
