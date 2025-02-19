@@ -37,77 +37,84 @@ export class cricketService {
     return playerName.toLowerCase().replace(/[^a-z0-9]/g, '-');
   }
 
-  static async fetchRecentMatches() {
-    if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
-      throw new Error('RAPID_API_KEY is not configured');
-    }
-
-    const options = {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': process.env.NEXT_PUBLIC_RAPID_API_KEY,
-        'X-RapidAPI-Host': 'cricbuzz-cricket.p.rapidapi.com',
-      },
-    };
-
-    try {
-      const response = await fetch(
-        'https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent',
-        options
-      );
-      
-      if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const sa20Matches = [];
-      
-      // Add debug logging
-      console.log('API Response:', JSON.stringify(data, null, 2));
-      
-      data.typeMatches?.forEach(typeMatch => {
-        typeMatch.seriesMatches?.forEach(seriesMatch => {
-          const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
-          const matches = seriesData.matches || [];
-          
-          if (seriesData.seriesName?.toLowerCase().includes('Pakistan ODI Tri-Series, 2025') || 
-              seriesData.seriesName?.toLowerCase().includes('Pakistan ODI Tri-Series, 2025')) {
-            console.log(`Found SA20 series: ${seriesData.seriesName}`);
-            
-            matches.forEach(match => {
-              if (match.matchInfo) {
-                console.log(`Processing match: ${match.matchInfo.matchId}`);
-                const matchData = {
-                  matchId: match.matchInfo.matchId.toString(),
-                  matchInfo: {
-                    ...match.matchInfo,
-                    team1: {
-                      ...match.matchInfo.team1,
-                      score: match.matchScore?.team1Score?.inngs1 || null
-                    },
-                    team2: {
-                      ...match.matchInfo.team2,
-                      score: match.matchScore?.team2Score?.inngs1 || null
-                    }
-                  },
-                  seriesId: seriesData.seriesId,
-                  seriesName: seriesData.seriesName
-                };
-                sa20Matches.push(this.validateAndCleanObject(matchData));
-              }
-            });
-          }
-        });
-      });
-
-      console.log(`Total SA20 matches found: ${sa20Matches.length}`);
-      return sa20Matches;
-    } catch (error) {
-      console.error('Error fetching matches:', error);
-      throw error;
-    }
+static async fetchRecentMatches() {
+  if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
+    throw new Error('RAPID_API_KEY is not configured');
   }
+
+  const options = {
+    method: 'GET',
+    headers: {
+      'X-RapidAPI-Key': process.env.NEXT_PUBLIC_RAPID_API_KEY,
+      'X-RapidAPI-Host': 'cricbuzz-cricket.p.rapidapi.com',
+    },
+  };
+
+  try {
+    const response = await fetch(
+      'https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent',
+      options
+    );
+    
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const tournamentMatches = [];
+    
+    // Add debug logging
+    console.log('API Response:', JSON.stringify(data, null, 2));
+    
+    data.typeMatches?.forEach(typeMatch => {
+      typeMatch.seriesMatches?.forEach(seriesMatch => {
+        const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
+        const matches = seriesData.matches || [];
+        
+        // Check specifically for Pakistan ODI Tri-Series
+        if (seriesData.seriesName?.includes('Pakistan ODI Tri-Series, 2025')) {
+          console.log(`Found Pakistan ODI Tri-Series match: ${seriesData.seriesName}`);
+          
+          matches.forEach(match => {
+            if (match.matchInfo) {
+              console.log(`Processing match: ${match.matchInfo.matchId}`);
+              const matchData = {
+                matchId: match.matchInfo.matchId.toString(),
+                matchInfo: {
+                  ...match.matchInfo,
+                  startDate: new Date(match.matchInfo.startDate),
+                  team1: {
+                    teamId: match.matchInfo.team1?.teamId,
+                    teamName: match.matchInfo.team1?.teamName,
+                    teamSName: match.matchInfo.team1?.teamSName,
+                    score: match.matchScore?.team1Score?.inngs1?.score || null
+                  },
+                  team2: {
+                    teamId: match.matchInfo.team2?.teamId,
+                    teamName: match.matchInfo.team2?.teamName,
+                    teamSName: match.matchInfo.team2?.teamSName,
+                    score: match.matchScore?.team2Score?.inngs1?.score || null
+                  },
+                  status: match.matchInfo.status,
+                  state: match.matchInfo.state
+                },
+                seriesId: seriesData.seriesId,
+                seriesName: seriesData.seriesName
+              };
+              tournamentMatches.push(this.validateAndCleanObject(matchData));
+            }
+          });
+        }
+      });
+    });
+
+    console.log(`Total tournament matches found: ${tournamentMatches.length}`);
+    return tournamentMatches;
+  } catch (error) {
+    console.error('Error fetching matches:', error);
+    throw error;
+  }
+}
 
   static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
     try {
@@ -494,31 +501,32 @@ static getAllPlayersFromScorecard(scorecard) {
 }
   
   
-  static async getMatchesFromFirebase() {
-    try {
-      const matchesRef = collection(db, 'matches');
-      const q = query(
-        matchesRef,
-        orderBy('matchInfo.startDate', 'desc'),
-        limit(10)  // Limit to last 10 matches, adjust as needed
-      );
+static async getMatchesFromFirebase() {
+  try {
+    const matchesRef = collection(db, 'matches');
+    const q = query(
+      matchesRef,
+      where('matchInfo.seriesName', '==', 'Pakistan ODI Tri-Series, 2025'),
+      orderBy('matchInfo.startDate', 'desc'),
+      limit(10)
+    );
 
-      const querySnapshot = await getDocs(q);
-      const matches = [];
+    const querySnapshot = await getDocs(q);
+    const matches = [];
 
-      querySnapshot.forEach((doc) => {
-        matches.push({
-          matchId: doc.id,
-          ...doc.data()
-        });
+    querySnapshot.forEach((doc) => {
+      matches.push({
+        matchId: doc.id,
+        ...doc.data()
       });
+    });
 
-      return matches;
-    } catch (error) {
-      console.error('Error fetching matches from Firebase:', error);
-      throw error;
-    }
+    return matches;
+  } catch (error) {
+    console.error('Error fetching matches from Firebase:', error);
+    throw error;
   }
+}
 
 // Add this to cricketService.js
 
