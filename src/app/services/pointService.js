@@ -40,12 +40,50 @@ static async calculateMatchPoints(matchId, scorecard) {
   try {
     console.log(`Calculating points for match ${matchId}`);
     
+    // Track fielding contributions
+    const fieldingPoints = new Map(); // playerId -> {catches: 0, stumpings: 0, runouts: 0}
+    
     // Process both teams
     for (const team of [scorecard.team1, scorecard.team2]) {
-      // Calculate batting points
+      // First pass: Process dismissals to collect fielding stats
       for (const batsman of Object.values(team.batsmen)) {
-        const points = this.calculateBattingPoints(batsman);
-        await this.storePlayerMatchPoints(batsman.id, matchId, points, {
+        if (!batsman.dismissal || !batsman.wicketCode) continue;
+
+        const fielder = this.extractFielderFromDismissal(batsman.dismissal, batsman.wicketCode);
+        if (fielder) {
+          const fielderId = this.createPlayerDocId(fielder.name);
+          if (!fieldingPoints.has(fielderId)) {
+            fieldingPoints.set(fielderId, { catches: 0, stumpings: 0, runouts: 0 });
+          }
+          const stats = fieldingPoints.get(fielderId);
+          
+          switch(fielder.type) {
+            case 'catch':
+              stats.catches++;
+              break;
+            case 'stumping':
+              stats.stumpings++;
+              break;
+            case 'runout':
+              stats.runouts++;
+              break;
+          }
+        }
+      }
+
+      // Second pass: Process batting performances
+      for (const batsman of Object.values(team.batsmen)) {
+        const battingPoints = this.calculateBattingPoints({
+          runs: parseInt(batsman.runs) || 0,
+          balls: parseInt(batsman.balls) || 0,
+          fours: parseInt(batsman.fours) || 0,
+          sixes: parseInt(batsman.sixes) || 0,
+          dismissal: batsman.dismissal,
+          isCaptain: batsman.isCaptain || false
+        });
+
+        const playerId = this.createPlayerDocId(batsman.name);
+        await this.storePlayerMatchPoints(playerId, matchId, battingPoints, {
           type: 'batting',
           runs: batsman.runs,
           balls: batsman.balls,
@@ -54,10 +92,18 @@ static async calculateMatchPoints(matchId, scorecard) {
         });
       }
 
-      // Calculate bowling points
+      // Third pass: Process bowling performances
       for (const bowler of Object.values(team.bowlers)) {
-        const points = this.calculateBowlingPoints(bowler);
-        await this.storePlayerMatchPoints(bowler.id, matchId, points, {
+        const bowlingPoints = this.calculateBowlingPoints({
+          wickets: parseInt(bowler.wickets) || 0,
+          maidens: parseInt(bowler.maidens) || 0,
+          runs: parseInt(bowler.runs) || 0,
+          overs: parseFloat(bowler.overs) || 0,
+          isCaptain: bowler.isCaptain || false
+        });
+
+        const playerId = this.createPlayerDocId(bowler.name);
+        await this.storePlayerMatchPoints(playerId, matchId, bowlingPoints, {
           type: 'bowling',
           wickets: bowler.wickets,
           maidens: bowler.maidens,
@@ -67,15 +113,12 @@ static async calculateMatchPoints(matchId, scorecard) {
       }
     }
 
-    // Calculate fielding points
-    const fieldingStats = this.processFieldingStats(scorecard);
-    for (const fielder of fieldingStats) {
-      const points = this.calculateFieldingPoints(fielder);
-      await this.storePlayerMatchPoints(fielder.id, matchId, points, {
+    // Final pass: Process fielding points
+    for (const [playerId, stats] of fieldingPoints.entries()) {
+      const fieldingPoints = this.calculateFieldingPoints(stats);
+      await this.storePlayerMatchPoints(playerId, matchId, fieldingPoints, {
         type: 'fielding',
-        catches: fielder.catches,
-        stumpings: fielder.stumpings,
-        runouts: fielder.runouts
+        ...stats
       });
     }
 
@@ -86,50 +129,106 @@ static async calculateMatchPoints(matchId, scorecard) {
   }
 }
 
-  static calculateBattingPoints(battingData) {
-    let points = this.POINTS.MATCH.PLAYED;
-    points += battingData.runs * this.POINTS.BATTING.RUN;
-    points += battingData.fours * this.POINTS.BATTING.BOUNDARY_4;
-    points += battingData.sixes * this.POINTS.BATTING.BOUNDARY_6;
+static extractFielderFromDismissal(dismissal, wicketCode) {
+  if (!dismissal) return null;
 
-    if (battingData.runs >= 100) {
-      points += this.POINTS.BATTING.MILESTONE_100;
-    } else if (battingData.runs >= 50) {
-      points += this.POINTS.BATTING.MILESTONE_50;
-    } else if (battingData.runs >= 25) {
-      points += this.POINTS.BATTING.MILESTONE_25;
+  // Handle different dismissal types
+  if (wicketCode === 'CAUGHT') {
+    // Regular catch: "c Player b Bowler"
+    const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^b]+)b/);
+    if (catchMatch) {
+      return {
+        name: catchMatch[1].trim(),
+        type: 'catch'
+      };
     }
-
-    if (battingData.runs === 0 && battingData.balls > 0 && battingData.dismissal) {
-      points += this.POINTS.BATTING.DUCK;
+  } else if (wicketCode === 'CAUGHTBOWLED') {
+    // Caught and bowled: "c and b Player"
+    const candBMatch = dismissal.match(/c and b\s+(.+)/);
+    if (candBMatch) {
+      return {
+        name: candBMatch[1].trim(),
+        type: 'catch'
+      };
     }
+  } else if (wicketCode === 'STUMPED') {
+    // Stumping: "st Player b Bowler"
+    const stumpMatch = dismissal.match(/st\s+([^b]+)b/);
+    if (stumpMatch) {
+      return {
+        name: stumpMatch[1].trim(),
+        type: 'stumping'
+      };
+    }
+  } else if (wicketCode === 'RUNOUT') {
+    // Run out: "run out (Player)"
+    const runoutMatch = dismissal.match(/run out\s+\(([^)]+)\)/);
+    if (runoutMatch) {
+      return {
+        name: runoutMatch[1].trim(),
+        type: 'runout'
+      };
+    }
+  }
+  
+  return null;
+}
 
-    return points;
+static calculateBattingPoints(battingData) {
+  let points = this.POINTS.MATCH.PLAYED; // Base points for playing
+
+  // Runs
+  points += battingData.runs * this.POINTS.BATTING.RUN;
+
+  // Boundaries
+  points += battingData.fours * this.POINTS.BATTING.BOUNDARY_4;
+  points += battingData.sixes * this.POINTS.BATTING.BOUNDARY_6;
+
+  // Milestones
+  if (battingData.runs >= 100) {
+    points += this.POINTS.BATTING.MILESTONE_100;
+  } else if (battingData.runs >= 50) {
+    points += this.POINTS.BATTING.MILESTONE_50;
+  } else if (battingData.runs >= 25) {
+    points += this.POINTS.BATTING.MILESTONE_25;
   }
 
-  static calculateBowlingPoints(bowlingData) {
-    let points = 0;
-    points += bowlingData.wickets * this.POINTS.BOWLING.WICKET;
-    points += bowlingData.maidens * this.POINTS.BOWLING.MAIDEN;
-
-    if (bowlingData.wickets >= 5) {
-      points += this.POINTS.BOWLING.FIVE_WICKETS;
-    } else if (bowlingData.wickets >= 4) {
-      points += this.POINTS.BOWLING.FOUR_WICKETS;
-    } else if (bowlingData.wickets >= 3) {
-      points += this.POINTS.BOWLING.THREE_WICKETS;
-    }
-
-    return points;
+  // Duck
+  if (battingData.runs === 0 && battingData.balls > 0 && battingData.dismissal) {
+    points += this.POINTS.BATTING.DUCK;
   }
 
-  static calculateFieldingPoints(fieldingData) {
-    let points = 0;
-    points += fieldingData.catches * this.POINTS.FIELDING.CATCH;
-    points += fieldingData.stumpings * this.POINTS.FIELDING.STUMPING;
-    points += fieldingData.runouts * this.POINTS.FIELDING.DIRECT_THROW;
-    return points;
+  return points;
+}
+
+static calculateBowlingPoints(bowlingData) {
+  let points = 0;
+
+  // Wickets
+  points += bowlingData.wickets * this.POINTS.BOWLING.WICKET;
+  
+  // Maidens
+  points += bowlingData.maidens * this.POINTS.BOWLING.MAIDEN;
+
+  // Wicket milestones
+  if (bowlingData.wickets >= 5) {
+    points += this.POINTS.BOWLING.FIVE_WICKETS;
+  } else if (bowlingData.wickets >= 4) {
+    points += this.POINTS.BOWLING.FOUR_WICKETS;
+  } else if (bowlingData.wickets >= 3) {
+    points += this.POINTS.BOWLING.THREE_WICKETS;
   }
+
+  return points;
+}
+
+static calculateFieldingPoints(fieldingData) {
+  let points = 0;
+  points += fieldingData.catches * this.POINTS.FIELDING.CATCH;
+  points += fieldingData.stumpings * this.POINTS.FIELDING.STUMPING;
+  points += fieldingData.runouts * this.POINTS.FIELDING.DIRECT_THROW;
+  return points;
+}
 
 static async storePlayerMatchPoints(playerId, matchId, points, performance) {
   try {
