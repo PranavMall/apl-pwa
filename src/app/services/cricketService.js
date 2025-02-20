@@ -71,9 +71,9 @@ static async fetchRecentMatches() {
         const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
         const matches = seriesData.matches || [];
         
-        // Check specifically for Pakistan ODI Tri-Series
-        if (seriesData.seriesName?.includes('Pakistan ODI Tri-Series, 2025')) {
-          console.log(`Found Pakistan ODI Tri-Series match: ${seriesData.seriesName}`);
+        // Check specifically for ICC Champions Trophy, 2025
+        if (seriesData.seriesName?.includes('ICC Champions Trophy, 2025')) {
+          console.log(`Found ICC Champions Trophy  match: ${seriesData.seriesName}`);
           
           matches.forEach(match => {
             if (match.matchInfo) {
@@ -597,7 +597,7 @@ static async getMatchesFromFirebase() {
     // Remove the limit to get all matches and add ordering
     const q = query(
       matchesRef,
-      where('matchInfo.seriesName', '==', 'Pakistan ODI Tri-Series, 2025'),
+      where('matchInfo.seriesName', '==', 'ICC Champions Trophy, 2025'),
       orderBy('matchInfo.startDate', 'desc')
     );
 
