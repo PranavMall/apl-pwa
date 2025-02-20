@@ -36,6 +36,13 @@ export class PointService {
     }
   };
 
+// Add this static method to your PointService class
+static createPlayerDocId(playerName) {
+  if (!playerName) return '';
+  return playerName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+}
+  
+// And update the start of calculateMatchPoints to accept playerNameMapping
 static async calculateMatchPoints(matchId, scorecard) {
   try {
     console.log(`Calculating points for match ${matchId}`);
@@ -53,7 +60,12 @@ static async calculateMatchPoints(matchId, scorecard) {
         if (fielder) {
           const fielderId = this.createPlayerDocId(fielder.name);
           if (!fieldingPoints.has(fielderId)) {
-            fieldingPoints.set(fielderId, { catches: 0, stumpings: 0, runouts: 0 });
+            fieldingPoints.set(fielderId, { 
+              name: fielder.name,
+              catches: 0, 
+              stumpings: 0, 
+              runouts: 0 
+            });
           }
           const stats = fieldingPoints.get(fielderId);
           
@@ -73,18 +85,21 @@ static async calculateMatchPoints(matchId, scorecard) {
 
       // Second pass: Process batting performances
       for (const batsman of Object.values(team.batsmen)) {
+        if (!batsman.name) continue;
+
         const battingPoints = this.calculateBattingPoints({
           runs: parseInt(batsman.runs) || 0,
           balls: parseInt(batsman.balls) || 0,
           fours: parseInt(batsman.fours) || 0,
           sixes: parseInt(batsman.sixes) || 0,
           dismissal: batsman.dismissal,
-          isCaptain: batsman.isCaptain || false
+        
         });
 
         const playerId = this.createPlayerDocId(batsman.name);
         await this.storePlayerMatchPoints(playerId, matchId, battingPoints, {
           type: 'batting',
+          name: batsman.name,
           runs: batsman.runs,
           balls: batsman.balls,
           fours: batsman.fours,
@@ -94,17 +109,20 @@ static async calculateMatchPoints(matchId, scorecard) {
 
       // Third pass: Process bowling performances
       for (const bowler of Object.values(team.bowlers)) {
+        if (!bowler.name) continue;
+
         const bowlingPoints = this.calculateBowlingPoints({
           wickets: parseInt(bowler.wickets) || 0,
           maidens: parseInt(bowler.maidens) || 0,
           runs: parseInt(bowler.runs) || 0,
           overs: parseFloat(bowler.overs) || 0,
-          isCaptain: bowler.isCaptain || false
+        
         });
 
         const playerId = this.createPlayerDocId(bowler.name);
         await this.storePlayerMatchPoints(playerId, matchId, bowlingPoints, {
           type: 'bowling',
+          name: bowler.name,
           wickets: bowler.wickets,
           maidens: bowler.maidens,
           runs: bowler.runs,
@@ -118,6 +136,7 @@ static async calculateMatchPoints(matchId, scorecard) {
       const fieldingPoints = this.calculateFieldingPoints(stats);
       await this.storePlayerMatchPoints(playerId, matchId, fieldingPoints, {
         type: 'fielding',
+        name: stats.name,
         ...stats
       });
     }
