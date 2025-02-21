@@ -88,7 +88,7 @@ static async calculateMatchPoints(matchId, scorecard) {
         if (!batsman.name) continue;
 
         const battingPoints = this.calculateBattingPoints({
-          batsman_runs: parseInt(batsman.runs) || 0,
+          runs: parseInt(batsman.runs) || 0,
           balls: parseInt(batsman.balls) || 0,
           fours: parseInt(batsman.fours) || 0,
           sixes: parseInt(batsman.sixes) || 0,
@@ -100,7 +100,7 @@ static async calculateMatchPoints(matchId, scorecard) {
         await this.storePlayerMatchPoints(playerId, matchId, battingPoints, {
           type: 'batting',
           name: batsman.name,
-          batsman_runs: batsman.runs,
+          runs: batsman.runs,
           balls: batsman.balls,
           fours: batsman.fours,
           sixes: batsman.sixes
