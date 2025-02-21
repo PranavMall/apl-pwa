@@ -88,7 +88,7 @@ static async calculateMatchPoints(matchId, scorecard) {
         if (!batsman.name) continue;
 
         const battingPoints = this.calculateBattingPoints({
-          runs: parseInt(batsman.runs) || 0,
+          batsman_runs: parseInt(batsman.runs) || 0,
           balls: parseInt(batsman.balls) || 0,
           fours: parseInt(batsman.fours) || 0,
           sixes: parseInt(batsman.sixes) || 0,
@@ -100,7 +100,7 @@ static async calculateMatchPoints(matchId, scorecard) {
         await this.storePlayerMatchPoints(playerId, matchId, battingPoints, {
           type: 'batting',
           name: batsman.name,
-          runs: batsman.runs,
+          batsman_runs: batsman.runs,
           balls: batsman.balls,
           fours: batsman.fours,
           sixes: batsman.sixes
@@ -114,7 +114,7 @@ static async calculateMatchPoints(matchId, scorecard) {
         const bowlingPoints = this.calculateBowlingPoints({
           wickets: parseInt(bowler.wickets) || 0,
           maidens: parseInt(bowler.maidens) || 0,
-          runs: parseInt(bowler.runs) || 0,
+          bowler_runs: parseInt(bowler.runs) || 0,
           overs: parseFloat(bowler.overs) || 0,
         
         });
@@ -125,7 +125,7 @@ static async calculateMatchPoints(matchId, scorecard) {
           name: bowler.name,
           wickets: bowler.wickets,
           maidens: bowler.maidens,
-          runs: bowler.runs,
+          bowler_runs: bowler.runs,
           overs: bowler.overs
         });
       }
