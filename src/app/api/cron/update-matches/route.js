@@ -21,6 +21,8 @@ export async function GET(request) {
     try {
       const matchesRef = collection(db, 'matches');
       const batsmen = Object.values(battingTeam.batsmen);
+      const battingTeam = innings[inningsIndex];
+       const bowlers = Object.values(battingTeam.bowlers);
       
       for (const matchId of matchesToRestore) {
         // Get match data
