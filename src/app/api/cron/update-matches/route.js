@@ -6,6 +6,10 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   try {
+    // First restore the specific matches
+    const matchesToRestore = ['101080', '112395','112413','112409']; // Add your match IDs here
+    console.log('Restoring specific matches:', matchesToRestore);
+    await cricketService.restoreMatchPoints(matchesToRestore);
     const isVercelCron = request.headers.get('x-vercel-cron') === '1';
     const authHeader = request.headers.get('authorization');
     const result = await cricketService.recalculateAllPlayerStats();
