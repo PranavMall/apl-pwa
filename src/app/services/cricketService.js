@@ -8,8 +8,7 @@ import {
   orderBy,
   limit,
   runTransaction,
-  where,
-  writeBatch  // Add this import
+  where
 } from 'firebase/firestore';
 import { PlayerService } from './playerService';
 import { PointService } from './pointService';
@@ -113,87 +112,6 @@ static async fetchRecentMatches() {
     return tournamentMatches;
   } catch (error) {
     console.error('Error fetching matches:', error);
-    throw error;
-  }
-}
-
-  // Add this to cricketService.js for recalculateAppPlayerStats
-static async recalculateAllPlayerStats() {
-  try {
-    console.log('Starting recalculation of all player stats...');
-
-    // Get all matches - including older ones from the Pakistan series
-    const matchesRef = collection(db, 'matches');
-    const matchesQuery = query(
-      matchesRef,
-      orderBy('matchInfo.startDate', 'asc')
-    );
-
-    const matchesSnapshot = await getDocs(matchesQuery);
-    console.log(`Found ${matchesSnapshot.size} matches to process`);
-
-    // Process each match
-    let processedCount = 0;
-    for (const matchDoc of matchesSnapshot.docs) {
-      const matchData = matchDoc.data();
-      console.log(`Processing match ${matchData.matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
-
-      try {
-        // Recalculate points for this match
-        await PointService.calculateMatchPoints(matchData.matchId, matchData.scorecard);
-        processedCount++;
-        console.log(`Successfully processed match ${matchData.matchId}`);
-      } catch (error) {
-        console.error(`Error processing match ${matchData.matchId}:`, error);
-      }
-    }
-
-    console.log(`Completed processing ${processedCount} out of ${matchesSnapshot.size} matches`);
-    return {
-      success: true,
-      totalMatches: matchesSnapshot.size,
-      processedMatches: processedCount
-    };
-  } catch (error) {
-    console.error('Error in recalculateAllPlayerStats:', error);
-    throw error;
-  }
-}
-
-// Add this function to help restore data for specific matches if needed
-static async restoreMatchPoints(matchIds) {
-  try {
-    console.log('Starting restoration of match points...');
-
-    const matchesRef = collection(db, 'matches');
-    let processedCount = 0;
-
-    for (const matchId of matchIds) {
-      const matchDoc = await getDoc(doc(matchesRef, matchId));
-      
-      if (!matchDoc.exists()) {
-        console.log(`Match ${matchId} not found`);
-        continue;
-      }
-
-      const matchData = matchDoc.data();
-      console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
-
-      try {
-        await PointService.calculateMatchPoints(matchId, matchData.scorecard);
-        processedCount++;
-        console.log(`Successfully processed match ${matchId}`);
-      } catch (error) {
-        console.error(`Error processing match ${matchId}:`, error);
-      }
-    }
-
-    return {
-      success: true,
-      processedMatches: processedCount
-    };
-  } catch (error) {
-    console.error('Error restoring match points:', error);
     throw error;
   }
 }
