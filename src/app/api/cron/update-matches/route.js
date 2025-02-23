@@ -12,7 +12,7 @@ import {
   where, 
   setDoc 
 } from 'firebase/firestore';
-import { db } from '../../../firebase';  // Make sure path matches your firebase config
+import { db } from '../../../../firebase';  // Make sure path matches your firebase config
 
 export async function GET(request) {
   try {
