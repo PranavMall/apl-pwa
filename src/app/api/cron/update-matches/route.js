@@ -8,6 +8,8 @@ export async function GET(request) {
   try {
     const isVercelCron = request.headers.get('x-vercel-cron') === '1';
     const authHeader = request.headers.get('authorization');
+    const result = await cricketService.recalculateAllPlayerStats();
+    return NextResponse.json(result);
     
     console.log('Request context:', {
       isVercelCron,
@@ -33,6 +35,7 @@ export async function GET(request) {
       results
     });
   } catch (error) {
+    console.error('Error in recalculation route:', error);
     console.error('Error in cron job:', {
       message: error.message,
       stack: error.stack
