@@ -4,6 +4,7 @@ import {
   doc,
   setDoc,
   getDocs,
+  getDoc,  // Add this import
   query,
   orderBy,
   limit,
@@ -160,26 +161,34 @@ static async recalculateAllPlayerStats() {
   }
 }
 
-// Add this function to help restore data for specific matches if needed
+// Updated restore function
 static async restoreMatchPoints(matchIds) {
   try {
-    console.log('Starting restoration of match points...');
+    console.log('Starting restoration of match points...', matchIds);
 
     const matchesRef = collection(db, 'matches');
     let processedCount = 0;
 
     for (const matchId of matchIds) {
-      const matchDoc = await getDoc(doc(matchesRef, matchId));
-      
-      if (!matchDoc.exists()) {
-        console.log(`Match ${matchId} not found`);
-        continue;
-      }
-
-      const matchData = matchDoc.data();
-      console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
-
       try {
+        // Get existing match data
+        const matchQuery = query(
+          matchesRef,
+          where('matchId', '==', matchId)
+        );
+        const matchSnapshot = await getDocs(matchQuery);
+        
+        if (matchSnapshot.empty) {
+          console.log(`Match ${matchId} not found`);
+          continue;
+        }
+
+        const matchDoc = matchSnapshot.docs[0];
+        const matchData = matchDoc.data();
+
+        console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
+
+        // Calculate points
         await PointService.calculateMatchPoints(matchId, matchData.scorecard);
         processedCount++;
         console.log(`Successfully processed match ${matchId}`);
@@ -188,6 +197,7 @@ static async restoreMatchPoints(matchIds) {
       }
     }
 
+    console.log(`Completed processing ${processedCount} matches`);
     return {
       success: true,
       processedMatches: processedCount
