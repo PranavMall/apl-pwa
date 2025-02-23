@@ -181,49 +181,105 @@ static async calculateMatchPoints(matchId, scorecard) {
   }
 }
 
-static extractFielderFromDismissal(dismissal, wicketCode) {
-  if (!dismissal) return null;
+  static async storePlayerMatchPoints(playerId, matchId, points, performance) {
+  try {
+    const pointsDocId = `${playerId}_${matchId}`;
+    const pointsDocRef = doc(db, 'playerPoints', pointsDocId);
 
-  // Handle different dismissal types
-  if (wicketCode === 'CAUGHT') {
-    // Regular catch: "c Player b Bowler"
-    const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^b]+)b/);
-    if (catchMatch) {
-      return {
-        name: catchMatch[1].trim(),
-        type: 'catch'
+    // First check if we already have points for this player in this match
+    const existingDoc = await getDoc(pointsDocRef);
+    let existingData = existingDoc.exists() ? existingDoc.data() : null;
+
+    let updatedPerformance = {};
+    let totalPoints = points;
+
+    if (existingData) {
+      // Combine with existing performance data
+      totalPoints = points + (existingData.points || 0);
+
+      if (performance.type === 'batting') {
+        updatedPerformance = {
+          ...existingData.performance,
+          runs: performance.runs,
+          balls: performance.balls,
+          fours: performance.fours,
+          sixes: performance.sixes,
+          strikeRate: performance.strikeRate,
+          innings: performance.innings,
+          batting: true
+        };
+      } 
+      else if (performance.type === 'bowling') {
+        updatedPerformance = {
+          ...existingData.performance,
+          overs: performance.overs,
+          maidens: performance.maidens,
+          bowler_runs: performance.bowler_runs,
+          wickets: performance.wickets,
+          economy: performance.economy,
+          innings: performance.innings,
+          bowling: true
+        };
+      }
+      else if (performance.type === 'fielding') {
+        updatedPerformance = {
+          ...existingData.performance,
+          catches: (existingData.performance?.catches || 0) + (performance.catches || 0),
+          stumpings: (existingData.performance?.stumpings || 0) + (performance.stumpings || 0),
+          runouts: (existingData.performance?.runouts || 0) + (performance.runouts || 0),
+          fielding: true
+        };
+      }
+    } else {
+      // New performance record
+      updatedPerformance = {
+        name: performance.name,
+        id: playerId,
+        innings: performance.innings,
+        [performance.type]: true
       };
+
+      if (performance.type === 'batting') {
+        Object.assign(updatedPerformance, {
+          runs: performance.runs,
+          balls: performance.balls,
+          fours: performance.fours,
+          sixes: performance.sixes,
+          strikeRate: performance.strikeRate
+        });
+      } 
+      else if (performance.type === 'bowling') {
+        Object.assign(updatedPerformance, {
+          overs: performance.overs,
+          maidens: performance.maidens,
+          bowler_runs: performance.bowler_runs,
+          wickets: performance.wickets,
+          economy: performance.economy
+        });
+      }
+      else if (performance.type === 'fielding') {
+        Object.assign(updatedPerformance, {
+          catches: performance.catches || 0,
+          stumpings: performance.stumpings || 0,
+          runouts: performance.runouts || 0
+        });
+      }
     }
-  } else if (wicketCode === 'CAUGHTBOWLED') {
-    // Caught and bowled: "c and b Player"
-    const candBMatch = dismissal.match(/c and b\s+(.+)/);
-    if (candBMatch) {
-      return {
-        name: candBMatch[1].trim(),
-        type: 'catch'
-      };
-    }
-  } else if (wicketCode === 'STUMPED') {
-    // Stumping: "st Player b Bowler"
-    const stumpMatch = dismissal.match(/st\s+([^b]+)b/);
-    if (stumpMatch) {
-      return {
-        name: stumpMatch[1].trim(),
-        type: 'stumping'
-      };
-    }
-  } else if (wicketCode === 'RUNOUT') {
-    // Run out: "run out (Player)"
-    const runoutMatch = dismissal.match(/run out\s+\(([^)]+)\)/);
-    if (runoutMatch) {
-      return {
-        name: runoutMatch[1].trim(),
-        type: 'runout'
-      };
-    }
+
+    // Store updated data
+    await setDoc(pointsDocRef, {
+      playerId,
+      matchId,
+      points: totalPoints,
+      performance: updatedPerformance,
+      timestamp: new Date().toISOString()
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error storing player match points:', error);
+    throw error;
   }
-  
-  return null;
 }
 
 static calculateBattingPoints(battingData) {
@@ -282,65 +338,51 @@ static calculateFieldingPoints(fieldingData) {
   return points;
 }
 
-static async storePlayerMatchPoints(playerId, matchId, points, performance) {
-  try {
-    // 1. Store individual match points
-    const pointsDocId = `${playerId}_${matchId}`;
-    const pointsDocRef = doc(db, 'playerPoints', pointsDocId);
+static extractFielderFromDismissal(dismissal, wicketCode) {
+  if (!dismissal) return null;
 
-    await setDoc(pointsDocRef, {
-      playerId,
-      matchId,
-      points,
-      performance,
-      timestamp: new Date().toISOString()
-    });
-
-    // 2. Get all points for this player from all matches
-    const playerPointsRef = collection(db, 'playerPoints');
-    const playerPointsQuery = query(
-      playerPointsRef,
-      where('playerId', '==', playerId)
-    );
-
-    const pointsSnapshot = await getDocs(playerPointsQuery);
-    let totalPoints = 0;
-    let performances = [];
-
-    pointsSnapshot.docs.forEach(doc => {
-      const pointData = doc.data();
-      totalPoints += pointData.points || 0;
-      if (pointData.performance) {
-        performances.push({
-          matchId: pointData.matchId,
-          ...pointData.performance
-        });
-      }
-    });
-
-    // 3. Update player's cumulative stats
-    const playerDocRef = doc(db, 'players', playerId);
-    await runTransaction(db, async (transaction) => {
-      const playerDoc = await transaction.get(playerDocRef);
-      if (playerDoc.exists()) {
-        // Calculate cumulative stats based on all performances
-        const stats = this.calculateCumulativeStats(performances);
-        
-        transaction.update(playerDocRef, {
-          totalPoints: totalPoints,
-          ...stats,
-          lastUpdated: new Date().toISOString(),
-          lastMatchId: matchId
-        });
-      }
-    });
-
-    return true;
-  } catch (error) {
-    console.error('Error storing player match points:', error);
-    throw error;
+  // Handle different dismissal types
+  if (wicketCode === 'CAUGHT') {
+    // Regular catch: "c Player b Bowler"
+    const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^b]+)b/);
+    if (catchMatch) {
+      return {
+        name: catchMatch[1].trim(),
+        type: 'catch'
+      };
+    }
+  } else if (wicketCode === 'CAUGHTBOWLED') {
+    // Caught and bowled: "c and b Player"
+    const candBMatch = dismissal.match(/c and b\s+(.+)/);
+    if (candBMatch) {
+      return {
+        name: candBMatch[1].trim(),
+        type: 'catch'
+      };
+    }
+  } else if (wicketCode === 'STUMPED') {
+    // Stumping: "st Player b Bowler"
+    const stumpMatch = dismissal.match(/st\s+([^b]+)b/);
+    if (stumpMatch) {
+      return {
+        name: stumpMatch[1].trim(),
+        type: 'stumping'
+      };
+    }
+  } else if (wicketCode === 'RUNOUT') {
+    // Run out: "run out (Player)"
+    const runoutMatch = dismissal.match(/run out\s+\(([^)]+)\)/);
+    if (runoutMatch) {
+      return {
+        name: runoutMatch[1].trim(),
+        type: 'runout'
+      };
+    }
   }
+  
+  return null;
 }
+  
 
   static calculateCumulativeStats(performances) {
   const stats = {
