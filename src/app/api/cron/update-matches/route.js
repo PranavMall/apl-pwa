@@ -1,5 +1,4 @@
 // app/api/cron/update-matches/route.js
-
 import { cricketService } from '@/app/services/cricketService';
 import { PointService } from '@/app/services/pointService';
 import { NextResponse } from 'next/server';
@@ -23,15 +22,18 @@ export async function GET(request) {
       const matchesRef = collection(db, 'matches');
       
       for (const matchId of matchesToRestore) {
-        // Reset processing state for this match
-        const processingStateRef = doc(db, 'processingState', matchId);
-        await setDoc(processingStateRef, {
-          currentTeam: 1,
-          currentInnings: 1,
-          currentPlayerIndex: 0,
-          fieldingProcessed: false,
-          completed: false
-        });
+        // Check if match has already been processed
+        const playerPointsRef = collection(db, 'playerPoints');
+        const pointsQuery = query(
+          playerPointsRef,
+          where('matchId', '==', matchId)
+        );
+        const existingPoints = await getDocs(pointsQuery);
+
+        if (!existingPoints.empty) {
+          console.log(`Match ${matchId} already has points calculated, skipping...`);
+          continue;
+        }
 
         const matchQuery = query(matchesRef, where('matchId', '==', matchId));
         const matchSnapshot = await getDocs(matchQuery);
@@ -144,15 +146,6 @@ export async function GET(request) {
             console.error(`Error processing fielding points for ${fielderId}:`, error);
           }
         }
-
-        // Mark match as completed
-        await setDoc(processingStateRef, {
-          currentInnings: 2,
-          currentTeam: 2,
-          currentPlayerIndex: 0,
-          fieldingProcessed: true,
-          completed: true
-        });
 
         console.log(`Successfully completed processing match ${matchId}`);
       }
