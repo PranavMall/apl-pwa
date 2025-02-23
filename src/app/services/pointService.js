@@ -181,25 +181,33 @@ static async calculateMatchPoints(matchId, scorecard) {
   }
 }
 
-static async storePlayerMatchPoints(playerId, matchId, points, performance) {
+static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
     const pointsDocRef = doc(db, 'playerPoints', pointsDocId);
 
-    // First check if we already have points for this player in this match
+    // Get existing document
     const existingDoc = await getDoc(pointsDocRef);
     let existingData = existingDoc.exists() ? existingDoc.data() : null;
 
     let updatedPerformance = {};
-    let totalPoints = points;
+    let totalPoints = newPoints;
 
     if (existingData) {
-      // Combine with existing performance data
-      totalPoints = points + (existingData.points || 0);
-
+      // Keep track of which types of performances we've already processed
+      const existingPerf = existingData.performance || {};
+      
       if (performance.type === 'batting') {
+        if (!existingPerf.batting) {
+          // Only add batting points if we haven't processed batting before
+          totalPoints = (existingData.points || 0) + newPoints;
+        } else {
+          // If we've already processed batting, use existing points
+          totalPoints = existingData.points;
+        }
+        
         updatedPerformance = {
-          ...existingData.performance,
+          ...existingPerf,
           runs: performance.runs || 0,
           balls: performance.balls || 0,
           fours: performance.fours || 0,
@@ -210,11 +218,19 @@ static async storePlayerMatchPoints(playerId, matchId, points, performance) {
         };
       } 
       else if (performance.type === 'bowling') {
+        if (!existingPerf.bowling) {
+          // Only add bowling points if we haven't processed bowling before
+          totalPoints = (existingData.points || 0) + newPoints;
+        } else {
+          // If we've already processed bowling, use existing points
+          totalPoints = existingData.points;
+        }
+        
         updatedPerformance = {
-          ...existingData.performance,
+          ...existingPerf,
           overs: performance.overs || 0,
           maidens: performance.maidens || 0,
-          bowler_runs: performance.runs || 0, // Changed from bowler_runs to runs
+          bowler_runs: performance.runs || 0,
           wickets: performance.wickets || 0,
           economy: performance.economy || 0,
           innings: performance.innings,
@@ -222,11 +238,19 @@ static async storePlayerMatchPoints(playerId, matchId, points, performance) {
         };
       }
       else if (performance.type === 'fielding') {
+        if (!existingPerf.fielding) {
+          // Only add fielding points if we haven't processed fielding before
+          totalPoints = (existingData.points || 0) + newPoints;
+        } else {
+          // If we've already processed fielding, use existing points
+          totalPoints = existingData.points;
+        }
+        
         updatedPerformance = {
-          ...existingData.performance,
-          catches: (existingData.performance?.catches || 0) + (performance.catches || 0),
-          stumpings: (existingData.performance?.stumpings || 0) + (performance.stumpings || 0),
-          runouts: (existingData.performance?.runouts || 0) + (performance.runouts || 0),
+          ...existingPerf,
+          catches: (existingPerf.catches || 0) + (performance.catches || 0),
+          stumpings: (existingPerf.stumpings || 0) + (performance.stumpings || 0),
+          runouts: (existingPerf.runouts || 0) + (performance.runouts || 0),
           fielding: true
         };
       }
@@ -252,7 +276,7 @@ static async storePlayerMatchPoints(playerId, matchId, points, performance) {
         Object.assign(updatedPerformance, {
           overs: performance.overs || 0,
           maidens: performance.maidens || 0,
-          bowler_runs: performance.runs || 0, // Changed from bowler_runs to runs
+          bowler_runs: performance.runs || 0,
           wickets: performance.wickets || 0,
           economy: performance.economy || 0
         });
@@ -265,6 +289,15 @@ static async storePlayerMatchPoints(playerId, matchId, points, performance) {
         });
       }
     }
+
+    // Log for debugging
+    console.log(`Points calculation for ${performance.name}:`, {
+      type: performance.type,
+      newPoints,
+      existingPoints: existingData?.points || 0,
+      totalPoints,
+      performance: updatedPerformance
+    });
 
     // Store updated data
     await setDoc(pointsDocRef, {
@@ -280,6 +313,7 @@ static async storePlayerMatchPoints(playerId, matchId, points, performance) {
     console.error('Error storing player match points:', error, {
       playerId,
       matchId,
+      points: newPoints,
       performance: JSON.stringify(performance, null, 2)
     });
     throw error;
