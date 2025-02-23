@@ -47,11 +47,16 @@ static async calculateMatchPoints(matchId, scorecard) {
   try {
     console.log(`Calculating points for match ${matchId}`);
     
-    // Track fielding contributions
-    const fieldingPoints = new Map(); // playerId -> {catches: 0, stumpings: 0, runouts: 0}
+    // Track fielding contributions for each innings
+    const fieldingPoints = new Map(); // playerId -> {name, catches: 0, stumpings: 0, runouts: 0}
     
-    // Process both teams
-    for (const team of [scorecard.team1, scorecard.team2]) {
+    // Process both teams' innings
+    const innings = [scorecard.team1, scorecard.team2];
+    
+    for (let inningNum = 0; inningNum < innings.length; inningNum++) {
+      const team = innings[inningNum];
+      console.log(`Processing innings ${inningNum + 1}`);
+
       // First pass: Process dismissals to collect fielding stats
       for (const batsman of Object.values(team.batsmen)) {
         if (!batsman.dismissal || !batsman.wicketCode) continue;
@@ -92,18 +97,25 @@ static async calculateMatchPoints(matchId, scorecard) {
           balls: parseInt(batsman.balls) || 0,
           fours: parseInt(batsman.fours) || 0,
           sixes: parseInt(batsman.sixes) || 0,
-          dismissal: batsman.dismissal,
-        
+          dismissal: batsman.dismissal
         });
 
         const playerId = this.createPlayerDocId(batsman.name);
+        console.log(`Storing batting points for ${batsman.name}:`, battingPoints);
+        
+        // Get existing fielding stats for this player
+        const fieldingStats = fieldingPoints.get(playerId) || { catches: 0, stumpings: 0, runouts: 0 };
+
         await this.storePlayerMatchPoints(playerId, matchId, battingPoints, {
           type: 'batting',
           name: batsman.name,
           runs: batsman.runs,
           balls: batsman.balls,
           fours: batsman.fours,
-          sixes: batsman.sixes
+          sixes: batsman.sixes,
+          catches: fieldingStats.catches,
+          runouts: fieldingStats.runouts,
+          stumpings: fieldingStats.stumpings
         });
       }
 
@@ -115,30 +127,51 @@ static async calculateMatchPoints(matchId, scorecard) {
           wickets: parseInt(bowler.wickets) || 0,
           maidens: parseInt(bowler.maidens) || 0,
           bowler_runs: parseInt(bowler.runs) || 0,
-          overs: parseFloat(bowler.overs) || 0,
-        
+          overs: parseFloat(bowler.overs) || 0
         });
 
         const playerId = this.createPlayerDocId(bowler.name);
+        console.log(`Storing bowling points for ${bowler.name}:`, bowlingPoints);
+        
+        // Get existing fielding stats for this player
+        const fieldingStats = fieldingPoints.get(playerId) || { catches: 0, stumpings: 0, runouts: 0 };
+
         await this.storePlayerMatchPoints(playerId, matchId, bowlingPoints, {
           type: 'bowling',
           name: bowler.name,
           wickets: bowler.wickets,
           maidens: bowler.maidens,
           bowler_runs: bowler.runs,
-          overs: bowler.overs
+          overs: bowler.overs,
+          catches: fieldingStats.catches,
+          runouts: fieldingStats.runouts,
+          stumpings: fieldingStats.stumpings
         });
       }
     }
 
-    // Final pass: Process fielding points
+    // Final pass: Process pure fielding points (for players who only fielded)
     for (const [playerId, stats] of fieldingPoints.entries()) {
-      const fieldingPoints = this.calculateFieldingPoints(stats);
-      await this.storePlayerMatchPoints(playerId, matchId, fieldingPoints, {
-        type: 'fielding',
-        name: stats.name,
-        ...stats
-      });
+      // Only process if player hasn't already been processed for batting/bowling
+      const pointsQuery = query(
+        collection(db, 'playerPoints'),
+        where('playerId', '==', playerId),
+        where('matchId', '==', matchId)
+      );
+      
+      const existingPoints = await getDocs(pointsQuery);
+      if (existingPoints.empty) {
+        const fieldingPoints = this.calculateFieldingPoints(stats);
+        console.log(`Storing fielding points for ${stats.name}:`, fieldingPoints);
+        
+        await this.storePlayerMatchPoints(playerId, matchId, fieldingPoints, {
+          type: 'fielding',
+          name: stats.name,
+          catches: stats.catches,
+          runouts: stats.runouts,
+          stumpings: stats.stumpings
+        });
+      }
     }
 
     return true;
