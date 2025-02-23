@@ -8,7 +8,18 @@ export async function GET(request) {
   try {
     // First restore the specific matches
     const matchesToRestore = ['101080', '112395','112413','112409']; // Add your match IDs here
-    console.log('Restoring specific matches:', matchesToRestore);
+    console.log('Starting match restoration process...');
+
+    try {
+      // First try to restore specific matches
+      console.log('Restoring specific matches:', matchesToRestore);
+      const restoreResult = await cricketService.restoreMatchPoints(matchesToRestore);
+      console.log('Restore result:', restoreResult);
+    } catch (restoreError) {
+      console.error('Error during match restoration:', restoreError);
+      // Continue with sync even if restore fails
+    }
+    
     await cricketService.restoreMatchPoints(matchesToRestore);
     const isVercelCron = request.headers.get('x-vercel-cron') === '1';
     const authHeader = request.headers.get('authorization');
