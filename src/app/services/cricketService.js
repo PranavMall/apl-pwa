@@ -117,33 +117,20 @@ static async fetchRecentMatches() {
   }
 }
 
-  // Add this to cricketService.js or create a new utility file
-
+  // Add this to cricketService.js for recalculateAppPlayerStats
 static async recalculateAllPlayerStats() {
   try {
     console.log('Starting recalculation of all player stats...');
 
-    // Get all matches
+    // Get all matches - including older ones from the Pakistan series
     const matchesRef = collection(db, 'matches');
     const matchesQuery = query(
       matchesRef,
-      where('matchInfo.seriesName', '==', 'ICC Champions Trophy, 2025'),
       orderBy('matchInfo.startDate', 'asc')
     );
 
     const matchesSnapshot = await getDocs(matchesQuery);
     console.log(`Found ${matchesSnapshot.size} matches to process`);
-
-    // Clear existing player points
-    const playerPointsRef = collection(db, 'playerPoints');
-    const playerPointsSnapshot = await getDocs(playerPointsRef);
-    
-    const batch = writeBatch(db);
-    playerPointsSnapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-    await batch.commit();
-    console.log('Cleared existing player points');
 
     // Process each match
     let processedCount = 0;
@@ -169,6 +156,44 @@ static async recalculateAllPlayerStats() {
     };
   } catch (error) {
     console.error('Error in recalculateAllPlayerStats:', error);
+    throw error;
+  }
+}
+
+// Add this function to help restore data for specific matches if needed
+static async restoreMatchPoints(matchIds) {
+  try {
+    console.log('Starting restoration of match points...');
+
+    const matchesRef = collection(db, 'matches');
+    let processedCount = 0;
+
+    for (const matchId of matchIds) {
+      const matchDoc = await getDoc(doc(matchesRef, matchId));
+      
+      if (!matchDoc.exists()) {
+        console.log(`Match ${matchId} not found`);
+        continue;
+      }
+
+      const matchData = matchDoc.data();
+      console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
+
+      try {
+        await PointService.calculateMatchPoints(matchId, matchData.scorecard);
+        processedCount++;
+        console.log(`Successfully processed match ${matchId}`);
+      } catch (error) {
+        console.error(`Error processing match ${matchId}:`, error);
+      }
+    }
+
+    return {
+      success: true,
+      processedMatches: processedCount
+    };
+  } catch (error) {
+    console.error('Error restoring match points:', error);
     throw error;
   }
 }
