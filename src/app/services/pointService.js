@@ -181,7 +181,7 @@ static async calculateMatchPoints(matchId, scorecard) {
   }
 }
 
-  static async storePlayerMatchPoints(playerId, matchId, points, performance) {
+static async storePlayerMatchPoints(playerId, matchId, points, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
     const pointsDocRef = doc(db, 'playerPoints', pointsDocId);
@@ -200,11 +200,11 @@ static async calculateMatchPoints(matchId, scorecard) {
       if (performance.type === 'batting') {
         updatedPerformance = {
           ...existingData.performance,
-          runs: performance.runs,
-          balls: performance.balls,
-          fours: performance.fours,
-          sixes: performance.sixes,
-          strikeRate: performance.strikeRate,
+          runs: performance.runs || 0,
+          balls: performance.balls || 0,
+          fours: performance.fours || 0,
+          sixes: performance.sixes || 0,
+          strikeRate: performance.strikeRate || 0,
           innings: performance.innings,
           batting: true
         };
@@ -212,11 +212,11 @@ static async calculateMatchPoints(matchId, scorecard) {
       else if (performance.type === 'bowling') {
         updatedPerformance = {
           ...existingData.performance,
-          overs: performance.overs,
-          maidens: performance.maidens,
-          bowler_runs: performance.bowler_runs,
-          wickets: performance.wickets,
-          economy: performance.economy,
+          overs: performance.overs || 0,
+          maidens: performance.maidens || 0,
+          bowler_runs: performance.runs || 0, // Changed from bowler_runs to runs
+          wickets: performance.wickets || 0,
+          economy: performance.economy || 0,
           innings: performance.innings,
           bowling: true
         };
@@ -241,20 +241,20 @@ static async calculateMatchPoints(matchId, scorecard) {
 
       if (performance.type === 'batting') {
         Object.assign(updatedPerformance, {
-          runs: performance.runs,
-          balls: performance.balls,
-          fours: performance.fours,
-          sixes: performance.sixes,
-          strikeRate: performance.strikeRate
+          runs: performance.runs || 0,
+          balls: performance.balls || 0,
+          fours: performance.fours || 0,
+          sixes: performance.sixes || 0,
+          strikeRate: performance.strikeRate || 0
         });
       } 
       else if (performance.type === 'bowling') {
         Object.assign(updatedPerformance, {
-          overs: performance.overs,
-          maidens: performance.maidens,
-          bowler_runs: performance.bowler_runs,
-          wickets: performance.wickets,
-          economy: performance.economy
+          overs: performance.overs || 0,
+          maidens: performance.maidens || 0,
+          bowler_runs: performance.runs || 0, // Changed from bowler_runs to runs
+          wickets: performance.wickets || 0,
+          economy: performance.economy || 0
         });
       }
       else if (performance.type === 'fielding') {
@@ -277,7 +277,11 @@ static async calculateMatchPoints(matchId, scorecard) {
 
     return true;
   } catch (error) {
-    console.error('Error storing player match points:', error);
+    console.error('Error storing player match points:', error, {
+      playerId,
+      matchId,
+      performance: JSON.stringify(performance, null, 2)
+    });
     throw error;
   }
 }
