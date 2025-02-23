@@ -8,7 +8,8 @@ import {
   orderBy,
   limit,
   runTransaction,
-  where
+  where,
+  writeBatch  // Add this import
 } from 'firebase/firestore';
 import { PlayerService } from './playerService';
 import { PointService } from './pointService';
