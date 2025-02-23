@@ -16,13 +16,23 @@ import { db } from '../../../../firebase';  // Make sure path matches your fireb
 
 export async function GET(request) {
   try {
-    const matchesToRestore = ['112395','112413','112409','112402','112420'];
+    const matchesToRestore = ['112395', '112420']; // Add all your match IDs
     console.log('Starting match restoration process...');
 
     try {
       const matchesRef = collection(db, 'matches');
       
       for (const matchId of matchesToRestore) {
+        // Reset processing state for this match
+        const processingStateRef = doc(db, 'processingState', matchId);
+        await setDoc(processingStateRef, {
+          currentTeam: 1,
+          currentInnings: 1,
+          currentPlayerIndex: 0,
+          fieldingProcessed: false,
+          completed: false
+        });
+
         const matchQuery = query(matchesRef, where('matchId', '==', matchId));
         const matchSnapshot = await getDocs(matchQuery);
         
@@ -34,43 +44,22 @@ export async function GET(request) {
         const matchData = matchSnapshot.docs[0].data();
         console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
 
-        // Get or initialize processing state
-        const processingStateRef = doc(db, 'processingState', matchId);
-        const processingState = await getDoc(processingStateRef);
-        
-        const state = processingState.exists() ? processingState.data() : {
-          currentTeam: 1,
-          currentInnings: 1,
-          currentPlayerIndex: 0,
-          fieldingProcessed: false,
-          completed: false
-        };
-
-        if (state.completed) {
-          console.log(`Match ${matchId} already fully processed, skipping...`);
-          continue;
-        }
-
-        console.log(`Resuming processing from innings ${state.currentInnings}, team ${state.currentTeam}, player ${state.currentPlayerIndex}`);
-
-        // Track fielding contributions
-        const fieldingPoints = new Map();
-        
         // Process both innings
         const innings = [matchData.scorecard.team1, matchData.scorecard.team2];
+        console.log(`Found ${innings.length} innings to process`);
         
-        // Start from where we left off
-        for (let inningsIndex = state.currentInnings - 1; inningsIndex < innings.length; inningsIndex++) {
+        // Track fielding contributions
+        const fieldingPoints = new Map();
+
+        for (let inningsIndex = 0; inningsIndex < innings.length; inningsIndex++) {
           const battingTeam = innings[inningsIndex];
           console.log(`Processing innings ${inningsIndex + 1}`);
 
           // Process batting performances first
           const batsmen = Object.values(battingTeam.batsmen);
-          for (let playerIndex = inningsIndex === state.currentInnings - 1 ? state.currentPlayerIndex : 0; 
-               playerIndex < batsmen.length; 
-               playerIndex++) {
-            
-            const batsman = batsmen[playerIndex];
+          console.log(`Processing ${batsmen.length} batsmen`);
+          
+          for (const batsman of batsmen) {
             if (!batsman.name) continue;
 
             try {
@@ -87,21 +76,13 @@ export async function GET(request) {
                 }
               );
 
-              // Update state after each player
-              await setDoc(processingStateRef, {
-                currentInnings: inningsIndex + 1,
-                currentTeam: state.currentTeam,
-                currentPlayerIndex: playerIndex + 1,
-                fieldingProcessed: state.fieldingProcessed,
-                completed: false
-              });
-
               // Process fielding stats from dismissal
               if (batsman.dismissal) {
                 const fielder = PointService.extractFielderFromDismissal(batsman.dismissal, batsman.wicketCode);
                 if (fielder) {
                   if (!fieldingPoints.has(fielder.name)) {
                     fieldingPoints.set(fielder.name, {
+                      name: fielder.name,
                       catches: 0,
                       stumpings: 0,
                       runouts: 0
@@ -115,7 +96,6 @@ export async function GET(request) {
                   }
                 }
               }
-
             } catch (error) {
               console.error(`Error processing batsman ${batsman.name}:`, error);
             }
@@ -123,11 +103,12 @@ export async function GET(request) {
 
           // Process bowling performances
           const bowlers = Object.values(battingTeam.bowlers);
+          console.log(`Processing ${bowlers.length} bowlers`);
+          
           for (const bowler of bowlers) {
             if (!bowler.name) continue;
 
             try {
-              // Process bowling points
               const bowlingPoints = PointService.calculateBowlingPoints(bowler);
               await PointService.storePlayerMatchPoints(
                 PointService.createPlayerDocId(bowler.name),
@@ -145,29 +126,23 @@ export async function GET(request) {
           }
         }
 
-        // Process fielding points if not already done
-        if (!state.fieldingProcessed) {
-          for (const [playerName, stats] of fieldingPoints.entries()) {
-            try {
-              const fieldingPoints = PointService.calculateFieldingPoints(stats);
-              await PointService.storePlayerMatchPoints(
-                PointService.createPlayerDocId(playerName),
-                matchId,
-                fieldingPoints,
-                {
-                  type: 'fielding',
-                  ...stats
-                }
-              );
-            } catch (error) {
-              console.error(`Error processing fielding points for ${playerName}:`, error);
-            }
+        // Process fielding points at the end
+        console.log(`Processing fielding points for ${fieldingPoints.size} players`);
+        for (const [fielderId, stats] of fieldingPoints.entries()) {
+          try {
+            const fieldingPoints = PointService.calculateFieldingPoints(stats);
+            await PointService.storePlayerMatchPoints(
+              PointService.createPlayerDocId(fielderId),
+              matchId,
+              fieldingPoints,
+              {
+                type: 'fielding',
+                ...stats
+              }
+            );
+          } catch (error) {
+            console.error(`Error processing fielding points for ${fielderId}:`, error);
           }
-
-          await setDoc(processingStateRef, {
-            ...state,
-            fieldingProcessed: true
-          });
         }
 
         // Mark match as completed
