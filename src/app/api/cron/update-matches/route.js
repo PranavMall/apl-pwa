@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request) {
   try {
     // First restore the specific matches
-    const matchesToRestore = ['112395','112413','112409','112402','112420']; // Add your match IDs here
+    const matchesToRestore = ['112395']; // Add your match IDs here
     console.log('Starting match restoration process...');
 
     try {
