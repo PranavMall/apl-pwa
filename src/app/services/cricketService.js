@@ -116,6 +116,62 @@ static async fetchRecentMatches() {
   }
 }
 
+  // Add this to cricketService.js or create a new utility file
+
+static async recalculateAllPlayerStats() {
+  try {
+    console.log('Starting recalculation of all player stats...');
+
+    // Get all matches
+    const matchesRef = collection(db, 'matches');
+    const matchesQuery = query(
+      matchesRef,
+      where('matchInfo.seriesName', '==', 'ICC Champions Trophy, 2025'),
+      orderBy('matchInfo.startDate', 'asc')
+    );
+
+    const matchesSnapshot = await getDocs(matchesQuery);
+    console.log(`Found ${matchesSnapshot.size} matches to process`);
+
+    // Clear existing player points
+    const playerPointsRef = collection(db, 'playerPoints');
+    const playerPointsSnapshot = await getDocs(playerPointsRef);
+    
+    const batch = writeBatch(db);
+    playerPointsSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+    console.log('Cleared existing player points');
+
+    // Process each match
+    let processedCount = 0;
+    for (const matchDoc of matchesSnapshot.docs) {
+      const matchData = matchDoc.data();
+      console.log(`Processing match ${matchData.matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
+
+      try {
+        // Recalculate points for this match
+        await PointService.calculateMatchPoints(matchData.matchId, matchData.scorecard);
+        processedCount++;
+        console.log(`Successfully processed match ${matchData.matchId}`);
+      } catch (error) {
+        console.error(`Error processing match ${matchData.matchId}:`, error);
+      }
+    }
+
+    console.log(`Completed processing ${processedCount} out of ${matchesSnapshot.size} matches`);
+    return {
+      success: true,
+      totalMatches: matchesSnapshot.size,
+      processedMatches: processedCount
+    };
+  } catch (error) {
+    console.error('Error in recalculateAllPlayerStats:', error);
+    throw error;
+  }
+}
+
   static async updateMatchInFirebase(matchData, scorecard, dbInstance = db) {
     try {
       const matchDoc = doc(dbInstance, 'matches', matchData.matchId.toString());
