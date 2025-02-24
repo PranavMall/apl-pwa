@@ -57,10 +57,10 @@ export async function GET(request) {
         // Track fielding contributions
         const fieldingPoints = new Map();
 
-        // Get  array
-        const  = matchData.;
-        if (! || !Array.isArray()) {
-          console.log(`No  found for match ${matchId}`);
+        // Get scoreCard array
+        const scorecard = matchData.scorecard;
+        if (!scorecard || !Array.isArray(scorecard)) {
+          console.log(`No scorecard found for match ${matchId}`);
           continue;
         }
 
