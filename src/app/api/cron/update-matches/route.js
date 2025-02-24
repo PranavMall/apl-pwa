@@ -11,11 +11,11 @@ import {
   where, 
   setDoc 
 } from 'firebase/firestore';
-import { db } from '../../../../firebase';  // Make sure path matches your firebase config
+import { db } from '../../../../firebase';
 
 export async function GET(request) {
   try {
-    const matchesToRestore = ['112395','112413','112409','112402','112420']; // Add all your match IDs
+    const matchesToRestore = ['112395','112413','112409','112402','112420'];
     console.log('Starting match restoration process...');
 
     try {
@@ -46,6 +46,13 @@ export async function GET(request) {
         const matchData = matchSnapshot.docs[0].data();
         console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
 
+        // Initialize match processing state
+        let processingState = matchData.processingState || {
+          currentInnings: 1,
+          currentPlayerIndex: 0,
+          completed: false
+        };
+
         // Process both innings
         const innings = [matchData.scorecard.team1, matchData.scorecard.team2];
         console.log(`Found ${innings.length} innings to process`);
@@ -53,79 +60,105 @@ export async function GET(request) {
         // Track fielding contributions
         const fieldingPoints = new Map();
 
-        for (let inningsIndex = 0; inningsIndex < innings.length; inningsIndex++) {
-          const battingTeam = innings[inningsIndex];
-          console.log(`Processing innings ${inningsIndex + 1}`);
+        for (let inningNum = 0; inningNum < innings.length; inningNum++) {
+          const inning = innings[inningNum];
+          console.log(`Processing innings ${inningNum + 1}`);
 
-          // Process batting performances first
-          const batsmen = Object.values(battingTeam.batsmen);
+          // Process batting performances
+          const batsmen = Object.values(inning?.batTeamDetails?.batsmenData || {});
           console.log(`Processing ${batsmen.length} batsmen`);
           
           for (const batsman of batsmen) {
-            if (!batsman.name) continue;
+            if (!batsman.batName) continue;
 
             try {
               // Process batting points
-              const battingPoints = PointService.calculateBattingPoints(batsman);
+              const battingPoints = PointService.calculateBattingPoints({
+                runs: parseInt(batsman.runs) || 0,
+                balls: parseInt(batsman.balls) || 0,
+                fours: parseInt(batsman.fours) || 0,
+                sixes: parseInt(batsman.sixes) || 0,
+                dismissal: batsman.outDesc
+              });
+
               await PointService.storePlayerMatchPoints(
-                PointService.createPlayerDocId(batsman.name),
+                PointService.createPlayerDocId(batsman.batName),
                 matchId,
                 battingPoints,
                 {
                   type: 'batting',
-                  innings: inningsIndex + 1,
-                  ...batsman
+                  name: batsman.batName,
+                  runs: batsman.runs,
+                  balls: batsman.balls,
+                  fours: batsman.fours,
+                  sixes: batsman.sixes
                 }
               );
 
-              // Process fielding stats from dismissal
-              if (batsman.dismissal) {
-                const fielder = PointService.extractFielderFromDismissal(batsman.dismissal, batsman.wicketCode);
+              // Track fielding contributions from dismissals
+              if (batsman.outDesc && batsman.wicketCode) {
+                const fielder = PointService.extractFielderFromDismissal(batsman.outDesc, batsman.wicketCode);
                 if (fielder) {
-                  if (!fieldingPoints.has(fielder.name)) {
-                    fieldingPoints.set(fielder.name, {
+                  const fielderId = PointService.createPlayerDocId(fielder.name);
+                  if (!fieldingPoints.has(fielderId)) {
+                    fieldingPoints.set(fielderId, {
                       name: fielder.name,
                       catches: 0,
                       stumpings: 0,
                       runouts: 0
                     });
                   }
-                  const stats = fieldingPoints.get(fielder.name);
-                  switch (fielder.type) {
+                  const stats = fieldingPoints.get(fielderId);
+                  switch(fielder.type) {
                     case 'catch': stats.catches++; break;
                     case 'stumping': stats.stumpings++; break;
                     case 'runout': stats.runouts++; break;
                   }
                 }
               }
+
+              processingState.currentPlayerIndex++;
             } catch (error) {
-              console.error(`Error processing batsman ${batsman.name}:`, error);
+              console.error(`Error processing batsman ${batsman.batName}:`, error);
             }
           }
 
           // Process bowling performances
-          const bowlers = Object.values(battingTeam.bowlers);
+          const bowlers = Object.values(inning?.bowlTeamDetails?.bowlersData || {});
           console.log(`Processing ${bowlers.length} bowlers`);
           
           for (const bowler of bowlers) {
-            if (!bowler.name) continue;
+            if (!bowler.bowlName) continue;
 
             try {
-              const bowlingPoints = PointService.calculateBowlingPoints(bowler);
+              const bowlingPoints = PointService.calculateBowlingPoints({
+                wickets: parseInt(bowler.wickets) || 0,
+                maidens: parseInt(bowler.maidens) || 0,
+                bowler_runs: parseInt(bowler.runs) || 0,
+                overs: parseFloat(bowler.overs) || 0
+              });
+
               await PointService.storePlayerMatchPoints(
-                PointService.createPlayerDocId(bowler.name),
+                PointService.createPlayerDocId(bowler.bowlName),
                 matchId,
                 bowlingPoints,
                 {
                   type: 'bowling',
-                  innings: inningsIndex + 1,
-                  ...bowler
+                  name: bowler.bowlName,
+                  wickets: bowler.wickets,
+                  maidens: bowler.maidens,
+                  bowler_runs: bowler.runs,
+                  overs: bowler.overs
                 }
               );
+
+              processingState.currentPlayerIndex++;
             } catch (error) {
-              console.error(`Error processing bowler ${bowler.name}:`, error);
+              console.error(`Error processing bowler ${bowler.bowlName}:`, error);
             }
           }
+
+          processingState.currentInnings++;
         }
 
         // Process fielding points at the end
@@ -134,7 +167,7 @@ export async function GET(request) {
           try {
             const fieldingPoints = PointService.calculateFieldingPoints(stats);
             await PointService.storePlayerMatchPoints(
-              PointService.createPlayerDocId(fielderId),
+              fielderId,
               matchId,
               fieldingPoints,
               {
@@ -147,11 +180,19 @@ export async function GET(request) {
           }
         }
 
+        // Mark match as completed
+        processingState.completed = true;
+        await setDoc(matchSnapshot.docs[0].ref, {
+          ...matchData,
+          processingState
+        }, { merge: true });
+
         console.log(`Successfully completed processing match ${matchId}`);
       }
 
     } catch (restoreError) {
       console.error('Error during match restoration:', restoreError);
+      throw restoreError;
     }
 
     return NextResponse.json({
