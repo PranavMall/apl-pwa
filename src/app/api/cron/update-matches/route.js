@@ -57,16 +57,16 @@ export async function GET(request) {
         // Track fielding contributions
         const fieldingPoints = new Map();
 
-        // Get scoreCard array
-        const scoreCard = matchData.scoreCard;
-        if (!scoreCard || !Array.isArray(scoreCard)) {
-          console.log(`No scoreCard found for match ${matchId}`);
+        // Get  array
+        const  = matchData.;
+        if (! || !Array.isArray()) {
+          console.log(`No  found for match ${matchId}`);
           continue;
         }
 
         // Process only remaining innings based on processing state
-        for (let inningsIndex = processingState.currentInnings; inningsIndex < scoreCard.length; inningsIndex++) {
-          const inning = scoreCard[inningsIndex];
+        for (let inningsIndex = processingState.currentInnings; inningsIndex < scorecard.length; inningsIndex++) {
+          const inning = scorecard[inningsIndex];
           console.log(`Processing innings ${inningsIndex + 1}`);
           
           // Process batting performances first
