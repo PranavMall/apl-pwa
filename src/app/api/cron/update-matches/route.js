@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../../firebase';
 
-// Set a safety margin before Vercel's 10s timeout
 const TIMEOUT_MARGIN = 8000; // 8 seconds
 const startTime = Date.now();
 
@@ -31,7 +30,6 @@ export async function GET(request) {
     try {
       const matchesRef = collection(db, 'matches');
       
-      // Process matches one by one
       for (const matchId of matchesToRestore) {
         if (!shouldContinueProcessing()) {
           console.log('Approaching timeout limit, stopping gracefully...');
@@ -42,7 +40,26 @@ export async function GET(request) {
           });
         }
 
-        // Get or create processing state for this match
+        // Get match data first
+        const matchQuery = query(matchesRef, where('matchId', '==', matchId));
+        const matchSnapshot = await getDocs(matchQuery);
+        
+        if (matchSnapshot.empty) {
+          console.log(`Match ${matchId} not found`);
+          continue;
+        }
+
+        const matchData = matchSnapshot.docs[0].data();
+        
+        // Verify scorecard exists
+        if (!matchData.scorecard || !Array.isArray(matchData.scorecard)) {
+          console.error(`Invalid scorecard data for match ${matchId}`);
+          continue;
+        }
+
+        console.log(`Found ${matchData.scorecard.length} innings in match ${matchId}`);
+
+        // Get or create processing state
         const processStateRef = doc(processingStatesRef, matchId);
         const processStateDoc = await getDoc(processStateRef);
         let processingState = processStateDoc.exists() 
@@ -53,53 +70,43 @@ export async function GET(request) {
               fieldingProcessed: false,
               completed: false,
               lastProcessedTime: null,
-              matchStatus: 'pending' // pending, in_progress, completed
+              matchStatus: 'pending'
             };
 
-        // Skip if match is already completed
         if (processingState.matchStatus === 'completed') {
           console.log(`Match ${matchId} already completed, skipping...`);
           continue;
         }
 
-        // Get match data
-        const matchQuery = query(matchesRef, where('matchId', '==', matchId));
-        const matchSnapshot = await getDocs(matchQuery);
-        
-        if (matchSnapshot.empty) {
-          console.log(`Match ${matchId} not found`);
-          continue;
-        }
-
-        const matchData = matchSnapshot.docs[0].data();
-        const scoreCard = matchData.scoreCard;
-
-        console.log(`Processing match ${matchId} - Innings ${processingState.currentInnings + 1}, Player ${processingState.currentPlayerIndex}`);
-
-        // Mark match as in progress
+        // Mark as in progress
         if (processingState.matchStatus === 'pending') {
           processingState.matchStatus = 'in_progress';
           await setDoc(processStateRef, processingState);
         }
 
         // Process innings
-        while (processingState.currentInnings < scoreCard.length && shouldContinueProcessing()) {
-          const inning = scoreCard[processingState.currentInnings];
+        while (processingState.currentInnings < matchData.scorecard.length && shouldContinueProcessing()) {
+          const inning = matchData.scorecard[processingState.currentInnings];
           
-          // Get all batsmen and bowlers for this innings
-          const batsmen = Object.values(inning.batTeamDetails.batsmenData || {});
-          const bowlers = Object.values(inning.bowlTeamDetails.bowlersData || {});
+          // Verify innings data structure
+          if (!inning.batTeamDetails?.batsmenData || !inning.bowlTeamDetails?.bowlersData) {
+            console.error(`Invalid innings data structure for innings ${processingState.currentInnings}`);
+            processingState.currentInnings++;
+            continue;
+          }
+
+          // Get all batsmen and bowlers
+          const batsmen = Object.values(inning.batTeamDetails.batsmenData);
+          const bowlers = Object.values(inning.bowlTeamDetails.bowlersData);
           const allPlayers = [...batsmen, ...bowlers];
 
-          console.log(`Innings ${processingState.currentInnings + 1}: Processing ${allPlayers.length} players from index ${processingState.currentPlayerIndex}`);
+          console.log(`Innings ${processingState.currentInnings + 1}: Found ${batsmen.length} batsmen and ${bowlers.length} bowlers`);
 
-          // Process players sequentially
           while (processingState.currentPlayerIndex < allPlayers.length && shouldContinueProcessing()) {
             const player = allPlayers[processingState.currentPlayerIndex];
             
             try {
-              // Process batting
-              if (player.batId) {
+              if (player.batId || player.batName) { // This is a batsman
                 const battingPoints = PointService.calculateBattingPoints({
                   runs: parseInt(player.runs) || 0,
                   balls: parseInt(player.balls) || 0,
@@ -109,7 +116,7 @@ export async function GET(request) {
                 });
 
                 await PointService.storePlayerMatchPoints(
-                  player.batId.toString(),
+                  PointService.createPlayerDocId(player.batName),
                   matchId,
                   battingPoints,
                   {
@@ -123,8 +130,7 @@ export async function GET(request) {
                 );
               }
 
-              // Process bowling
-              if (player.bowlId) {
+              if (player.bowlId || player.bowlName) { // This is a bowler
                 const bowlingPoints = PointService.calculateBowlingPoints({
                   wickets: parseInt(player.wickets) || 0,
                   maidens: parseInt(player.maidens) || 0,
@@ -133,7 +139,7 @@ export async function GET(request) {
                 });
 
                 await PointService.storePlayerMatchPoints(
-                  player.bowlId.toString(),
+                  PointService.createPlayerDocId(player.bowlName),
                   matchId,
                   bowlingPoints,
                   {
@@ -147,20 +153,17 @@ export async function GET(request) {
                 );
               }
 
-              // Update processing state after each player
               processingState.currentPlayerIndex++;
               processingState.lastProcessedTime = new Date().toISOString();
               await setDoc(processStateRef, processingState);
               
             } catch (error) {
               console.error(`Error processing player:`, error);
-              // Save state before throwing error
               await setDoc(processStateRef, processingState);
               throw error;
             }
           }
 
-          // Move to next innings if all players in current innings are processed
           if (processingState.currentPlayerIndex >= allPlayers.length) {
             processingState.currentInnings++;
             processingState.currentPlayerIndex = 0;
@@ -168,15 +171,15 @@ export async function GET(request) {
           }
         }
 
-        // Process fielding if all innings are complete and time permits
+        // Process fielding if all innings are complete
         if (!processingState.fieldingProcessed && 
-            processingState.currentInnings >= scoreCard.length && 
+            processingState.currentInnings >= matchData.scorecard.length && 
             shouldContinueProcessing()) {
           
           const fieldingPoints = new Map();
 
-          // Process dismissals from all innings
-          scoreCard.forEach(inning => {
+          // Process all dismissals
+          matchData.scorecard.forEach(inning => {
             Object.values(inning.batTeamDetails.batsmenData || {}).forEach(batsman => {
               if (!batsman.outDesc || !batsman.wicketCode) return;
 
@@ -200,7 +203,7 @@ export async function GET(request) {
             });
           });
 
-          // Process fielding points
+          console.log(`Processing fielding points for ${fieldingPoints.size} players`);
           for (const [fielderName, stats] of fieldingPoints.entries()) {
             if (!shouldContinueProcessing()) {
               console.log('Timeout approaching during fielding processing, will resume in next run');
@@ -227,8 +230,8 @@ export async function GET(request) {
           await setDoc(processStateRef, processingState);
         }
 
-        // Mark match as completed if all processing is done
-        if (processingState.currentInnings >= scoreCard.length && 
+        // Mark match as completed if everything is done
+        if (processingState.currentInnings >= matchData.scorecard.length && 
             processingState.fieldingProcessed) {
           processingState.matchStatus = 'completed';
           processingState.completed = true;
