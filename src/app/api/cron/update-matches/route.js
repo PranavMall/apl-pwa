@@ -51,13 +51,53 @@ export async function GET(request) {
 
         const matchData = matchSnapshot.docs[0].data();
         
-        // Verify scorecard exists
-        if (!matchData.scorecard || !Array.isArray(matchData.scorecard)) {
-          console.error(`Invalid scorecard data for match ${matchId}`);
+        // Debug the match data structure
+        console.log(`Match data structure for ${matchId}:`, Object.keys(matchData));
+        
+        // Look for scorecard in different possible locations
+        let scorecard;
+        if (matchData.scorecard && Array.isArray(matchData.scorecard)) {
+          scorecard = matchData.scorecard;
+          console.log('Found scorecard (lowercase)');
+        } else if (matchData.scoreCard && Array.isArray(matchData.scoreCard)) {
+          scorecard = matchData.scoreCard;
+          console.log('Found scoreCard (uppercase C)');
+        } else if (matchData.scorecard?.scoreCard && Array.isArray(matchData.scorecard.scoreCard)) {
+          // Handle nested structure
+          scorecard = matchData.scorecard.scoreCard;
+          console.log('Found nested scorecard.scoreCard');
+        } else if (matchData.scoreCard?.scoreCard && Array.isArray(matchData.scoreCard.scoreCard)) {
+          scorecard = matchData.scoreCard.scoreCard;
+          console.log('Found nested scoreCard.scoreCard');
+        } else {
+          // Try to find any array that might be the scorecard
+          for (const key of Object.keys(matchData)) {
+            if (Array.isArray(matchData[key])) {
+              console.log(`Found array at key: ${key}`);
+              if (matchData[key].length > 0 && 
+                  (matchData[key][0].batTeamDetails || matchData[key][0].inningsId)) {
+                scorecard = matchData[key];
+                console.log(`Using array at key: ${key} as scorecard`);
+                break;
+              }
+            }
+          }
+        }
+
+        if (!scorecard) {
+          console.error(`Could not find valid scorecard for match ${matchId}`);
           continue;
         }
 
-        console.log(`Found ${matchData.scorecard.length} innings in match ${matchId}`);
+        console.log(`Found ${scorecard.length} innings in match ${matchId}`);
+
+        // Examine first innings structure
+        if (scorecard.length > 0) {
+          console.log(`First innings structure:`, Object.keys(scorecard[0]));
+          if (scorecard[0].batTeamDetails) {
+            console.log(`batTeamDetails keys:`, Object.keys(scorecard[0].batTeamDetails));
+          }
+        }
 
         // Get or create processing state
         const processStateRef = doc(processingStatesRef, matchId);
@@ -85,19 +125,29 @@ export async function GET(request) {
         }
 
         // Process innings
-        while (processingState.currentInnings < matchData.scorecard.length && shouldContinueProcessing()) {
-          const inning = matchData.scorecard[processingState.currentInnings];
+        while (processingState.currentInnings < scorecard.length && shouldContinueProcessing()) {
+          const inning = scorecard[processingState.currentInnings];
           
           // Verify innings data structure
-          if (!inning.batTeamDetails?.batsmenData || !inning.bowlTeamDetails?.bowlersData) {
+          if (!inning.batTeamDetails?.batsmenData && !inning.batTeamDetails?.batsmen) {
             console.error(`Invalid innings data structure for innings ${processingState.currentInnings}`);
             processingState.currentInnings++;
             continue;
           }
 
-          // Get all batsmen and bowlers
-          const batsmen = Object.values(inning.batTeamDetails.batsmenData);
-          const bowlers = Object.values(inning.bowlTeamDetails.bowlersData);
+          // Try to find batsmen and bowlers in different possible locations
+          const batsmen = inning.batTeamDetails.batsmenData 
+            ? Object.values(inning.batTeamDetails.batsmenData)
+            : (inning.batTeamDetails.batsmen 
+                ? Object.values(inning.batTeamDetails.batsmen) 
+                : []);
+
+          const bowlers = inning.bowlTeamDetails.bowlersData 
+            ? Object.values(inning.bowlTeamDetails.bowlersData) 
+            : (inning.bowlTeamDetails.bowlers 
+                ? Object.values(inning.bowlTeamDetails.bowlers) 
+                : []);
+
           const allPlayers = [...batsmen, ...bowlers];
 
           console.log(`Innings ${processingState.currentInnings + 1}: Found ${batsmen.length} batsmen and ${bowlers.length} bowlers`);
@@ -106,22 +156,26 @@ export async function GET(request) {
             const player = allPlayers[processingState.currentPlayerIndex];
             
             try {
-              if (player.batId || player.batName) { // This is a batsman
+              // Process batter (check for different possible ID fields)
+              const isBatsman = player.batId || player.batName || player.name;
+              const playerName = player.batName || player.name;
+              
+              if (isBatsman && playerName) {
                 const battingPoints = PointService.calculateBattingPoints({
                   runs: parseInt(player.runs) || 0,
                   balls: parseInt(player.balls) || 0,
                   fours: parseInt(player.fours) || 0,
                   sixes: parseInt(player.sixes) || 0,
-                  dismissal: player.outDesc
+                  dismissal: player.outDesc || player.dismissal
                 });
 
                 await PointService.storePlayerMatchPoints(
-                  PointService.createPlayerDocId(player.batName),
+                  PointService.createPlayerDocId(playerName),
                   matchId,
                   battingPoints,
                   {
                     type: 'batting',
-                    name: player.batName,
+                    name: playerName,
                     runs: player.runs,
                     balls: player.balls,
                     fours: player.fours,
@@ -130,7 +184,11 @@ export async function GET(request) {
                 );
               }
 
-              if (player.bowlId || player.bowlName) { // This is a bowler
+              // Process bowler (check for different possible ID fields)
+              const isBowler = player.bowlId || player.bowlName || (player.overs !== undefined);
+              const bowlerName = player.bowlName || player.name;
+              
+              if (isBowler && bowlerName) {
                 const bowlingPoints = PointService.calculateBowlingPoints({
                   wickets: parseInt(player.wickets) || 0,
                   maidens: parseInt(player.maidens) || 0,
@@ -139,12 +197,12 @@ export async function GET(request) {
                 });
 
                 await PointService.storePlayerMatchPoints(
-                  PointService.createPlayerDocId(player.bowlName),
+                  PointService.createPlayerDocId(bowlerName),
                   matchId,
                   bowlingPoints,
                   {
                     type: 'bowling',
-                    name: player.bowlName,
+                    name: bowlerName,
                     wickets: player.wickets,
                     maidens: player.maidens,
                     bowler_runs: player.runs,
@@ -173,17 +231,26 @@ export async function GET(request) {
 
         // Process fielding if all innings are complete
         if (!processingState.fieldingProcessed && 
-            processingState.currentInnings >= matchData.scorecard.length && 
+            processingState.currentInnings >= scorecard.length && 
             shouldContinueProcessing()) {
           
           const fieldingPoints = new Map();
 
           // Process all dismissals
-          matchData.scorecard.forEach(inning => {
-            Object.values(inning.batTeamDetails.batsmenData || {}).forEach(batsman => {
-              if (!batsman.outDesc || !batsman.wicketCode) return;
+          scorecard.forEach(inning => {
+            const batsmen = inning.batTeamDetails.batsmenData 
+              ? Object.values(inning.batTeamDetails.batsmenData)
+              : (inning.batTeamDetails.batsmen 
+                  ? Object.values(inning.batTeamDetails.batsmen) 
+                  : []);
+                  
+            batsmen.forEach(batsman => {
+              const dismissal = batsman.outDesc || batsman.dismissal;
+              const wicketCode = batsman.wicketCode;
+              
+              if (!dismissal || !wicketCode) return;
 
-              const fielder = PointService.extractFielderFromDismissal(batsman.outDesc, batsman.wicketCode);
+              const fielder = PointService.extractFielderFromDismissal(dismissal, wicketCode);
               if (fielder) {
                 if (!fieldingPoints.has(fielder.name)) {
                   fieldingPoints.set(fielder.name, {
@@ -231,7 +298,7 @@ export async function GET(request) {
         }
 
         // Mark match as completed if everything is done
-        if (processingState.currentInnings >= matchData.scorecard.length && 
+        if (processingState.currentInnings >= scorecard.length && 
             processingState.fieldingProcessed) {
           processingState.matchStatus = 'completed';
           processingState.completed = true;
