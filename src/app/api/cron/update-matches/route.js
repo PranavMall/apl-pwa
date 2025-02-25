@@ -15,7 +15,7 @@ import { db } from '../../../../firebase';  // Make sure path matches your fireb
 
 export async function GET(request) {
   try {
-    const matchesToRestore = ['112395','112413','112409','112402','112420']; // Add all your match IDs
+    const matchesToRestore = ['112395','112413','112409','112402','112420','112427','112430']; // Add all your match IDs
     console.log('Starting match restoration process...');
 
     // Create a processing state collection to track progress
