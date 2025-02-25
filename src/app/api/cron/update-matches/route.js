@@ -15,6 +15,11 @@ import { db } from '../../../../firebase';  // Make sure path matches your fireb
 
 export async function GET(request) {
   try {
+    // First, sync match data from the API to get the latest matches
+    console.log('Starting match data sync...');
+    await cricketService.syncMatchData();
+
+    // Now process player points for all matches
     const matchesToRestore = ['112395','112413','112409','112402','112420','112427','112430']; // Add all your match IDs
     console.log('Starting match restoration process...');
 
