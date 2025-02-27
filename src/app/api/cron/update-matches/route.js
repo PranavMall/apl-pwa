@@ -305,12 +305,14 @@ export async function GET(request) {
             
             try {
               const fieldingPts = PointService.calculateFieldingPoints(stats);
+              const playerId = fielder.id; // Use the formatted ID instead of the name
               await PointService.storePlayerMatchPoints(
-                PointService.createPlayerDocId(fielderId),
+                playerId,,
                 matchId,
                 fieldingPts,
                 {
                   type: 'fielding',
+                  name: fielder.name, // Keep the original name for display
                   ...stats
                 }
               );
