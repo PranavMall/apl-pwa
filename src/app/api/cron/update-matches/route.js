@@ -456,3 +456,6 @@ export async function GET(request) {
         lastProcessedMatch: processedMatchId,
         timestamp: new Date().toISOString()
       });
+    }
+  }
+}
