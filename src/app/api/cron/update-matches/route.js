@@ -61,19 +61,20 @@ export async function GET(request) {
         const matchData = matchSnapshot.docs[0].data();
         console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
 
-        // Check if match is abandoned
-        if (matchData.matchInfo?.state === 'Abandon' || 
-            matchData.matchHeader?.state === 'Abandon' ||
-            (matchData.status && matchData.status.toLowerCase().includes('abandon'))) {
-          console.log(`Match ${matchId} was abandoned, marking as completed without processing points`);
-          
-          // Mark as completed without processing
-          processingState.completed = true;
-          processingState.abandonedMatch = true;
-          await setDoc(processStateRef, processingState);
-          continue;
-        }
-
+       // Check if match is abandoned - check multiple possible locations of this info
+if (matchData.matchInfo?.state === 'Abandon' || 
+    matchData.matchHeader?.state === 'Abandon' ||
+    matchData.isAbandoned === true ||
+    matchData.scorecard?.isAbandoned === true ||
+    (matchData.status && matchData.status.toLowerCase().includes('abandon'))) {
+  console.log(`Match ${matchId} was abandoned, marking as completed without processing points`);
+  
+  // Mark as completed without processing
+  processingState.completed = true;
+  processingState.abandonedMatch = true;
+  await setDoc(processStateRef, processingState);
+  continue;
+}
         // Track ALL players in the match to ensure each gets starting XI points
         const allPlayers = new Map(); // playerId -> { name, participated: true, ... }
         
@@ -114,7 +115,8 @@ export async function GET(request) {
                 battingPoints,
                 {
                   type: 'batting',
-                  innings: inningsIndex + 1,
+                  // Only include innings if it's a number
+                  ...(typeof inningsIndex === 'number' ? { innings: inningsIndex + 1 } : {}),
                   ...batsman
                 }
               );
@@ -190,7 +192,8 @@ export async function GET(request) {
                 totalPoints, // Include match played points
                 {
                   type: 'bowling',
-                  innings: inningsIndex + 1,
+                  // Only include innings if it's a number
+                  ...(typeof inningsIndex === 'number' ? { innings: inningsIndex + 1 } : {}),
                   includesMatchPoints: true, // Flag that match points are included
                   ...bowler
                 }
