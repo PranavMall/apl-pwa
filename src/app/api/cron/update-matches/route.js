@@ -456,6 +456,21 @@ export async function GET(request) {
         lastProcessedMatch: processedMatchId,
         timestamp: new Date().toISOString()
       });
+    } catch (restoreError) {
+      log(`Error during match processing: ${restoreError.message}`);
+      console.error('Full error:', restoreError);
+      throw restoreError;
     }
+  } catch (error) {
+    log(`Critical error in cron job: ${error.message}`);
+    console.error('Full error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to update match and player data', 
+        details: error.message,
+        stack: error.stack 
+      },
+      { status: 500 }
+    );
   }
 }
