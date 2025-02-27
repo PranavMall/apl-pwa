@@ -180,7 +180,7 @@ static async calculateMatchPoints(matchId, scorecard) {
     throw error;
   }
 }
-
+// 4. Modified storePlayerMatchPoints to correctly handle multiple contributions
 static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
@@ -194,64 +194,54 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
     let totalPoints = newPoints;
 
     if (existingData) {
-      // Keep track of which types of performances we've already processed
+      // Handle each performance type appropriately
       const existingPerf = existingData.performance || {};
       
+      // Don't double-count match participation points
+      if ((performance.type === 'batting' && existingPerf.bowling) || 
+          (performance.type === 'bowling' && existingPerf.batting) ||
+          (performance.type === 'bowling' && performance.includesMatchPoints && existingPerf.matchPointsAdded)) {
+        // Subtract match played points if already counted
+        totalPoints = newPoints - this.POINTS.MATCH.PLAYED;
+      }
+      
+      // Combine with existing points
+      totalPoints = (existingData.points || 0) + totalPoints;
+      
+      // Build combined performance record
       if (performance.type === 'batting') {
-        if (!existingPerf.batting) {
-          // Only add batting points if we haven't processed batting before
-          totalPoints = (existingData.points || 0) + newPoints;
-        } else {
-          // If we've already processed batting, use existing points
-          totalPoints = existingData.points;
-        }
-        
         updatedPerformance = {
           ...existingPerf,
+          batting: true,
+          matchPointsAdded: true,
           runs: performance.runs || 0,
           balls: performance.balls || 0,
           fours: performance.fours || 0,
           sixes: performance.sixes || 0,
           strikeRate: performance.strikeRate || 0,
-          innings: performance.innings,
-          batting: true
+          innings: performance.innings
         };
       } 
       else if (performance.type === 'bowling') {
-        if (!existingPerf.bowling) {
-          // Only add bowling points if we haven't processed bowling before
-          totalPoints = (existingData.points || 0) + newPoints;
-        } else {
-          // If we've already processed bowling, use existing points
-          totalPoints = existingData.points;
-        }
-        
         updatedPerformance = {
           ...existingPerf,
+          bowling: true,
+          matchPointsAdded: existingPerf.matchPointsAdded || performance.includesMatchPoints || false,
           overs: performance.overs || 0,
           maidens: performance.maidens || 0,
           bowler_runs: performance.runs || 0,
           wickets: performance.wickets || 0,
           economy: performance.economy || 0,
-          innings: performance.innings,
-          bowling: true
+          innings: performance.innings
         };
       }
       else if (performance.type === 'fielding') {
-        if (!existingPerf.fielding) {
-          // Only add fielding points if we haven't processed fielding before
-          totalPoints = (existingData.points || 0) + newPoints;
-        } else {
-          // If we've already processed fielding, use existing points
-          totalPoints = existingData.points;
-        }
-        
         updatedPerformance = {
           ...existingPerf,
+          fielding: true,
           catches: (existingPerf.catches || 0) + (performance.catches || 0),
           stumpings: (existingPerf.stumpings || 0) + (performance.stumpings || 0),
-          runouts: (existingPerf.runouts || 0) + (performance.runouts || 0),
-          fielding: true
+          runouts: (existingPerf.runouts || 0) + (performance.runouts || 0)
         };
       }
     } else {
@@ -259,8 +249,11 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
       updatedPerformance = {
         name: performance.name,
         id: playerId,
-        innings: performance.innings,
-        [performance.type]: true
+        matchPointsAdded: performance.type === 'batting' || 
+                         (performance.type === 'bowling' && performance.includesMatchPoints) || 
+                         false,
+        [performance.type]: true,
+        innings: performance.innings
       };
 
       if (performance.type === 'batting') {
@@ -291,7 +284,7 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
     }
 
     // Log for debugging
-    console.log(`Points calculation for ${performance.name}:`, {
+    console.log(`Points calculation for ${performance.name || playerId}:`, {
       type: performance.type,
       newPoints,
       existingPoints: existingData?.points || 0,
@@ -347,8 +340,10 @@ static calculateBattingPoints(battingData) {
   return points;
 }
 
+  // 2. Modify calculateBowlingPoints to NOT include match played points by default
+// (we'll add them explicitly in the route.js file to avoid duplicates)
 static calculateBowlingPoints(bowlingData) {
-  let points = 0;
+  let points = 0; // No base points here - we'll add them in route.js
 
   // Wickets
   points += bowlingData.wickets * this.POINTS.BOWLING.WICKET;
@@ -375,17 +370,22 @@ static calculateFieldingPoints(fieldingData) {
   points += fieldingData.runouts * this.POINTS.FIELDING.DIRECT_THROW;
   return points;
 }
-
+// 3. Improved extractFielderFromDismissal to better handle various dismissal types
 static extractFielderFromDismissal(dismissal, wicketCode) {
   if (!dismissal) return null;
+
+  // Add more comprehensive logging to debug dismissal processing
+  console.log(`Processing dismissal: "${dismissal}", wicketCode: ${wicketCode}`);
 
   // Handle different dismissal types
   if (wicketCode === 'CAUGHT') {
     // Regular catch: "c Player b Bowler"
     const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^b]+)b/);
     if (catchMatch) {
+      const fielderName = catchMatch[1].trim();
+      console.log(`Identified catch by: ${fielderName}`);
       return {
-        name: catchMatch[1].trim(),
+        name: fielderName,
         type: 'catch'
       };
     }
@@ -393,8 +393,10 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
     // Caught and bowled: "c and b Player"
     const candBMatch = dismissal.match(/c and b\s+(.+)/);
     if (candBMatch) {
+      const fielderName = candBMatch[1].trim();
+      console.log(`Identified catch and bowl by: ${fielderName}`);
       return {
-        name: candBMatch[1].trim(),
+        name: fielderName,
         type: 'catch'
       };
     }
@@ -402,22 +404,27 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
     // Stumping: "st Player b Bowler"
     const stumpMatch = dismissal.match(/st\s+([^b]+)b/);
     if (stumpMatch) {
+      const fielderName = stumpMatch[1].trim();
+      console.log(`Identified stumping by: ${fielderName}`);
       return {
-        name: stumpMatch[1].trim(),
+        name: fielderName,
         type: 'stumping'
       };
     }
   } else if (wicketCode === 'RUNOUT') {
-    // Run out: "run out (Player)"
+    // Run out: "run out (Player)" or "run out (Player/Player2)"
     const runoutMatch = dismissal.match(/run out\s+\(([^)]+)\)/);
     if (runoutMatch) {
+      const fielderName = runoutMatch[1].split('/')[0].trim(); // Take first fielder if multiple
+      console.log(`Identified run out by: ${fielderName}`);
       return {
-        name: runoutMatch[1].trim(),
+        name: fielderName,
         type: 'runout'
       };
     }
   }
   
+  console.log(`No fielder identified in dismissal`);
   return null;
 }
   
