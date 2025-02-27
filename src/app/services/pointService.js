@@ -395,6 +395,7 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
     console.log(`Identified catch by: ${fielderName}`);
     return {
       name: fielderName,
+      id: this.createPlayerDocId(fielderName), // Format name to match player ID format
       type: 'catch'
     };
   }
@@ -406,6 +407,7 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
     console.log(`Identified catch and bowl by: ${fielderName}`);
     return {
       name: fielderName,
+      id: this.createPlayerDocId(fielderName), // Format name to match player ID format
       type: 'catch'
     };
   }
@@ -417,6 +419,7 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
     console.log(`Identified stumping by: ${fielderName}`);
     return {
       name: fielderName,
+      id: this.createPlayerDocId(fielderName), // Format name to match player ID format
       type: 'stumping'
     };
   }
@@ -428,6 +431,7 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
     console.log(`Identified run out by: ${fielderName}`);
     return {
       name: fielderName,
+      id: this.createPlayerDocId(fielderName), // Format name to match player ID format
       type: 'runout'
     };
   }
