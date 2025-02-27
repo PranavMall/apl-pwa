@@ -180,7 +180,8 @@ static async calculateMatchPoints(matchId, scorecard) {
     throw error;
   }
 }
-// 4. Modified storePlayerMatchPoints to correctly handle multiple contributions
+
+  // Modified storePlayerMatchPoints function to handle undefined innings
 static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
@@ -218,9 +219,12 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
           balls: performance.balls || 0,
           fours: performance.fours || 0,
           sixes: performance.sixes || 0,
-          strikeRate: performance.strikeRate || 0,
-          innings: performance.innings
+          strikeRate: performance.strikeRate || 0
         };
+        // Only add innings if it's defined
+        if (performance.innings !== undefined) {
+          updatedPerformance.innings = performance.innings;
+        }
       } 
       else if (performance.type === 'bowling') {
         updatedPerformance = {
@@ -231,9 +235,12 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
           maidens: performance.maidens || 0,
           bowler_runs: performance.runs || 0,
           wickets: performance.wickets || 0,
-          economy: performance.economy || 0,
-          innings: performance.innings
+          economy: performance.economy || 0
         };
+        // Only add innings if it's defined
+        if (performance.innings !== undefined) {
+          updatedPerformance.innings = performance.innings;
+        }
       }
       else if (performance.type === 'fielding') {
         updatedPerformance = {
@@ -252,9 +259,13 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
         matchPointsAdded: performance.type === 'batting' || 
                          (performance.type === 'bowling' && performance.includesMatchPoints) || 
                          false,
-        [performance.type]: true,
-        innings: performance.innings
+        [performance.type]: true
       };
+      
+      // Only add innings if it's defined
+      if (performance.innings !== undefined) {
+        updatedPerformance.innings = performance.innings;
+      }
 
       if (performance.type === 'batting') {
         Object.assign(updatedPerformance, {
