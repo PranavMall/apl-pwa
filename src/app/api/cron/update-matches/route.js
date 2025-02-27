@@ -9,12 +9,13 @@ import {
   getDocs, 
   query, 
   where, 
-  setDoc 
+  setDoc, 
+  updateDoc
 } from 'firebase/firestore';
-import { db } from '../../../../firebase';  // Make sure path matches your firebase config
+import { db } from '../../../../firebase';
 
-// Set a safety margin before Vercel's 10s timeout
-const TIMEOUT_MARGIN = 9000; // 9 seconds
+// Set a safety margin before Vercel's 10s timeout (6 seconds to be safe)
+const TIMEOUT_MARGIN = 6000; // 6 seconds
 const startTime = Date.now();
 
 function shouldContinueProcessing() {
@@ -22,348 +23,340 @@ function shouldContinueProcessing() {
   const shouldContinue = elapsed < TIMEOUT_MARGIN;
   
   if (!shouldContinue) {
-    console.log(`Approaching timeout after ${elapsed}ms, will gracefully stop processing`);
+    console.log(`Approaching timeout after ${elapsed}ms, stopping processing`);
   }
   
   return shouldContinue;
 }
 
-// Helper function to transform scorecard from API format if needed
-function transformApiScorecard(apiScorecard) {
-  if (!apiScorecard || !apiScorecard.scoreCard || !Array.isArray(apiScorecard.scoreCard)) {
-    return null;
+// Create a queue system document in Firestore if it doesn't exist
+async function initializeQueueIfNeeded() {
+  const queueRef = doc(db, 'system', 'processingQueue');
+  const queueSnap = await getDoc(queueRef);
+  
+  if (!queueSnap.exists()) {
+    // Match IDs to process - update this with your actual match IDs
+    const matchIds = ['112395', '112413', '112409', '112402', '112420', '112427', '112430','112437','112441'];
+    
+    await setDoc(queueRef, {
+      matchQueue: matchIds,
+      currentlyProcessing: null,
+      lastRun: null,
+      completedMatches: []
+    });
+    
+    console.log('Initialized processing queue with matches:', matchIds);
   }
+  
+  return queueRef;
+}
 
-  try {
-    const transformedScorecard = {
-      matchId: apiScorecard.matchHeader?.matchId,
-      matchStatus: apiScorecard.matchHeader?.status || '',
-      result: apiScorecard.matchHeader?.result?.resultType || '',
-      team1: {},
-      team2: {}
-    };
-    
-    // Process first innings (team1)
-    if (apiScorecard.scoreCard[0]) {
-      const innings1 = apiScorecard.scoreCard[0];
-      transformedScorecard.team1 = {
-        teamId: innings1.batTeamDetails?.batTeamId,
-        teamName: innings1.batTeamDetails?.batTeamName,
-        teamShortName: innings1.batTeamDetails?.batTeamShortName,
-        batsmen: innings1.batTeamDetails?.batsmenData || {},
-        bowlers: innings1.bowlTeamDetails?.bowlersData || {},
-        score: `${innings1.scoreDetails?.runs || 0}/${innings1.scoreDetails?.wickets || 0}`,
-        overs: innings1.scoreDetails?.overs?.toString() || '0',
-        runRate: innings1.scoreDetails?.runRate?.toString() || '0'
-      };
-    }
-    
-    // Process second innings (team2)
-    if (apiScorecard.scoreCard[1]) {
-      const innings2 = apiScorecard.scoreCard[1];
-      transformedScorecard.team2 = {
-        teamId: innings2.batTeamDetails?.batTeamId,
-        teamName: innings2.batTeamDetails?.batTeamName,
-        teamShortName: innings2.batTeamDetails?.batTeamShortName,
-        batsmen: innings2.batTeamDetails?.batsmenData || {},
-        bowlers: innings2.bowlTeamDetails?.bowlersData || {},
-        score: `${innings2.scoreDetails?.runs || 0}/${innings2.scoreDetails?.wickets || 0}`,
-        overs: innings2.scoreDetails?.overs?.toString() || '0',
-        runRate: innings2.scoreDetails?.runRate?.toString() || '0'
-      };
-    }
-    
-    return transformedScorecard;
-  } catch (error) {
-    console.error('Error transforming API scorecard:', error);
-    return null;
+// Get the next match to process from the queue
+async function getNextMatchToProcess(queueRef) {
+  const queueSnap = await getDoc(queueRef);
+  const queueData = queueSnap.data();
+  
+  // Check if a match is currently being processed
+  if (queueData.currentlyProcessing) {
+    return queueData.currentlyProcessing;
   }
+  
+  // Get the next match from the queue
+  if (queueData.matchQueue && queueData.matchQueue.length > 0) {
+    const nextMatch = queueData.matchQueue[0];
+    
+    // Mark this match as currently processing
+    await updateDoc(queueRef, {
+      currentlyProcessing: nextMatch,
+      matchQueue: queueData.matchQueue.slice(1), // Remove it from the queue
+      lastRun: new Date().toISOString()
+    });
+    
+    console.log(`Starting to process match ${nextMatch}`);
+    return nextMatch;
+  }
+  
+  return null; // No more matches to process
+}
+
+// Mark a match as completed and move to the next
+async function markMatchCompleted(queueRef, matchId) {
+  const queueSnap = await getDoc(queueRef);
+  const queueData = queueSnap.data();
+  
+  await updateDoc(queueRef, {
+    currentlyProcessing: null,
+    completedMatches: [...(queueData.completedMatches || []), matchId],
+    lastRun: new Date().toISOString()
+  });
+  
+  console.log(`Marked match ${matchId} as completed`);
 }
 
 export async function GET(request) {
   try {
-    const url = new URL(request.url);
-    const syncMatches = url.searchParams.get('sync') === 'true';
+    // Initialize the processing queue if needed
+    const queueRef = await initializeQueueIfNeeded();
     
-    // First, sync match data from the API to get the latest matches
-    // Only do this if specifically requested and we have plenty of time
-    if (syncMatches && shouldContinueProcessing()) {
-      console.log('Starting match data sync...');
-      await cricketService.syncMatchData();
+    // Get the next match to process
+    const matchId = await getNextMatchToProcess(queueRef);
+    if (!matchId) {
+      return NextResponse.json({
+        success: true,
+        message: 'No matches left to process',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    // Process these specific matches
-    const matchesToProcess = ['112395', '112413', '112409', '112402', '112420', '112427', '112430', '112437']; // ICC Match IDS
-    console.log('Starting match processing...');
-
+    // Get or create processing state for this match
     const processingStatesRef = collection(db, 'processingState');
-
-    try {
-      const matchesRef = collection(db, 'matches');
+    const processStateRef = doc(processingStatesRef, matchId);
+    const processStateDoc = await getDoc(processStateRef);
+    
+    let processingState = processStateDoc.exists() 
+      ? processStateDoc.data() 
+      : {
+          currentInnings: 0,
+          currentBatsmenIndex: 0,
+          currentBowlersIndex: 0,
+          fieldingProcessed: false,
+          completed: false
+        };
+    
+    // If the match is already completed, mark it as done in the queue and exit
+    if (processingState.completed) {
+      console.log(`Match ${matchId} already completed, moving to next`);
+      await markMatchCompleted(queueRef, matchId);
+      return NextResponse.json({
+        success: true,
+        message: `Match ${matchId} already processed, marked as completed`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Get match data
+    const matchesRef = collection(db, 'matches');
+    const matchQuery = query(matchesRef, where('matchId', '==', matchId));
+    const matchSnapshot = await getDocs(matchQuery);
+    
+    if (matchSnapshot.empty) {
+      console.log(`Match ${matchId} not found, moving to next`);
+      await markMatchCompleted(queueRef, matchId);
+      return NextResponse.json({
+        success: true,
+        message: `Match ${matchId} not found, marked as completed`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const matchData = matchSnapshot.docs[0].data();
+    console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
+    console.log(`Current state: innings=${processingState.currentInnings}, batsmen=${processingState.currentBatsmenIndex}, bowlers=${processingState.currentBowlersIndex}`);
+    
+    // Check if match is abandoned
+    if (matchData.matchInfo?.state === 'Abandon' || 
+        matchData.matchHeader?.state === 'Abandon' ||
+        matchData.isAbandoned === true ||
+        matchData.scorecard?.isAbandoned === true ||
+        (matchData.status && matchData.status.toLowerCase().includes('abandon'))) {
+      console.log(`Match ${matchId} was abandoned, marking as completed`);
       
-      // Process matches one by one
-      for (const matchId of matchesToProcess) {
-        // Check for timeout before starting each match
-        if (!shouldContinueProcessing()) {
-          return NextResponse.json({
-            success: true,
-            message: 'Partial processing completed due to timeout - will resume in next run',
-            timestamp: new Date().toISOString()
-          });
-        }
+      processingState.completed = true;
+      processingState.abandonedMatch = true;
+      await setDoc(processStateRef, processingState);
+      await markMatchCompleted(queueRef, matchId);
+      
+      return NextResponse.json({
+        success: true,
+        message: `Match ${matchId} was abandoned, marked as completed`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Track fielding contributions for this match
+    let fieldingPoints = processingState.fieldingPoints || new Map();
+    if (!(fieldingPoints instanceof Map)) {
+      // Convert from serialized object back to Map
+      fieldingPoints = new Map(Object.entries(fieldingPoints));
+    }
+    
+    // Get innings from match data
+    let innings = [];
+    if (matchData.scorecard && matchData.scorecard.team1 && matchData.scorecard.team2) {
+      innings = [matchData.scorecard.team1, matchData.scorecard.team2];
+    } else {
+      console.error('Invalid scorecard structure:', matchData.scorecard);
+      processingState.error = 'Invalid scorecard structure';
+      await setDoc(processStateRef, processingState);
+      await markMatchCompleted(queueRef, matchId);
+      
+      return NextResponse.json({
+        success: false,
+        message: `Match ${matchId} has invalid scorecard structure`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Process innings, starting from where we left off
+    let madeProgress = false;
+    
+    // Process current innings
+    if (processingState.currentInnings < innings.length) {
+      const inningsIndex = processingState.currentInnings;
+      const battingTeam = innings[inningsIndex];
+      console.log(`Processing innings ${inningsIndex + 1}`);
+      
+      // Process batsmen first
+      if (battingTeam.batsmen) {
+        const batsmen = Object.values(battingTeam.batsmen);
+        console.log(`Processing ${batsmen.length} batsmen starting from index ${processingState.currentBatsmenIndex}`);
         
-        // Get processing state for this match
-        const processStateRef = doc(processingStatesRef, matchId);
-        const processStateDoc = await getDoc(processStateRef);
-        let processingState = processStateDoc.exists() 
-          ? processStateDoc.data() 
-          : {
-              currentInnings: 0,
-              currentBatsmenIndex: 0,
-              currentBowlersIndex: 0,
-              fieldingProcessed: false,
-              completed: false
-            };
-
-        // Skip if already completed
-        if (processingState.completed) {
-          console.log(`Match ${matchId} already completed, skipping...`);
-          continue;
-        }
-
-        // Get match data
-        const matchQuery = query(matchesRef, where('matchId', '==', matchId));
-        const matchSnapshot = await getDocs(matchQuery);
-        
-        if (matchSnapshot.empty) {
-          console.log(`Match ${matchId} not found`);
-          continue;
-        }
-
-        const matchData = matchSnapshot.docs[0].data();
-        console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
-        console.log(`Current state: innings=${processingState.currentInnings}, batsmen=${processingState.currentBatsmenIndex}, bowlers=${processingState.currentBowlersIndex}`);
-
-        // Check if match is abandoned
-        if (matchData.matchInfo?.state === 'Abandon' || 
-            matchData.matchHeader?.state === 'Abandon' ||
-            matchData.isAbandoned === true ||
-            matchData.scorecard?.isAbandoned === true ||
-            (matchData.status && matchData.status.toLowerCase().includes('abandon'))) {
-          console.log(`Match ${matchId} was abandoned, marking as completed without processing points`);
-          
-          // Mark as completed without processing
-          processingState.completed = true;
-          processingState.abandonedMatch = true;
-          await setDoc(processStateRef, processingState);
-          continue;
-        }
-
-        // Get scorecard, transforming if necessary
-        let scorecard = matchData.scorecard;
-        
-        // Check if we need to transform the scorecard (it's in API format)
-        if (scorecard && scorecard.scoreCard && Array.isArray(scorecard.scoreCard)) {
-          console.log('Scorecard is in API format, transforming...');
-          scorecard = transformApiScorecard(scorecard);
-          
-          if (!scorecard) {
-            console.error('Failed to transform scorecard, skipping match');
-            processingState.error = 'Failed to transform scorecard';
-            await setDoc(processStateRef, processingState);
-            continue;
-          }
-        }
-        
-        // Validate scorecard structure
-        if (!scorecard || !scorecard.team1 || !scorecard.team2) {
-          console.error('Invalid scorecard structure:', JSON.stringify(scorecard).substring(0, 300));
-          processingState.error = 'Invalid scorecard structure';
-          await setDoc(processStateRef, processingState);
-          continue;
-        }
-
-        // Track fielding contributions for this match
-        const fieldingPoints = new Map();
-        
-        // Use the same structure as your working code
-        const innings = [scorecard.team1, scorecard.team2];
-        console.log(`Found ${innings.length} innings to process`);
-        
-        // Process only remaining innings based on processing state
-        for (let inningsIndex = processingState.currentInnings; inningsIndex < innings.length; inningsIndex++) {
-          // Check for timeout before starting each innings
+        // Process batsmen from where we left off
+        for (let i = processingState.currentBatsmenIndex; i < batsmen.length; i++) {
           if (!shouldContinueProcessing()) {
-            console.log(`Timing out during match ${matchId}, innings ${inningsIndex + 1}`);
+            // Save progress and exit
+            processingState.currentBatsmenIndex = i;
+            // Convert Map to serializable object for storage
+            processingState.fieldingPoints = Object.fromEntries(fieldingPoints);
+            await setDoc(processStateRef, processingState);
+            
+            console.log(`Timeout reached while processing batsmen, saved progress at index ${i}`);
             return NextResponse.json({
               success: true,
-              message: 'Partial processing completed due to timeout - will resume from current innings',
+              message: `Partially processed match ${matchId}, will continue next run`,
+              progress: { 
+                innings: inningsIndex + 1, 
+                batsmanIndex: i,
+                totalBatsmen: batsmen.length
+              },
               timestamp: new Date().toISOString()
             });
           }
           
-          const battingTeam = innings[inningsIndex];
-          console.log(`Processing innings ${inningsIndex + 1}`);
-
-          // Process batting performances first
-          if (!battingTeam.batsmen) {
-            console.log(`No batsmen data for innings ${inningsIndex + 1}, skipping...`);
+          const batsman = batsmen[i];
+          const batsmanName = batsman.name || batsman.batName;
+          
+          if (!batsmanName) {
+            console.log(`No name for batsman at index ${i}, skipping...`);
             continue;
           }
           
-          const batsmen = Object.values(battingTeam.batsmen);
-          console.log(`Processing ${batsmen.length} batsmen starting from index ${processingState.currentBatsmenIndex}`);
-          
-          // Start from where we left off
-          for (let batsmanIndex = processingState.currentBatsmenIndex; batsmanIndex < batsmen.length; batsmanIndex++) {
-            // Check for timeout before processing each player
-            if (!shouldContinueProcessing()) {
-              console.log(`Timing out during match ${matchId}, innings ${inningsIndex + 1}, batsman ${batsmanIndex}`);
-              processingState.currentBatsmenIndex = batsmanIndex;
-              processingState.currentInnings = inningsIndex;
-              await setDoc(processStateRef, processingState);
-              return NextResponse.json({
-                success: true,
-                message: `Partial processing completed due to timeout - will resume from batsman ${batsmanIndex}`,
-                timestamp: new Date().toISOString()
-              });
-            }
+          try {
+            console.log(`Processing batsman: ${batsmanName}`);
             
-            const batsman = batsmen[batsmanIndex];
-            // Skip if no name or batName property (depending on the format)
-            const batsmanName = batsman.name || batsman.batName;
-            if (!batsmanName) {
-              console.log(`No name for batsman at index ${batsmanIndex}, skipping...`);
-              continue;
-            }
-
-            try {
-              console.log(`Processing batsman: ${batsmanName}`);
-              
-              // We need to convert the API format batsman to our expected format
-              const formattedBatsman = {
+            // Process batting points
+            const playerId = PointService.createPlayerDocId(batsmanName);
+            const battingPoints = PointService.calculateBattingPoints({
+              runs: parseInt(batsman.runs) || 0,
+              balls: parseInt(batsman.balls) || 0,
+              fours: parseInt(batsman.fours) || 0,
+              sixes: parseInt(batsman.sixes) || 0,
+              dismissal: batsman.outDesc || batsman.dismissal || ''
+            });
+            
+            await PointService.storePlayerMatchPoints(
+              playerId,
+              matchId,
+              battingPoints,
+              {
+                type: 'batting',
+                innings: inningsIndex + 1,
                 name: batsmanName,
-                runs: batsman.runs || 0,
-                balls: batsman.balls || 0,
-                fours: batsman.fours || 0,
-                sixes: batsman.sixes || 0,
-                dismissal: batsman.outDesc || batsman.dismissal || '',
-                wicketCode: batsman.wicketCode || ''
-              };
+                runs: batsman.runs,
+                balls: batsman.balls,
+                fours: batsman.fours,
+                sixes: batsman.sixes
+              }
+            );
+            
+            // Track fielding contributions
+            const dismissal = batsman.outDesc || batsman.dismissal;
+            const wicketCode = batsman.wicketCode || '';
+            
+            if (dismissal) {
+              const fielder = PointService.extractFielderFromDismissal(dismissal, wicketCode);
               
-              // Process batting points
-              const playerId = PointService.createPlayerDocId(formattedBatsman.name);
-              const battingPoints = PointService.calculateBattingPoints(formattedBatsman);
-              
-              await PointService.storePlayerMatchPoints(
-                playerId,
-                matchId,
-                battingPoints,
-                {
-                  type: 'batting',
-                  innings: inningsIndex + 1,
-                  name: formattedBatsman.name,
-                  runs: formattedBatsman.runs,
-                  balls: formattedBatsman.balls,
-                  fours: formattedBatsman.fours,
-                  sixes: formattedBatsman.sixes
+              if (fielder) {
+                if (!fieldingPoints.has(fielder.name)) {
+                  fieldingPoints.set(fielder.name, {
+                    name: fielder.name,
+                    catches: 0,
+                    stumpings: 0,
+                    runouts: 0
+                  });
                 }
-              );
-
-              // Process fielding stats from dismissal
-              if (formattedBatsman.dismissal) {
-                const fielder = PointService.extractFielderFromDismissal(
-                  formattedBatsman.dismissal, 
-                  formattedBatsman.wicketCode
-                );
                 
-                if (fielder) {
-                  if (!fieldingPoints.has(fielder.name)) {
-                    fieldingPoints.set(fielder.name, {
-                      name: fielder.name,
-                      catches: 0,
-                      stumpings: 0,
-                      runouts: 0
-                    });
-                  }
-                  const stats = fieldingPoints.get(fielder.name);
-                  switch (fielder.type) {
-                    case 'catch': stats.catches++; break;
-                    case 'stumping': stats.stumpings++; break;
-                    case 'runout': stats.runouts++; break;
-                  }
+                const stats = fieldingPoints.get(fielder.name);
+                switch (fielder.type) {
+                  case 'catch': stats.catches++; break;
+                  case 'stumping': stats.stumpings++; break;
+                  case 'runout': stats.runouts++; break;
                 }
               }
-
-              // Update processing state after each batsman
-              processingState.currentBatsmenIndex = batsmanIndex + 1;
-              await setDoc(processStateRef, processingState);
-              
-              console.log(`Successfully processed batsman: ${formattedBatsman.name}`);
-            } catch (error) {
-              console.error(`Error processing batsman ${batsmanName}:`, error);
-              // Still update state so we can continue from next player
-              processingState.currentBatsmenIndex = batsmanIndex + 1;
-              await setDoc(processStateRef, processingState);
             }
+            
+            madeProgress = true;
+            console.log(`Successfully processed batsman: ${batsmanName}`);
+          } catch (error) {
+            console.error(`Error processing batsman ${batsmanName}:`, error);
           }
-
-          // Reset batsmen index and move to bowlers
-          processingState.currentBatsmenIndex = 0;
-          await setDoc(processStateRef, processingState);
-
-          // Process bowling performances
-          if (!battingTeam.bowlers) {
-            console.log(`No bowlers data for innings ${inningsIndex + 1}, skipping...`);
-            continue;
-          }
-          
+        }
+        
+        // All batsmen processed, move to bowlers
+        processingState.currentBatsmenIndex = 0;
+      }
+      
+      // If we have time left, process bowlers
+      if (shouldContinueProcessing()) {
+        if (battingTeam.bowlers) {
           const bowlers = Object.values(battingTeam.bowlers);
           console.log(`Processing ${bowlers.length} bowlers starting from index ${processingState.currentBowlersIndex}`);
           
-          // Start from where we left off
-          for (let bowlerIndex = processingState.currentBowlersIndex; bowlerIndex < bowlers.length; bowlerIndex++) {
-            // Check for timeout before processing each bowler
+          // Process bowlers from where we left off
+          for (let i = processingState.currentBowlersIndex; i < bowlers.length; i++) {
             if (!shouldContinueProcessing()) {
-              console.log(`Timing out during match ${matchId}, innings ${inningsIndex + 1}, bowler ${bowlerIndex}`);
-              processingState.currentBowlersIndex = bowlerIndex;
-              processingState.currentInnings = inningsIndex;
+              // Save progress and exit
+              processingState.currentBowlersIndex = i;
+              processingState.fieldingPoints = Object.fromEntries(fieldingPoints);
               await setDoc(processStateRef, processingState);
+              
+              console.log(`Timeout reached while processing bowlers, saved progress at index ${i}`);
               return NextResponse.json({
                 success: true,
-                message: `Partial processing completed due to timeout - will resume from bowler ${bowlerIndex}`,
+                message: `Partially processed match ${matchId}, will continue next run`,
+                progress: { 
+                  innings: inningsIndex + 1, 
+                  bowlerIndex: i,
+                  totalBowlers: bowlers.length
+                },
                 timestamp: new Date().toISOString()
               });
             }
             
-            const bowler = bowlers[bowlerIndex];
-            // Skip if no name or bowlName property (depending on the format)
+            const bowler = bowlers[i];
             const bowlerName = bowler.name || bowler.bowlName;
+            
             if (!bowlerName) {
-              console.log(`No name for bowler at index ${bowlerIndex}, skipping...`);
+              console.log(`No name for bowler at index ${i}, skipping...`);
               continue;
             }
-
+            
             try {
               console.log(`Processing bowler: ${bowlerName}`);
               
-              // We need to convert the API format bowler to our expected format
-              const formattedBowler = {
-                name: bowlerName,
-                overs: bowler.overs || 0,
-                maidens: bowler.maidens || 0,
-                runs: bowler.runs || 0,
-                wickets: bowler.wickets || 0,
-                economy: bowler.economy || 0
-              };
+              // Process bowling points
+              const playerId = PointService.createPlayerDocId(bowlerName);
+              const bowlingPoints = PointService.calculateBowlingPoints({
+                wickets: parseInt(bowler.wickets) || 0,
+                maidens: parseInt(bowler.maidens) || 0,
+                runs: parseInt(bowler.runs) || 0,
+                overs: parseFloat(bowler.overs) || 0
+              });
               
-              const playerId = PointService.createPlayerDocId(formattedBowler.name);
-              const bowlingPoints = PointService.calculateBowlingPoints(formattedBowler);
-              
-              // Add match played points if this is their first performance in the match
+              // Add match played points
               const matchPlayedPoints = PointService.POINTS.MATCH.PLAYED;
               const totalPoints = bowlingPoints + matchPlayedPoints;
-
+              
               await PointService.storePlayerMatchPoints(
                 playerId,
                 matchId,
@@ -371,106 +364,132 @@ export async function GET(request) {
                 {
                   type: 'bowling',
                   innings: inningsIndex + 1,
-                  includesMatchPoints: true, // Flag that match points are included
-                  name: formattedBowler.name,
-                  wickets: formattedBowler.wickets,
-                  maidens: formattedBowler.maidens,
-                  runs: formattedBowler.runs,
-                  overs: formattedBowler.overs
+                  includesMatchPoints: true,
+                  name: bowlerName,
+                  wickets: bowler.wickets,
+                  maidens: bowler.maidens,
+                  runs: bowler.runs,
+                  overs: bowler.overs
                 }
               );
-
-              // Update processing state after each bowler
-              processingState.currentBowlersIndex = bowlerIndex + 1;
-              await setDoc(processStateRef, processingState);
               
-              console.log(`Successfully processed bowler: ${formattedBowler.name}`);
+              madeProgress = true;
+              console.log(`Successfully processed bowler: ${bowlerName}`);
             } catch (error) {
               console.error(`Error processing bowler ${bowlerName}:`, error);
-              // Still update state so we can continue from next player
-              processingState.currentBowlersIndex = bowlerIndex + 1;
-              await setDoc(processStateRef, processingState);
             }
-          }
-
-          // Move to next innings after completing this one
-          processingState.currentInnings = inningsIndex + 1;
-          processingState.currentBatsmenIndex = 0;
-          processingState.currentBowlersIndex = 0;
-          await setDoc(processStateRef, processingState);
-        }
-
-        // Process fielding if not already done
-        if (!processingState.fieldingProcessed) {
-          // Check for timeout before processing fielding
-          if (!shouldContinueProcessing()) {
-            console.log(`Timing out before fielding processing for match ${matchId}`);
-            return NextResponse.json({
-              success: true,
-              message: 'Partial processing completed due to timeout - will resume with fielding',
-              timestamp: new Date().toISOString()
-            });
           }
           
-          console.log(`Processing fielding points for ${fieldingPoints.size} players`);
-          for (const [fielderName, stats] of fieldingPoints.entries()) {
-            // Check for timeout before processing each fielder
-            if (!shouldContinueProcessing()) {
-              console.log(`Timing out during fielding processing for match ${matchId}`);
-              return NextResponse.json({
-                success: true,
-                message: 'Partial processing completed due to timeout - will resume with remaining fielding',
-                timestamp: new Date().toISOString()
-              });
-            }
-            
-            try {
-              console.log(`Processing fielding for: ${fielderName}`);
-              
-              const playerId = PointService.createPlayerDocId(fielderName);
-              const fieldingPts = PointService.calculateFieldingPoints(stats);
-              
-              await PointService.storePlayerMatchPoints(
-                playerId,
-                matchId,
-                fieldingPts,
-                {
-                  type: 'fielding',
-                  name: fielderName,
-                  ...stats
-                }
-              );
-
-              console.log(`Successfully processed fielding for: ${fielderName}`);
-            } catch (error) {
-              console.error(`Error processing fielding points for ${fielderName}:`, error);
-            }
-          }
-
-          processingState.fieldingProcessed = true;
-          await setDoc(processStateRef, processingState);
+          // All bowlers in this innings processed
+          processingState.currentBowlersIndex = 0;
         }
-
-        // Mark match as completed
-        processingState.completed = true;
-        await setDoc(processStateRef, processingState);
-
-        console.log(`Successfully completed processing match ${matchId}`);
+        
+        // Move to next innings
+        processingState.currentInnings++;
       }
-
+    }
+    
+    // If we have time left and all innings are processed, process fielding points
+    if (shouldContinueProcessing() && 
+        processingState.currentInnings >= innings.length && 
+        !processingState.fieldingProcessed) {
+      
+      console.log(`Processing fielding points for ${fieldingPoints.size} players`);
+      
+      // Convert Map to array for iteration
+      const fieldingEntries = Array.from(fieldingPoints.entries());
+      
+      for (let i = 0; i < fieldingEntries.length; i++) {
+        if (!shouldContinueProcessing()) {
+          // Save progress and exit
+          processingState.fieldingPoints = Object.fromEntries(fieldingPoints);
+          await setDoc(processStateRef, processingState);
+          
+          console.log(`Timeout reached while processing fielding, saved progress`);
+          return NextResponse.json({
+            success: true,
+            message: `Partially processed match ${matchId}, will continue next run with fielding`,
+            progress: { 
+              fieldingProcessed: false,
+              fieldersRemaining: fieldingEntries.length - i
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        const [fielderName, stats] = fieldingEntries[i];
+        
+        try {
+          console.log(`Processing fielding for: ${fielderName}`);
+          
+          const playerId = PointService.createPlayerDocId(fielderName);
+          const fieldingPts = PointService.calculateFieldingPoints(stats);
+          
+          await PointService.storePlayerMatchPoints(
+            playerId,
+            matchId,
+            fieldingPts,
+            {
+              type: 'fielding',
+              name: fielderName,
+              ...stats
+            }
+          );
+          
+          madeProgress = true;
+          console.log(`Successfully processed fielding for: ${fielderName}`);
+        } catch (error) {
+          console.error(`Error processing fielding points for ${fielderName}:`, error);
+        }
+      }
+      
+      // All fielding processed
+      processingState.fieldingProcessed = true;
+    }
+    
+    // Check if we've completed all processing for this match
+    if (processingState.currentInnings >= innings.length && processingState.fieldingProcessed) {
+      processingState.completed = true;
+      await setDoc(processStateRef, processingState);
+      await markMatchCompleted(queueRef, matchId);
+      
+      console.log(`Successfully completed processing match ${matchId}`);
       return NextResponse.json({
         success: true,
-        message: 'Match and player data update process completed',
+        message: `Match ${matchId} processing completed`,
         timestamp: new Date().toISOString()
       });
-    } catch (restoreError) {
-      console.error('Error during match restoration:', restoreError);
-      throw restoreError;
+    }
+    
+    // Save our progress
+    processingState.fieldingPoints = Object.fromEntries(fieldingPoints);
+    await setDoc(processStateRef, processingState);
+    
+    if (madeProgress) {
+      return NextResponse.json({
+        success: true,
+        message: `Made progress on match ${matchId}, will continue in next run`,
+        progress: {
+          innings: processingState.currentInnings + 1,
+          batsmenIndex: processingState.currentBatsmenIndex,
+          bowlersIndex: processingState.currentBowlersIndex,
+          fieldingProcessed: processingState.fieldingProcessed
+        },
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      // If we didn't make any progress in this run, there might be an issue
+      console.warn(`No progress made for match ${matchId}, check for issues`);
+      return NextResponse.json({
+        success: false,
+        message: `No progress made for match ${matchId}, possible issue`,
+        timestamp: new Date().toISOString()
+      });
     }
   } catch (error) {
-    console.error('Error in cron job:', error);
+    console.error('Error in match processing:', error);
     return NextResponse.json(
-      { error: 'Failed to update match and player data', details: error.message },
+      { error: 'Failed to process match data', details: error.message },
       { status: 500 }
     );
   }
