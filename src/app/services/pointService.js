@@ -385,54 +385,51 @@ static calculateFieldingPoints(fieldingData) {
 static extractFielderFromDismissal(dismissal, wicketCode) {
   if (!dismissal) return null;
 
-  // Add more comprehensive logging to debug dismissal processing
-  console.log(`Processing dismissal: "${dismissal}", wicketCode: ${wicketCode}`);
+  console.log(`Processing dismissal: "${dismissal}", wicketCode: ${wicketCode || 'NONE'}`);
 
-  // Handle different dismissal types
-  if (wicketCode === 'CAUGHT') {
-    // Regular catch: "c Player b Bowler"
-    const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^b]+)b/);
-    if (catchMatch) {
-      const fielderName = catchMatch[1].trim();
-      console.log(`Identified catch by: ${fielderName}`);
-      return {
-        name: fielderName,
-        type: 'catch'
-      };
-    }
-  } else if (wicketCode === 'CAUGHTBOWLED') {
-    // Caught and bowled: "c and b Player"
-    const candBMatch = dismissal.match(/c and b\s+(.+)/);
-    if (candBMatch) {
-      const fielderName = candBMatch[1].trim();
-      console.log(`Identified catch and bowl by: ${fielderName}`);
-      return {
-        name: fielderName,
-        type: 'catch'
-      };
-    }
-  } else if (wicketCode === 'STUMPED') {
-    // Stumping: "st Player b Bowler"
-    const stumpMatch = dismissal.match(/st\s+([^b]+)b/);
-    if (stumpMatch) {
-      const fielderName = stumpMatch[1].trim();
-      console.log(`Identified stumping by: ${fielderName}`);
-      return {
-        name: fielderName,
-        type: 'stumping'
-      };
-    }
-  } else if (wicketCode === 'RUNOUT') {
-    // Run out: "run out (Player)" or "run out (Player/Player2)"
-    const runoutMatch = dismissal.match(/run out\s+\(([^)]+)\)/);
-    if (runoutMatch) {
-      const fielderName = runoutMatch[1].split('/')[0].trim(); // Take first fielder if multiple
-      console.log(`Identified run out by: ${fielderName}`);
-      return {
-        name: fielderName,
-        type: 'runout'
-      };
-    }
+  // Try to identify fielders regardless of wicketCode
+  // Catches - 'c Player b Bowler' or 'c Player1/Player2 b Bowler'
+  const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^\/\s]+(?:\s+[^\/\s]+)*)(?:\/[^b]+)?b/i);
+  if (catchMatch) {
+    const fielderName = catchMatch[1].trim();
+    console.log(`Identified catch by: ${fielderName}`);
+    return {
+      name: fielderName,
+      type: 'catch'
+    };
+  }
+
+  // Caught and bowled: "c and b Player"
+  const candBMatch = dismissal.match(/c and b\s+(.+)/i);
+  if (candBMatch) {
+    const fielderName = candBMatch[1].trim();
+    console.log(`Identified catch and bowl by: ${fielderName}`);
+    return {
+      name: fielderName,
+      type: 'catch'
+    };
+  }
+
+  // Stumpings: "st Player b Bowler"
+  const stumpMatch = dismissal.match(/st\s+([^b]+)b/i);
+  if (stumpMatch) {
+    const fielderName = stumpMatch[1].trim();
+    console.log(`Identified stumping by: ${fielderName}`);
+    return {
+      name: fielderName,
+      type: 'stumping'
+    };
+  }
+
+  // Run outs: "run out (Player)" or "run out (Player/Player2)"
+  const runoutMatch = dismissal.match(/run out\s+\(([^)\/]+)(?:\/[^)]+)?\)/i);
+  if (runoutMatch) {
+    const fielderName = runoutMatch[1].trim();
+    console.log(`Identified run out by: ${fielderName}`);
+    return {
+      name: fielderName,
+      type: 'runout'
+    };
   }
   
   console.log(`No fielder identified in dismissal`);
