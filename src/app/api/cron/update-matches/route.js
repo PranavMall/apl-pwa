@@ -20,7 +20,7 @@ export async function GET(request) {
     await cricketService.syncMatchData();
 
     // Now process player points for all matches
-    const matchesToRestore = ['112395','112413','112409','112402','112420','112427','112430']; // Add all your match IDs
+    const matchesToRestore = ['112395','112413','112409','112402','112420','112427','112430','112437']; // Add all your match IDs
     console.log('Starting match restoration process...');
 
     // Create a processing state collection to track progress
@@ -61,6 +61,22 @@ export async function GET(request) {
         const matchData = matchSnapshot.docs[0].data();
         console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
 
+        // Check if match is abandoned
+        if (matchData.matchInfo?.state === 'Abandon' || 
+            matchData.matchHeader?.state === 'Abandon' ||
+            (matchData.status && matchData.status.toLowerCase().includes('abandon'))) {
+          console.log(`Match ${matchId} was abandoned, marking as completed without processing points`);
+          
+          // Mark as completed without processing
+          processingState.completed = true;
+          processingState.abandonedMatch = true;
+          await setDoc(processStateRef, processingState);
+          continue;
+        }
+
+        // Track ALL players in the match to ensure each gets starting XI points
+        const allPlayers = new Map(); // playerId -> { name, participated: true, ... }
+        
         // Track fielding contributions
         const fieldingPoints = new Map();
 
@@ -83,6 +99,13 @@ export async function GET(request) {
             if (!batsman.name) continue;
 
             try {
+              // Mark player as participated
+              const playerId = PointService.createPlayerDocId(batsman.name);
+              allPlayers.set(playerId, {
+                name: batsman.name,
+                participated: true
+              });
+              
               // Process batting points
               const battingPoints = PointService.calculateBattingPoints(batsman);
               await PointService.storePlayerMatchPoints(
@@ -114,6 +137,13 @@ export async function GET(request) {
                     case 'stumping': stats.stumpings++; break;
                     case 'runout': stats.runouts++; break;
                   }
+                   // Mark fielder as participated too
+                  const fielderId = PointService.createPlayerDocId(fielder.name);
+                  allPlayers.set(fielderId, {
+                    name: fielder.name,
+                    participated: true
+                  });
+                  
                 }
               }
 
@@ -140,14 +170,28 @@ export async function GET(request) {
             if (!bowler.name) continue;
 
             try {
+
+              // Mark player as participated
+              const playerId = PointService.createPlayerDocId(bowler.name);
+              allPlayers.set(playerId, {
+                name: bowler.name,
+                participated: true
+              });
+              
+              // Process bowling points (add match played points explicitly)
               const bowlingPoints = PointService.calculateBowlingPoints(bowler);
-              await PointService.storePlayerMatchPoints(
-                PointService.createPlayerDocId(bowler.name),
+              // Add match played points if this is their first performance in the match
+              const matchPlayedPoints = PointService.POINTS.MATCH.PLAYED;
+              const totalPoints = bowlingPoints + matchPlayedPoints;
+
+               await PointService.storePlayerMatchPoints(
+                playerId,
                 matchId,
-                bowlingPoints,
+                totalPoints, // Include match played points
                 {
                   type: 'bowling',
                   innings: inningsIndex + 1,
+                  includesMatchPoints: true, // Flag that match points are included
                   ...bowler
                 }
               );
@@ -173,16 +217,28 @@ export async function GET(request) {
           console.log(`Processing fielding points for ${fieldingPoints.size} players`);
           for (const [fielderId, stats] of fieldingPoints.entries()) {
             try {
-              const fieldingPoints = PointService.calculateFieldingPoints(stats);
-              await PointService.storePlayerMatchPoints(
-                PointService.createPlayerDocId(fielderId),
+              const playerId = PointService.createPlayerDocId(fielderName);
+              const fieldingPts = PointService.calculateFieldingPoints(stats);
+              
+              // This should include catches, stumpings, and run-outs
+              console.log(`Fielding stats for ${fielderName}:`, stats);
+              console.log(`Calculated fielding points: ${fieldingPts}`);
+              
+             await PointService.storePlayerMatchPoints(
+                playerId,
                 matchId,
-                fieldingPoints,
+                fieldingPts,
                 {
                   type: 'fielding',
                   ...stats
                 }
               );
+              
+              // Mark them as participated
+              allPlayers.set(playerId, {
+                name: fielderName,
+                participated: true
+              });
             } catch (error) {
               console.error(`Error processing fielding points for ${fielderId}:`, error);
             }
