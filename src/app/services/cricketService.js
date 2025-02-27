@@ -421,6 +421,7 @@ static processFieldingStats(scorecard) {
 
 // In cricketService.js
 
+// Modified syncMatchData function in cricketService.js to handle abandoned matches
 static async syncMatchData() {
   try {
     console.log('Starting match data sync...');
@@ -432,7 +433,43 @@ static async syncMatchData() {
       try {
         console.log(`Processing match ${match.matchId}`);
         
-        // Fetch scorecard
+        // Check if match is abandoned before fetching scorecard
+        const isMatchAbandoned = match.matchInfo.state === 'Abandon' || 
+                               match.matchInfo.status?.toLowerCase().includes('abandon');
+        
+        if (isMatchAbandoned) {
+          console.log(`Match ${match.matchId} was abandoned - storing basic info without scorecard`);
+          
+          // Create minimal match data for abandoned matches
+          const abandonedMatchData = {
+            matchId: match.matchId,
+            lastUpdated: new Date().toISOString(),
+            matchInfo: match.matchInfo,
+            seriesId: match.seriesId,
+            seriesName: match.seriesName,
+            isAbandoned: true,
+            scorecard: {
+              matchId: match.matchId,
+              matchStatus: 'Match abandoned',
+              isAbandoned: true
+            }
+          };
+          
+          // Save to Firebase without validation
+          const matchDoc = doc(db, 'matches', match.matchId.toString());
+          await setDoc(matchDoc, abandonedMatchData, { merge: true });
+          
+          syncResults.push({
+            matchId: match.matchId,
+            status: 'success',
+            pointsCalculated: false,
+            abandoned: true
+          });
+          
+          continue; // Skip to next match
+        }
+        
+        // For non-abandoned matches, continue with normal processing
         const processedScorecard = await this.fetchScorecard(match.matchId);
         
         // Add detailed validation logging
@@ -463,25 +500,25 @@ static async syncMatchData() {
         await this.updateMatchInFirebase(match, processedScorecard);
         
         // Calculate and store points
-try {
-  console.log(`Starting points calculation for match ${match.matchId}`);
-  await PointService.calculateMatchPoints(match.matchId, processedScorecard);
-  console.log(`Successfully calculated points for match ${match.matchId}`);
+        try {
+          console.log(`Starting points calculation for match ${match.matchId}`);
+          await PointService.calculateMatchPoints(match.matchId, processedScorecard);
+          console.log(`Successfully calculated points for match ${match.matchId}`);
 
-  syncResults.push({
-    matchId: match.matchId,
-    status: 'success',
-    pointsCalculated: true
-  });
-} catch (pointsError) {
-  console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
-  syncResults.push({
-    matchId: match.matchId,
-    status: 'partial',
-    error: `Points calculation failed: ${pointsError.message}`,
-    pointsCalculated: false
-  });
-}
+          syncResults.push({
+            matchId: match.matchId,
+            status: 'success',
+            pointsCalculated: true
+          });
+        } catch (pointsError) {
+          console.error(`Error calculating points for match ${match.matchId}:`, pointsError);
+          syncResults.push({
+            matchId: match.matchId,
+            status: 'partial',
+            error: `Points calculation failed: ${pointsError.message}`,
+            pointsCalculated: false
+          });
+        }
       } catch (matchError) {
         console.error(`Failed to sync match ${match.matchId}:`, matchError);
         syncResults.push({
@@ -496,6 +533,7 @@ try {
     const successCount = syncResults.filter(r => r.status === 'success').length;
     const failedCount = syncResults.filter(r => r.status === 'failed').length;
     const partialCount = syncResults.filter(r => r.status === 'partial').length;
+    const abandonedCount = syncResults.filter(r => r.abandoned).length;
 
     return {
       success: true,
@@ -503,7 +541,8 @@ try {
         total: matches.length,
         success: successCount,
         failed: failedCount,
-        partial: partialCount
+        partial: partialCount,
+        abandoned: abandonedCount
       },
       matchesSynced: syncResults
     };
