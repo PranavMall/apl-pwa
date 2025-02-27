@@ -307,7 +307,7 @@ export async function GET(request) {
               const fieldingPts = PointService.calculateFieldingPoints(stats);
               const playerId = fielder.id; // Use the formatted ID instead of the name
               await PointService.storePlayerMatchPoints(
-                playerId,,
+                playerId,
                 matchId,
                 fieldingPts,
                 {
