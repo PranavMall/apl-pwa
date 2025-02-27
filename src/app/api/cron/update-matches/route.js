@@ -304,15 +304,23 @@ export async function GET(request) {
             }
             
             try {
+              // REPLACE THESE LINES:
+              // const fieldingPts = PointService.calculateFieldingPoints(stats);
+              // const playerId = fielder.id; // Use the formatted ID instead of the name
+
+              // WITH THESE LINES:
+              console.log(`Processing fielding for ${fielderId}`);
+              const playerId = PointService.createPlayerDocId(fielderId);
               const fieldingPts = PointService.calculateFieldingPoints(stats);
-              const playerId = fielder.id; // Use the formatted ID instead of the name
               await PointService.storePlayerMatchPoints(
                 playerId,
                 matchId,
                 fieldingPts,
                 {
-                  type: 'fielding',
-                  name: fielder.name, // Keep the original name for display
+                  // REPLACE THIS LINE:
+                  // name: fielder.name, // Keep the original name for display
+                  // WITH THIS LINE:
+                  name: fielderId, // Keep the original name for display
                   ...stats
                 }
               );
