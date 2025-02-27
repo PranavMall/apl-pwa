@@ -130,7 +130,7 @@ export async function GET(request) {
     }
     
     // Test with a specific set of match IDs
-    const matchesToProcess = ['101080']; // Add your match IDs here
+    const matchesToProcess = ['112395', '112413', '112409', '112402', '112420', '112427', '112430', '112437']; // Add your match IDs here
     
     console.log('Starting match processing...');
 
