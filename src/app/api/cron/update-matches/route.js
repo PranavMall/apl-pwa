@@ -125,8 +125,8 @@ export async function GET(request) {
           continue;
         }
 
-        // Validate scorecard structure
-        if (!matchData.scorecard || !matchData.scorecard.team1 || !matchData.scorecard.team2) {
+        // Validate scorecard structure - this is where we need to check the actual structure
+        if (!matchData.scorecard || !matchData.scorecard.scoreCard) {
           log(`Invalid scorecard structure for match ${matchId}, skipping...`);
           processingState.error = 'Invalid scorecard structure';
           processingState.lastUpdated = new Date().toISOString();
@@ -137,8 +137,8 @@ export async function GET(request) {
         // Track fielding contributions for this match
         const fieldingPoints = new Map();
 
-        // Use the same structure as your working code
-        const innings = [matchData.scorecard.team1, matchData.scorecard.team2];
+        // Get innings from the scorecard structure - this matches your API response
+        const innings = matchData.scorecard.scoreCard || [];
         log(`Found ${innings.length} innings to process`);
         
         // Process only remaining innings based on processing state
@@ -159,11 +159,12 @@ export async function GET(request) {
             });
           }
           
-          const team = innings[inningsIndex];
+          const inningData = innings[inningsIndex];
           log(`Processing innings ${inningsIndex + 1}`);
 
-          // Process batting performances first
-          const batsmen = Array.isArray(team.batsmen) ? team.batsmen : [];
+          // Get batsmen data from the correct structure
+          const batsmenData = inningData.batTeamDetails?.batsmenData || {};
+          const batsmen = Object.values(batsmenData);
           log(`Processing ${batsmen.length} batsmen starting from index ${processingState.currentBatsmenIndex}`);
           
           let batsmenCompleted = true; // Will be set to false if we break out early
@@ -189,27 +190,28 @@ export async function GET(request) {
             }
             
             const batsman = batsmen[batsmanIndex];
-            log(`Processing batsman ${batsmanIndex + 1}/${batsmen.length}: ${batsman?.name || 'Unknown'}`);
+            log(`Processing batsman ${batsmanIndex + 1}/${batsmen.length}: ${batsman?.batName || 'Unknown'}`);
             
-            if (!batsman || !batsman.name) {
+            if (!batsman || !batsman.batName) {
               log(`Skipping invalid batsman data at index ${batsmanIndex}`);
               continue;
             }
 
             try {
               // Process batting points
-              const playerId = PointService.createPlayerDocId(batsman.name);
-              log(`Calculating batting points for ${batsman.name} (${playerId})`);
+              const playerName = batsman.batName;
+              const playerId = PointService.createPlayerDocId(playerName);
+              log(`Calculating batting points for ${playerName} (${playerId})`);
               
               const battingPoints = PointService.calculateBattingPoints({
                 runs: parseInt(batsman.runs) || 0,
                 balls: parseInt(batsman.balls) || 0,
                 fours: parseInt(batsman.fours) || 0,
                 sixes: parseInt(batsman.sixes) || 0,
-                dismissal: batsman.dismissal
+                dismissal: batsman.outDesc
               });
               
-              log(`Storing batting points for ${batsman.name}: ${battingPoints}`);
+              log(`Storing batting points for ${playerName}: ${battingPoints}`);
               
               await PointService.storePlayerMatchPoints(
                 playerId,
@@ -218,7 +220,7 @@ export async function GET(request) {
                 {
                   type: 'batting',
                   innings: inningsIndex + 1,
-                  name: batsman.name,
+                  name: playerName,
                   runs: batsman.runs,
                   balls: batsman.balls,
                   fours: batsman.fours,
@@ -227,8 +229,8 @@ export async function GET(request) {
               );
 
               // Process fielding stats from dismissal
-              if (batsman.dismissal) {
-                const fielder = PointService.extractFielderFromDismissal(batsman.dismissal, batsman.wicketCode);
+              if (batsman.outDesc && batsman.wicketCode) {
+                const fielder = PointService.extractFielderFromDismissal(batsman.outDesc, batsman.wicketCode);
                 if (fielder) {
                   const fielderId = PointService.createPlayerDocId(fielder.name);
                   log(`Recording fielding contribution for ${fielder.name}: ${fielder.type}`);
@@ -266,7 +268,7 @@ export async function GET(request) {
               await setDoc(processStateRef, processingState);
               
             } catch (error) {
-              log(`Error processing batsman ${batsman.name}: ${error.message}`);
+              log(`Error processing batsman ${batsman.batName}: ${error.message}`);
               // Still update state so we can continue from next player
               processingState.currentBatsmenIndex = batsmanIndex + 1;
               processingState.lastBatsmanError = error.message;
@@ -281,8 +283,9 @@ export async function GET(request) {
           await setDoc(processStateRef, processingState);
           log('Completed processing batsmen for this innings');
 
-          // Process bowling performances
-          const bowlers = Array.isArray(team.bowlers) ? team.bowlers : [];
+          // Process bowling performances - using the correct API structure
+          const bowlersData = inningData.bowlTeamDetails?.bowlersData || {};
+          const bowlers = Object.values(bowlersData);
           log(`Processing ${bowlers.length} bowlers starting from index ${processingState.currentBowlersIndex}`);
           
           let bowlersCompleted = true; // Will be set to false if we break out early
@@ -308,16 +311,17 @@ export async function GET(request) {
             }
             
             const bowler = bowlers[bowlerIndex];
-            log(`Processing bowler ${bowlerIndex + 1}/${bowlers.length}: ${bowler?.name || 'Unknown'}`);
+            log(`Processing bowler ${bowlerIndex + 1}/${bowlers.length}: ${bowler?.bowlName || 'Unknown'}`);
             
-            if (!bowler || !bowler.name) {
+            if (!bowler || !bowler.bowlName) {
               log(`Skipping invalid bowler data at index ${bowlerIndex}`);
               continue;
             }
 
             try {
-              const playerId = PointService.createPlayerDocId(bowler.name);
-              log(`Calculating bowling points for ${bowler.name} (${playerId})`);
+              const playerName = bowler.bowlName;
+              const playerId = PointService.createPlayerDocId(playerName);
+              log(`Calculating bowling points for ${playerName} (${playerId})`);
               
               const bowlingPoints = PointService.calculateBowlingPoints({
                 wickets: parseInt(bowler.wickets) || 0,
@@ -330,7 +334,7 @@ export async function GET(request) {
               const matchPlayedPoints = PointService.POINTS.MATCH.PLAYED;
               const totalPoints = bowlingPoints + matchPlayedPoints;
               
-              log(`Storing bowling points for ${bowler.name}: ${totalPoints} (includes ${matchPlayedPoints} match points)`);
+              log(`Storing bowling points for ${playerName}: ${totalPoints} (includes ${matchPlayedPoints} match points)`);
 
               await PointService.storePlayerMatchPoints(
                 playerId,
@@ -340,7 +344,7 @@ export async function GET(request) {
                   type: 'bowling',
                   innings: inningsIndex + 1,
                   includesMatchPoints: true, // Flag that match points are included
-                  name: bowler.name,
+                  name: playerName,
                   wickets: bowler.wickets,
                   maidens: bowler.maidens,
                   runs: bowler.runs,
@@ -354,7 +358,7 @@ export async function GET(request) {
               await setDoc(processStateRef, processingState);
               
             } catch (error) {
-              log(`Error processing bowler ${bowler.name}: ${error.message}`);
+              log(`Error processing bowler ${bowler.bowlName}: ${error.message}`);
               // Still update state so we can continue from next player
               processingState.currentBowlersIndex = bowlerIndex + 1;
               processingState.lastBowlerError = error.message;
@@ -452,21 +456,3 @@ export async function GET(request) {
         lastProcessedMatch: processedMatchId,
         timestamp: new Date().toISOString()
       });
-    } catch (restoreError) {
-      log(`Error during match processing: ${restoreError.message}`);
-      console.error('Full error:', restoreError);
-      throw restoreError;
-    }
-  } catch (error) {
-    log(`Critical error in cron job: ${error.message}`);
-    console.error('Full error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to update match and player data', 
-        details: error.message,
-        stack: error.stack 
-      },
-      { status: 500 }
-    );
-  }
-}
