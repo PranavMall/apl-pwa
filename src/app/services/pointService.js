@@ -389,7 +389,7 @@ static extractFielderFromDismissal(dismissal, wicketCode) {
 
   // Try to identify fielders regardless of wicketCode
   // Catches - 'c Player b Bowler' or 'c Player1/Player2 b Bowler'
-  const catchMatch = dismissal.match(/c\s+(?:\(sub\))?\s*([^\/\s]+(?:\s+[^\/\s]+)*)(?:\/[^b]+)?b/i);
+  const catchMatch = dismissal.match(/c\s+(?:\(sub\))?([^b]+)b\s/i);
   if (catchMatch) {
     const fielderName = catchMatch[1].trim();
     console.log(`Identified catch by: ${fielderName}`);
