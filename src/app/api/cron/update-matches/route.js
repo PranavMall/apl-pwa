@@ -187,8 +187,10 @@ export async function GET(request) {
               );
 
               // Process fielding stats from dismissal
-              if (batsman.dismissal) {
-                const fielder = PointService.extractFielderFromDismissal(batsman.dismissal, batsman.wicketCode);
+              const dismissal = batsman.outDesc || batsman.dismissal;
+              const wicketCode = batsman.wicketCode || '';
+              if (dismissal) {
+                const fielder = PointService.extractFielderFromDismissal(dismissal, wicketCode);
                 if (fielder) {
                   if (!fieldingPoints.has(fielder.name)) {
                     fieldingPoints.set(fielder.name, {
