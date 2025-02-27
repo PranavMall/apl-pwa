@@ -15,32 +15,23 @@ import { db } from '../../../../firebase';  // Make sure path matches your fireb
 
 // Set a safety margin before Vercel's 10s timeout
 const TIMEOUT_MARGIN = 9000; // 9 seconds
-const startTime = Date.now();
-
-function shouldContinueProcessing() {
-  // Reset the startTime if this is the first check in this function execution
-  if (global._lastCheckTime === undefined) {
-    global._lastCheckTime = startTime;
-    return true;
-  }
-  
-  const now = Date.now();
-  const elapsed = now - global._lastCheckTime;
-  const totalElapsed = now - startTime;
-  
-  // Update the last check time
-  global._lastCheckTime = now;
-  
-  const shouldContinue = totalElapsed < TIMEOUT_MARGIN;
-  
-  if (!shouldContinue) {
-    console.log(`Approaching timeout after ${totalElapsed}ms, will gracefully stop processing`);
-  }
-  
-  return shouldContinue;
-}
 
 export async function GET(request) {
+
+    // Reset timer at the start of each function invocation
+  const startTime = Date.now();
+  
+  // Define the function inside GET to ensure it uses the fresh startTime
+  function shouldContinueProcessing() {
+    const elapsed = Date.now() - startTime;
+    const shouldContinue = elapsed < TIMEOUT_MARGIN;
+    
+    if (!shouldContinue) {
+      console.log(`Approaching timeout after ${elapsed}ms, will gracefully stop processing`);
+    }
+    
+    return shouldContinue;
+  }
   try {
     // Reset global timing variables at the start of each request
     global._lastCheckTime = undefined;
