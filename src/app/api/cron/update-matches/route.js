@@ -187,58 +187,92 @@ export async function GET(request) {
               );
 
               // Process fielding stats from dismissal
-              const dismissal = batsman.outDesc || batsman.dismissal;
-              const wicketCode = batsman.wicketCode || '';
-              if (dismissal) {
-                const fielder = PointService.extractFielderFromDismissal(dismissal, wicketCode);
-                if (fielder) {
-                  console.log(`Extracted fielder info: Name=${fielder.name}, ID=${fielder.id}, Type=${fielder.type}`);
-                  // Make sure you're using the ID property from the fielder object
-                  const fielderId = fielder.id; // This should be the properly formatted ID
-                  
-                  if (!fieldingPoints.has(fielderId)) {
-                    fieldingPoints.set(fielderId, {
-                      id: fielderId,
-                      name: fielder.name, // Keep original name for display
-                      catches: 0,
-                      stumpings: 0,
-                      runouts: 0
-                      });
-                  }
-                  const stats = fieldingPoints.get(fielder.name);
-                  switch (fielder.type) {
-                    case 'catch': stats.catches++; break;
-                    case 'stumping': stats.stumpings++; break;
-                    case 'runout': stats.runouts++; break;
-                  }
-                  console.log(`Updated fielding stats for ${fielder.name} (ID: ${fielderId}): catches=${stats.catches}, stumpings=${stats.stumpings}, runouts=${stats.runouts}`);
-                }
-              }
-
-             // Later when processing the fielding points
-              for (const [fielderId, stats] of fieldingPoints.entries()) {
-                try {
-    // fielderId is already the properly formatted ID
-    const fieldingPts = PointService.calculateFieldingPoints(stats);
-                  console.log(`Calculating fielding points for ${stats.name} (ID: ${fielderId}): ${fieldingPts}`);
+const dismissal = batsman.outDesc || batsman.dismissal;
+const wicketCode = batsman.wicketCode || '';
+if (dismissal) {
+  const fielder = PointService.extractFielderFromDismissal(dismissal, wicketCode);
+  if (fielder) {
+    // Make sure fielder.id exists
+    const fielderId = fielder.id;
+    console.log(`Extracted fielder info: Name=${fielder.name}, ID=${fielderId}, Type=${fielder.type}`);
     
-    // Store the points using the fielderId directly
-    await PointService.storePlayerMatchPoints(
-      fielderId, // Already properly formatted
-      matchId,
-      fieldingPts,
-      {
-        type: 'fielding',
-        name: stats.name, // Original name from the stats object
-        ...stats
-      }
-    );
-                  console.log(`Successfully stored ${fieldingPts} fielding points for ${stats.name} (ID: ${fielderId})`);
-  } catch (error) {
-    console.error(`Error processing fielding points for ${stats.name} (ID: ${fielderId}):`, error);
+    if (!fieldingPoints.has(fielderId)) {
+      fieldingPoints.set(fielderId, {
+        id: fielderId,
+        name: fielder.name, // Keep original name for display
+        catches: 0,
+        stumpings: 0,
+        runouts: 0
+      });
+    }
+    
+    const stats = fieldingPoints.get(fielderId);
+    switch (fielder.type) {
+      case 'catch': stats.catches++; break;
+      case 'stumping': stats.stumpings++; break;
+      case 'runout': stats.runouts++; break;
+    }
+    
+    console.log(`Updated fielding stats for ${fielder.name} (ID: ${fielderId}): catches=${stats.catches}, stumpings=${stats.stumpings}, runouts=${stats.runouts}`);
   }
 }
 
+
+// And here's the updated code for processing the fielding points (replace the entire section):
+
+// Process fielding if not already done
+if (!processingState.fieldingProcessed) {
+  // Check for timeout before processing fielding points
+  if (!shouldContinueProcessing()) {
+    const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
+    console.log(`Timeout prevention: stopping before fielding processing for match ${matchId} after ${elapsedSeconds.toFixed(2)} seconds`);
+    return NextResponse.json({
+      success: true,
+      message: `Processing stopped before fielding for match ${matchId}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  console.log(`Processing fielding points for ${fieldingPoints.size} players`);
+  for (const [fielderId, stats] of fieldingPoints.entries()) {
+    // Check for timeout before processing each fielder
+    if (!shouldContinueProcessing()) {
+      const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
+      console.log(`Timeout prevention: stopping during fielding processing for match ${matchId} after ${elapsedSeconds.toFixed(2)} seconds`);
+      return NextResponse.json({
+        success: true,
+        message: `Processing stopped during fielding for match ${matchId}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    try {
+      console.log(`Processing fielding for ${stats.name} (ID: ${fielderId})`);
+      const fieldingPts = PointService.calculateFieldingPoints(stats);
+      console.log(`Calculated ${fieldingPts} fielding points for ${stats.name} (ID: ${fielderId})`);
+      
+      await PointService.storePlayerMatchPoints(
+        fielderId, // Already properly formatted
+        matchId,
+        fieldingPts,
+        {
+          type: 'fielding',
+          name: stats.name, // Original name from the stats object
+          ...stats
+        }
+      );
+      
+      console.log(`Successfully stored ${fieldingPts} fielding points for ${stats.name} (ID: ${fielderId})`);
+    } catch (error) {
+      console.error(`Error processing fielding points for ${stats.name} (ID: ${fielderId}):`, error);
+    }
+  }
+
+  processingState.fieldingProcessed = true;
+  await setDoc(processStateRef, processingState);
+}
+
+              
           // Reset batsmen index and move to bowlers
           processingState.currentBatsmenIndex = 0;
           await setDoc(processStateRef, processingState);
