@@ -33,6 +33,59 @@ export async function getMatches() {
   }
 }
 
+// Get all players who have existing playerPoints entries
+export async function getPlayersWithPoints() {
+  try {
+    const pointsRef = collection(db, "playerPoints");
+    const snapshot = await getDocs(pointsRef);
+    
+    // Create a map to track unique players
+    const playerMap = new Map();
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.playerId && !playerMap.has(data.playerId)) {
+        const playerName = data.performance?.name || data.playerId;
+        playerMap.set(data.playerId, {
+          id: data.playerId,
+          name: playerName
+        });
+      }
+    });
+    
+    return Array.from(playerMap.values());
+  } catch (error) {
+    console.error("Error fetching players:", error);
+    throw error;
+  }
+}
+
+// Get all matches for a specific player
+export async function getPlayerMatches(playerId) {
+  try {
+    const pointsRef = collection(db, "playerPoints");
+    const pointsQuery = query(pointsRef, where("playerId", "==", playerId));
+    const snapshot = await getDocs(pointsQuery);
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      const docId = doc.id;
+      // The standard format for playerPoints documents is "${playerId}_${matchId}"
+      const matchId = docId.split('_')[1];
+      
+      return {
+        id: matchId,
+        docId: docId,
+        matchInfo: `Match ID: ${matchId}`,
+        date: new Date(data.timestamp || Date.now()).toLocaleDateString(),
+        existingFielding: data.performance?.fielding || false
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching player matches:", error);
+    throw error;
+  }
+}
 // Fetch players for a specific match
 export async function getPlayersForMatch(matchId) {
   try {
@@ -74,73 +127,46 @@ export async function getPlayersForMatch(matchId) {
   }
 }
 
-// Update fielding stats for players
-export async function updateFieldingStats(matchId, fieldingEntries) {
+// Update fielding stats directly on a playerPoints document
+export async function updateFieldingStats(docId, fieldingStats) {
   try {
-    // Process each player's fielding stats
-    const updatePromises = fieldingEntries.map(async entry => {
-      if (!entry.playerId) return;
-      
-      const playerId = entry.playerId;
-      const pointsDocId = `${playerId}_${matchId}`;
-      const pointsDocRef = doc(db, "playerPoints", pointsDocId);
-      
-      // Calculate fielding points
-      const fieldingPoints = 
-        (entry.catches * PointService.POINTS.FIELDING.CATCH) +
-        (entry.stumpings * PointService.POINTS.FIELDING.STUMPING) +
-        (entry.runouts * PointService.POINTS.FIELDING.DIRECT_THROW);
-      
-      return runTransaction(db, async (transaction) => {
-        const pointsDoc = await transaction.get(pointsDocRef);
-        
-        if (pointsDoc.exists()) {
-          // Update existing document
-          const data = pointsDoc.data();
-          const existingPerformance = data.performance || {};
-          const existingFielding = existingPerformance.fielding || false;
-          
-          // Calculate points difference
-          const existingFieldingPoints = 
-            ((existingPerformance.catches || 0) * PointService.POINTS.FIELDING.CATCH) +
-            ((existingPerformance.stumpings || 0) * PointService.POINTS.FIELDING.STUMPING) +
-            ((existingPerformance.runouts || 0) * PointService.POINTS.FIELDING.DIRECT_THROW);
-          
-          const pointsDifference = fieldingPoints - existingFieldingPoints;
-          
-          // Update performance data
-          const updatedPerformance = {
-            ...existingPerformance,
-            fielding: true,
-            catches: entry.catches,
-            stumpings: entry.stumpings,
-            runouts: entry.runouts
-          };
-          
-          transaction.update(pointsDocRef, {
-            points: data.points + pointsDifference,
-            performance: updatedPerformance,
-            lastUpdated: new Date().toISOString()
-          });
-        } else {
-          // Create new document
-          transaction.set(pointsDocRef, {
-            playerId,
-            matchId,
-            points: fieldingPoints,
-            performance: {
-              fielding: true,
-              catches: entry.catches,
-              stumpings: entry.stumpings,
-              runouts: entry.runouts
-            },
-            timestamp: new Date().toISOString()
-          });
-        }
-      });
+    const pointsDocRef = doc(db, "playerPoints", docId);
+    const docSnapshot = await getDoc(pointsDocRef);
+    
+    if (!docSnapshot.exists()) {
+      throw new Error("PlayerPoints record not found");
+    }
+    
+    const data = docSnapshot.data();
+    const existingPerformance = data.performance || {};
+    
+    // Calculate fielding points
+    const fieldingPoints = 
+      (fieldingStats.catches * PointService.POINTS.FIELDING.CATCH) +
+      (fieldingStats.stumpings * PointService.POINTS.FIELDING.STUMPING) +
+      (fieldingStats.runouts * PointService.POINTS.FIELDING.DIRECT_THROW);
+    
+    // Calculate points difference if fielding already exists
+    const existingFieldingPoints = 
+      ((existingPerformance.catches || 0) * PointService.POINTS.FIELDING.CATCH) +
+      ((existingPerformance.stumpings || 0) * PointService.POINTS.FIELDING.STUMPING) +
+      ((existingPerformance.runouts || 0) * PointService.POINTS.FIELDING.DIRECT_THROW);
+    
+    const pointsDifference = fieldingPoints - existingFieldingPoints;
+    
+    // Update the document
+    await setDoc(pointsDocRef, {
+      ...data,
+      points: (data.points || 0) + pointsDifference,
+      performance: {
+        ...existingPerformance,
+        fielding: true,
+        catches: fieldingStats.catches,
+        stumpings: fieldingStats.stumpings,
+        runouts: fieldingStats.runouts
+      }
     });
     
-    await Promise.all(updatePromises);
     return true;
   } catch (error) {
     console.error("Error updating fielding stats:", error);
