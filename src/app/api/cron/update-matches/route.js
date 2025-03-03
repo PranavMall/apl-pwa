@@ -77,7 +77,6 @@ export async function GET(request) {
               currentInnings: 0,
               currentBatsmenIndex: 0,
               currentBowlersIndex: 0,
-              fieldingProcessed: false,
               completed: false
             };
 
@@ -125,9 +124,6 @@ export async function GET(request) {
           await setDoc(processStateRef, processingState);
           continue;
         }
-
-        // Track fielding contributions
-        const fieldingPoints = new Map();
 
         // Use the same structure as your working code
         const innings = [matchData.scorecard.team1, matchData.scorecard.team2];
@@ -192,37 +188,6 @@ export async function GET(request) {
                   ...batsman
                 }
               );
-
-              // Process fielding stats from dismissal
-              const dismissal = batsman.outDesc || batsman.dismissal;
-              const wicketCode = batsman.wicketCode || '';
-              if (dismissal) {
-                const fielder = PointService.extractFielderFromDismissal(dismissal, wicketCode);
-                if (fielder) {
-                  // Make sure fielder.id exists
-                  const fielderId = fielder.id;
-                  console.log(`Extracted fielder info: Name=${fielder.name}, ID=${fielderId}, Type=${fielder.type}`);
-                  
-                  if (!fieldingPoints.has(fielderId)) {
-                    fieldingPoints.set(fielderId, {
-                      id: fielderId,
-                      name: fielder.name, // Keep original name for display
-                      catches: 0,
-                      stumpings: 0,
-                      runouts: 0
-                    });
-                  }
-                  
-                  const stats = fieldingPoints.get(fielderId);
-                  switch (fielder.type) {
-                    case 'catch': stats.catches++; break;
-                    case 'stumping': stats.stumpings++; break;
-                    case 'runout': stats.runouts++; break;
-                  }
-                  
-                  console.log(`Updated fielding stats for ${fielder.name} (ID: ${fielderId}): catches=${stats.catches}, stumpings=${stats.stumpings}, runouts=${stats.runouts}`);
-                }
-              }
 
               // Update processing state after each batsman
               processingState.currentBatsmenIndex = batsmanIndex + 1;
@@ -306,59 +271,7 @@ export async function GET(request) {
           processingState.currentBatsmenIndex = 0;
           processingState.currentBowlersIndex = 0;
           await setDoc(processStateRef, processingState);
-        }
-
-        // Process fielding if not already done
-        if (!processingState.fieldingProcessed) {
-          // Check for timeout before processing fielding points
-          if (!shouldContinueProcessing()) {
-            const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
-            console.log(`Timeout prevention: stopping before fielding processing for match ${matchId} after ${elapsedSeconds.toFixed(2)} seconds`);
-            return NextResponse.json({
-              success: true,
-              message: `Processing stopped before fielding for match ${matchId}`,
-              timestamp: new Date().toISOString()
-            });
-          }
-          
-          console.log(`Processing fielding points for ${fieldingPoints.size} players`);
-          for (const [fielderId, stats] of fieldingPoints.entries()) {
-            // Check for timeout before processing each fielder
-            if (!shouldContinueProcessing()) {
-              const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
-              console.log(`Timeout prevention: stopping during fielding processing for match ${matchId} after ${elapsedSeconds.toFixed(2)} seconds`);
-              return NextResponse.json({
-                success: true,
-                message: `Processing stopped during fielding for match ${matchId}`,
-                timestamp: new Date().toISOString()
-              });
-            }
-            
-            try {
-              console.log(`Processing fielding for ${stats.name} (ID: ${fielderId})`);
-              const fieldingPts = PointService.calculateFieldingPoints(stats);
-              console.log(`Calculated ${fieldingPts} fielding points for ${stats.name} (ID: ${fielderId})`);
-              
-              await PointService.storePlayerMatchPoints(
-                fielderId, // Already properly formatted
-                matchId,
-                fieldingPts,
-                {
-                  type: 'fielding',
-                  name: stats.name, // Original name from the stats object
-                  ...stats
-                }
-              );
-              
-              console.log(`Successfully stored ${fieldingPts} fielding points for ${stats.name} (ID: ${fielderId})`);
-            } catch (error) {
-              console.error(`Error processing fielding points for ${stats.name} (ID: ${fielderId}):`, error);
-            }
-          }
-
-          processingState.fieldingProcessed = true;
-          await setDoc(processStateRef, processingState);
-        }
+        }f
 
         // Mark match as completed
         processingState.completed = true;
