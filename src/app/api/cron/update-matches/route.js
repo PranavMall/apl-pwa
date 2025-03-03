@@ -271,7 +271,7 @@ export async function GET(request) {
           processingState.currentBatsmenIndex = 0;
           processingState.currentBowlersIndex = 0;
           await setDoc(processStateRef, processingState);
-        }f
+        }
 
         // Mark match as completed
         processingState.completed = true;
