@@ -100,6 +100,9 @@ export async function GET(request) {
         console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
         console.log(`Current state: innings=${processingState.currentInnings}, batsmen=${processingState.currentBatsmenIndex}, bowlers=${processingState.currentBowlersIndex}`);
 
+        // Initialize the players with match points tracking Set HERE
+        const playersWithMatchPoints = new Set();
+        
         // Check if match is abandoned
         if (matchData.matchInfo?.state === 'Abandon' || 
             matchData.matchHeader?.state === 'Abandon' ||
@@ -175,6 +178,10 @@ export async function GET(request) {
             try {
               // Process batting points
               const battingPoints = PointService.calculateBattingPoints(batsman);
+
+              // Track that this player received match participation points
+              playersWithMatchPoints.add(batsman.name);
+              
               await PointService.storePlayerMatchPoints(
                 PointService.createPlayerDocId(batsman.name),
                 matchId,
@@ -257,14 +264,30 @@ export async function GET(request) {
             if (!bowler.name) continue;
 
             try {
+              // Check if this player already got match points
+              const hasMatchPoints = playersWithMatchPoints.has(bowler.name);
+
+              // Get basic bowling points
               const bowlingPoints = PointService.calculateBowlingPoints(bowler);
+              
+              // If they haven't got match points yet, add them
+              const finalPoints = hasMatchPoints ? 
+                bowlingPoints : 
+                bowlingPoints + PointService.POINTS.MATCH.PLAYED;
+              
+              // Mark that they've received match points
+              if (!hasMatchPoints) {
+                playersWithMatchPoints.add(bowler.name);
+              }
+              
               await PointService.storePlayerMatchPoints(
                 PointService.createPlayerDocId(bowler.name),
                 matchId,
-                bowlingPoints,
+                finalPoints,
                 {
                   type: 'bowling',
                   innings: inningsIndex + 1,
+                  includesMatchPoints: !hasMatchPoints,
                   ...bowler
                 }
               );
