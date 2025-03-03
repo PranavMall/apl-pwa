@@ -230,7 +230,7 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
         updatedPerformance = {
           ...existingPerf,
           bowling: true,
-          matchPointsAdded: existingPerf.matchPointsAdded || performance.includesMatchPoints || false,
+          matchPointsAdded: existingPerf.matchPointsAdded || performance.includesMatchPoints || false, // ADD THIS LINE HERE
           overs: performance.overs || 0,
           maidens: performance.maidens || 0,
           bowler_runs: performance.runs || 0,
