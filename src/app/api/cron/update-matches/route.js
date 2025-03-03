@@ -48,7 +48,7 @@ export async function GET(request) {
     }
 
     // Now process player points for all matches
-    const matchesToRestore = ['112451','112444']; // Add all your match IDs
+    const matchesToRestore = ['112451','112444','112455']; // Add all your match IDs
     console.log('Starting match restoration process...');
 
     // Create a processing state collection to track progress
