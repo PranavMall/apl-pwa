@@ -32,6 +32,23 @@ export async function getMatches() {
     throw error;
   }
 }
+// In page.js, update the useEffect:
+useEffect(() => {
+  const fetchMatches = async () => {
+    try {
+      setLoading(true);
+      const matchData = await getMatches();
+      setMatches(matchData);
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      setError("Failed to load matches");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchMatches();
+}, []);
 
 // Fetch players for a specific match
 export async function getPlayersForMatch(matchId) {
