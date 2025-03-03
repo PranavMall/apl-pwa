@@ -1,66 +1,73 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getPlayersForMatch, updateFieldingStats } from "./api";
+import React, { useState, useEffect } from "react";
+import { getPlayerMatches, updateFieldingStats } from "./api";
+import styles from "./page.module.css";
 
-const FieldingForm = ({ matches, onSuccess }) => {
+const FieldingForm = ({ players, onSuccess }) => {
+  const [selectedPlayer, setSelectedPlayer] = useState("");
   const [selectedMatch, setSelectedMatch] = useState("");
-  const [players, setPlayers] = useState([]);
-  const [fieldingEntries, setFieldingEntries] = useState([
-    { playerId: "", catches: 0, stumpings: 0, runouts: 0 }
-  ]);
+  const [playerMatches, setPlayerMatches] = useState([]);
+  const [fieldingStats, setFieldingStats] = useState({
+    catches: 0,
+    stumpings: 0,
+    runouts: 0
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (selectedMatch) {
+    if (selectedPlayer) {
       setLoading(true);
-      getPlayersForMatch(selectedMatch)
-        .then(players => {
-          setPlayers(players);
+      getPlayerMatches(selectedPlayer)
+        .then(matches => {
+          setPlayerMatches(matches);
+          setSelectedMatch(""); // Reset match selection
           setLoading(false);
         })
         .catch(error => {
-          console.error("Error fetching players:", error);
+          console.error("Error fetching player matches:", error);
           setLoading(false);
         });
     } else {
-      setPlayers([]);
+      setPlayerMatches([]);
+      setSelectedMatch("");
     }
-  }, [selectedMatch]);
+  }, [selectedPlayer]);
+
+  const handlePlayerChange = (e) => {
+    setSelectedPlayer(e.target.value);
+  };
 
   const handleMatchChange = (e) => {
     setSelectedMatch(e.target.value);
-    setFieldingEntries([{ playerId: "", catches: 0, stumpings: 0, runouts: 0 }]);
   };
 
-  const handleAddPlayer = () => {
-    setFieldingEntries([
-      ...fieldingEntries,
-      { playerId: "", catches: 0, stumpings: 0, runouts: 0 }
-    ]);
-  };
-
-  const handleRemovePlayer = (index) => {
-    const updatedEntries = [...fieldingEntries];
-    updatedEntries.splice(index, 1);
-    setFieldingEntries(updatedEntries);
-  };
-
-  const handleEntryChange = (index, field, value) => {
-    const updatedEntries = [...fieldingEntries];
-    updatedEntries[index][field] = field === "playerId" ? value : parseInt(value);
-    setFieldingEntries(updatedEntries);
+  const handleFieldingChange = (field, value) => {
+    setFieldingStats({
+      ...fieldingStats,
+      [field]: parseInt(value)
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!selectedPlayer || !selectedMatch) {
+      alert("Please select both a player and a match");
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      await updateFieldingStats(selectedMatch, fieldingEntries);
+      await updateFieldingStats(selectedMatch, fieldingStats);
       onSuccess();
       // Reset form
-      setFieldingEntries([{ playerId: "", catches: 0, stumpings: 0, runouts: 0 }]);
+      setFieldingStats({
+        catches: 0,
+        stumpings: 0,
+        runouts: 0
+      });
     } catch (error) {
       console.error("Error updating fielding stats:", error);
       alert("Failed to update fielding stats");
@@ -70,107 +77,94 @@ const FieldingForm = ({ matches, onSuccess }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="form-group">
-        <label>Select Match:</label>
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <div className={styles.formGroup}>
+        <label className={styles.label}>Select Player:</label>
         <select 
-          value={selectedMatch} 
-          onChange={handleMatchChange}
+          value={selectedPlayer} 
+          onChange={handlePlayerChange}
+          className={styles.select}
+          disabled={loading}
           required
         >
-          <option value="">-- Select a match --</option>
-          {matches.map(match => (
-            <option key={match.id} value={match.id}>
-              {match.team1} vs {match.team2} - {match.date}
+          <option value="">-- Select a player --</option>
+          {players.map(player => (
+            <option key={player.id} value={player.id}>
+              {player.name}
             </option>
           ))}
         </select>
       </div>
 
-      {fieldingEntries.map((entry, index) => (
-        <div key={index} className="fielding-entry">
-          <h3>Player {index + 1}</h3>
-          
-          <div className="form-group">
-            <label>Select Player:</label>
-            <select
-              value={entry.playerId}
-              onChange={(e) => handleEntryChange(index, "playerId", e.target.value)}
-              required
-              disabled={loading || !selectedMatch}
-            >
-              <option value="">-- Select player --</option>
-              {players.map(player => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Catches:</label>
-            <input
-              type="number"
-              min="0"
-              value={entry.catches}
-              onChange={(e) => handleEntryChange(index, "catches", e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Stumpings:</label>
-            <input
-              type="number"
-              min="0"
-              value={entry.stumpings}
-              onChange={(e) => handleEntryChange(index, "stumpings", e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Run Outs:</label>
-            <input
-              type="number"
-              min="0"
-              value={entry.runouts}
-              onChange={(e) => handleEntryChange(index, "runouts", e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          {index > 0 && (
-            <button
-              type="button"
-              onClick={() => handleRemovePlayer(index)}
-              disabled={loading}
-              className="remove-btn"
-            >
-              Remove Player
-            </button>
-          )}
+      {selectedPlayer && (
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Select Match:</label>
+          <select 
+            value={selectedMatch} 
+            onChange={handleMatchChange}
+            className={styles.select}
+            disabled={loading || playerMatches.length === 0}
+            required
+          >
+            <option value="">-- Select a match --</option>
+            {playerMatches.map(match => (
+              <option key={match.docId} value={match.docId}>
+                {match.matchInfo} ({match.date}) {match.existingFielding ? "- Has fielding" : ""}
+              </option>
+            ))}
+          </select>
         </div>
-      ))}
+      )}
 
-      <div className="form-actions">
-        <button
-          type="button"
-          onClick={handleAddPlayer}
-          disabled={loading || !selectedMatch}
-          className="add-btn"
-        >
-          Add Another Player
-        </button>
-        <button
-          type="submit"
-          disabled={loading || !selectedMatch || fieldingEntries.some(e => !e.playerId)}
-          className="submit-btn"
-        >
-          {loading ? "Updating..." : "Update Fielding Stats"}
-        </button>
-      </div>
+      {selectedMatch && (
+        <div className={styles.fieldingStats}>
+          <h3 className={styles.subtitle}>Fielding Statistics</h3>
+          
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Catches:</label>
+            <input
+              type="number"
+              min="0"
+              value={fieldingStats.catches}
+              onChange={(e) => handleFieldingChange("catches", e.target.value)}
+              className={styles.input}
+              disabled={loading}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Stumpings:</label>
+            <input
+              type="number"
+              min="0"
+              value={fieldingStats.stumpings}
+              onChange={(e) => handleFieldingChange("stumpings", e.target.value)}
+              className={styles.input}
+              disabled={loading}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Run Outs:</label>
+            <input
+              type="number"
+              min="0"
+              value={fieldingStats.runouts}
+              onChange={(e) => handleFieldingChange("runouts", e.target.value)}
+              className={styles.input}
+              disabled={loading}
+            />
+          </div>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        className={styles.submitBtn}
+        disabled={loading || !selectedPlayer || !selectedMatch}
+      >
+        {loading ? "Updating..." : "Update Fielding Stats"}
+      </button>
     </form>
   );
 };
