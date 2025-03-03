@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { auth } from "../../firebase";
 import FieldingForm from "./Form";
 import withAuth from "@/app/components/withAuth"; // Your existing auth HOC
+import styles from './page.module.css';
 
 const FieldingStatsPage = () => {
   const [matches, setMatches] = useState([]);
