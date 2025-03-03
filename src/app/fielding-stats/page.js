@@ -12,22 +12,22 @@ const FieldingStatsPage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  useEffect(() => {
-    // Fetch available matches
-    const fetchMatches = async () => {
-      try {
-        // Logic to fetch matches from Firebase
-        // Set matches state
-      } catch (error) {
-        console.error("Error fetching matches:", error);
-        setError("Failed to load matches");
-      } finally {
-        setLoading(false);
-      }
-    };
+ useEffect(() => {
+  const fetchMatches = async () => {
+    try {
+      setLoading(true);
+      const matchData = await getMatches();
+      setMatches(matchData);
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      setError("Failed to load matches");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchMatches();
-  }, []);
+  fetchMatches();
+}, []);
 
   const handleSubmitSuccess = () => {
     setSuccess("Fielding stats updated successfully!");
