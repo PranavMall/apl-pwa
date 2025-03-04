@@ -312,6 +312,25 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
       timestamp: new Date().toISOString()
     });
 
+    try {
+      // Check if player exists in master DB
+      let masterPlayer = await PlayerMasterService.findPlayerByAnyId(playerId);
+      
+      // If not, create a new player entry
+      if (!masterPlayer) {
+        const playerName = performance.name || playerId;
+        await PlayerMasterService.upsertPlayer({
+          id: playerId,
+          name: playerName,
+          role: performance.type === 'bowling' ? 'bowler' : 
+                performance.type === 'batting' ? 'batsman' : 'unknown',
+        });
+      }
+    } catch (syncError) {
+      console.error('Error syncing to player master DB:', syncError);
+      // Don't throw to prevent disrupting the main flow
+    }
+
     return true;
   } catch (error) {
     console.error('Error storing player match points:', error, {
