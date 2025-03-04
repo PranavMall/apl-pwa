@@ -36,11 +36,66 @@ export default function PlayerAdmin() {
       setMessage({ type: 'error', text: error.message });
     }
   };
+
+  const handleMigrateFromPoints = async () => {
+  try {
+    setMessage({ type: 'info', text: 'Starting migration...' });
+    
+    // Get all unique playerIds from playerPoints
+    const pointsRef = collection(db, 'playerPoints');
+    const snapshot = await getDocs(pointsRef);
+    
+    const uniquePlayerIds = new Set();
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.playerId) {
+        uniquePlayerIds.add(data.playerId);
+      }
+    });
+    
+    let count = 0;
+    for (const playerId of uniquePlayerIds) {
+      // Find a document with this player's name
+      const playerDocs = snapshot.docs.filter(doc => 
+        doc.data().playerId === playerId && doc.data().performance?.name
+      );
+      
+      if (playerDocs.length > 0) {
+        const latestDoc = playerDocs[0].data();
+        await PlayerMasterService.upsertPlayer({
+          id: playerId,
+          name: latestDoc.performance?.name || playerId,
+        });
+        count++;
+      }
+    }
+    
+    setMessage({ type: 'success', text: `Migrated ${count} players from points data` });
+    loadPlayers(); // Refresh the list
+  } catch (error) {
+    setMessage({ type: 'error', text: error.message });
+  }
+};
   
   return (
     <div>
       <h1>Player Management</h1>
-      
+      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+    <button 
+      onClick={handleMigrateFromPoints}
+      style={{ 
+        padding: '8px 16px', 
+        backgroundColor: '#4caf50', 
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer'
+      }}
+    >
+      Migrate Players from Points Data
+    </button>
+    {/* Other action buttons */}
+  </div>
       {message && (
         <div style={{ color: message.type === 'error' ? 'red' : 'green' }}>
           {message.text}
