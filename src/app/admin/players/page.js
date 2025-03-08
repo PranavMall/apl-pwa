@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebase'; // Adjust path as needed for your project
-import { PlayerMasterService } from '../services/playerMasterService';
+import { db } from '../../../../firebase'; // Adjust path as needed for your project
+import { PlayerMasterService } from '@/app/services/PlayerMasterService';
 import { getPlayerList, mapPlayerIds } from '../player-management';
 
 export default function PlayerAdmin() {
