@@ -3,7 +3,7 @@
 
 import { db } from '../../firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, runTransaction } from 'firebase/firestore';
-import { PlayerMasterService } from './playerMasterService';
+import { PlayerMasterService } from './PlayerMasterService';
 
 export class PointService {
   static POINTS = {
