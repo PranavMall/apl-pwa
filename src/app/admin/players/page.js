@@ -135,8 +135,91 @@ export default function PlayerAdmin() {
           {selectedPlayer ? (
             <div>
               <h3>Selected: {selectedPlayer.name || selectedPlayer.id}</h3>
+             {/* Add role dropdown */}
+
+    <div style={{ marginTop: '15px' }}>
+      <label>
+        Role:
+        <select 
+          value={selectedPlayer.role || 'unknown'}
+          onChange={(e) => {
+            // Create a new player object with updated role
+            const updatedPlayer = {
+              ...selectedPlayer,
+              role: e.target.value
+            };
+            setSelectedPlayer(updatedPlayer);
+          }}
+          style={{ width: '100%', marginTop: '5px', padding: '5px' }}
+        >
+          <option value="batsman">Batsman</option>
+          <option value="bowler">Bowler</option>
+          <option value="allrounder">All-rounder</option>
+          <option value="wicketkeeper">Wicket-keeper</option>
+          <option value="unknown">Unknown</option>
+        </select>
+      </label>
+    </div>
+    
+    {/* Add team input field */}
+    <div style={{ marginTop: '15px' }}>
+      <label>
+        Team:
+        <input
+          type="text"
+          value={selectedPlayer.team || ''}
+          onChange={(e) => {
+            // Create a new player object with updated team
+            const updatedPlayer = {
+              ...selectedPlayer,
+              team: e.target.value
+            };
+            setSelectedPlayer(updatedPlayer);
+          }}
+          placeholder="e.g., IND, AUS, CSK, MI"
+          style={{ width: '100%', marginTop: '5px', padding: '5px' }}
+        />
+      </label>
+    </div>
+    
+    {/* Add a save button for the updated fields */}
+    <div style={{ marginTop: '20px' }}>
+      <button
+        onClick={async () => {
+          try {
+            // Update the player with all current fields
+            await PlayerMasterService.upsertPlayer({
+              id: selectedPlayer.id,
+              name: selectedPlayer.name,
+              role: selectedPlayer.role || 'unknown',
+              team: selectedPlayer.team || '',
+              alternateIds: selectedPlayer.alternateIds || [],
+              // Preserve other fields
+              active: selectedPlayer.active !== false,
+              stats: selectedPlayer.stats || {}
+            });
+            
+            setMessage({ type: 'success', text: 'Player updated successfully' });
+            loadPlayers(); // Refresh the list
+          } catch (error) {
+            setMessage({ type: 'error', text: 'Error updating player: ' + error.message });
+          }
+        }}
+        style={{ 
+          padding: '8px 16px',
+          backgroundColor: '#2196f3',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          marginBottom: '20px'
+        }}
+      >
+        Save Player Changes
+      </button>
+    </div>
               
-              <div style={{ marginTop: '20px' }}>
+              <div style={{ marginTop: '10px' }}>
                 <label>
                   Add Alternate ID:
                   <input
