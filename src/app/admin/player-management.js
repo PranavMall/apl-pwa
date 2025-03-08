@@ -1,5 +1,9 @@
 // src/app/admin/player-management.js
 
+import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
+import { db } from '../../firebase'; // Adjust path as needed
+import { PlayerMasterService } from '@/app/services/PlayerMasterService';
+
 export async function mapPlayerIds(primaryId, alternateIds) {
   try {
     const result = await PlayerMasterService.mapRelatedPlayers(primaryId, alternateIds);
