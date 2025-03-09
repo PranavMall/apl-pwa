@@ -44,7 +44,7 @@ const handleMigrateFromPoints = async () => {
   try {
     setMessage({ type: 'info', text: 'Starting migration...' });
     
-    // Get all unique playerIds from playerPoints
+    // Step 1: Get all unique player IDs
     const pointsRef = collection(db, 'playerPoints');
     const snapshot = await getDocs(pointsRef);
     
@@ -56,58 +56,76 @@ const handleMigrateFromPoints = async () => {
       }
     });
     
-    console.log(`Found ${uniquePlayerIds.size} unique players to migrate`);
+    console.log(`Found ${uniquePlayerIds.size} unique player IDs to process`);
     
+    // Step 2: Create a mapping of alternate IDs to primary IDs
+    const primaryIdMap = new Map(); // altId -> primaryId
+    
+    // Get all players in the master DB
+    const playersRef = collection(db, 'playersMaster');
+    const playersSnapshot = await getDocs(playersRef);
+    
+    // Build the mapping
+    playersSnapshot.forEach(doc => {
+      const player = doc.data();
+      const primaryId = doc.id;
+      
+      // Add all alternate IDs to the map
+      if (player.alternateIds && Array.isArray(player.alternateIds)) {
+        player.alternateIds.forEach(altId => {
+          primaryIdMap.set(altId, primaryId);
+        });
+      }
+    });
+    
+    console.log(`Processed ${primaryIdMap.size} alternate ID mappings`);
+    
+    // Step 3: Process each player ID
     let count = 0;
     for (const playerId of uniquePlayerIds) {
       try {
-        // Get all performance entries for this player
+        // Find the primary ID for this player
+        const primaryId = primaryIdMap.get(playerId) || playerId;
+        
+        // Get all entries for this player ID
         const playerEntries = snapshot.docs.filter(doc => 
           doc.data().playerId === playerId
         );
         
         if (playerEntries.length > 0) {
-          // Find an entry with player name
+          // Find an entry with the player's name
           const entryWithName = playerEntries.find(doc => 
             doc.data().performance?.name
           ) || playerEntries[0];
           
           const playerData = entryWithName.data();
           
-          // Create or update player in master DB
-          await PlayerMasterService.upsertPlayer({
-            id: playerId,
-            name: playerData.performance?.name || playerId,
-            // Try to determine role from performance type
-            role: playerData.performance?.bowling ? 'bowler' : 
-                  playerData.performance?.batting ? 'batsman' : 'unknown',
-            // Initialize with zero stats - we'll calculate them next
-            stats: {
-              matches: 0,
-              runs: 0,
-              wickets: 0,
-              catches: 0,
-              stumpings: 0,
-              runOuts: 0,
-              fifties: 0,
-              hundreds: 0
-            }
-          });
+          // Ensure the player exists in the master DB
+          let masterPlayer = await PlayerMasterService.findPlayerByAnyId(primaryId);
           
-          // Now process all entries to calculate cumulative stats
+          if (!masterPlayer) {
+            // Create the player if they don't exist
+            await PlayerMasterService.upsertPlayer({
+              id: primaryId,
+              name: playerData.performance?.name || primaryId,
+              role: playerData.performance?.bowling ? 'bowler' : 
+                    playerData.performance?.batting ? 'batsman' : 'unknown',
+              alternateIds: primaryId !== playerId ? [playerId] : []
+            });
+          } else if (primaryId !== playerId && !masterPlayer.alternateIds?.includes(playerId)) {
+            // Add this ID as an alternate if it's not already there
+            const updatedAlternateIds = [...(masterPlayer.alternateIds || []), playerId];
+            await PlayerMasterService.mapRelatedPlayers(primaryId, [playerId]);
+          }
+          
+          // Now process all entries to update stats
           const processedMatches = new Set(); // Track matches to count them once
           
-          // Sort entries by timestamp to process chronologically
-          const sortedEntries = playerEntries.sort((a, b) => {
-            const timeA = new Date(a.data().timestamp || 0).getTime();
-            const timeB = new Date(b.data().timestamp || 0).getTime();
-            return timeA - timeB;
-          });
-          
-          for (const entry of sortedEntries) {
+          for (const entry of playerEntries) {
             const entryData = entry.data();
             const performance = entryData.performance || {};
             const matchId = entryData.matchId;
+            const points = entryData.points || 0;
             
             // Only count each match once for match count
             const isNewMatch = !processedMatches.has(matchId);
@@ -118,19 +136,23 @@ const handleMigrateFromPoints = async () => {
             // Gather stats from this performance
             const matchStats = {
               isNewMatch,
-              runs: performance.batting ? (performance.runs || 0) : 0,
-              wickets: performance.bowling ? (performance.wickets || 0) : 0,
-              catches: performance.catches || 0,
-              stumpings: performance.stumpings || 0,
-              runOuts: performance.runouts || 0
+              battingRuns: performance.batting ? parseInt(performance.runs || 0) : 0,
+              bowlingRuns: performance.bowling ? parseInt(performance.bowler_runs || 0) : 0,
+              wickets: performance.bowling ? parseInt(performance.wickets || 0) : 0,
+              catches: parseInt(performance.catches || 0),
+              stumpings: parseInt(performance.stumpings || 0),
+              runOuts: parseInt(performance.runouts || 0),
+              points: points,
+              fifties: performance.batting && parseInt(performance.runs || 0) >= 50 && parseInt(performance.runs || 0) < 100 ? 1 : 0,
+              hundreds: performance.batting && parseInt(performance.runs || 0) >= 100 ? 1 : 0
             };
             
-            // Update player stats with this performance
-            await PlayerMasterService.updatePlayerStats(playerId, matchStats);
+            // Update the PRIMARY player's stats
+            await PlayerMasterService.updatePlayerStats(primaryId, matchStats);
           }
           
           count++;
-          console.log(`Processed ${count}/${uniquePlayerIds.size}: ${playerId}`);
+          console.log(`Processed ${count}/${uniquePlayerIds.size}: ${playerId} -> ${primaryId}`);
         }
       } catch (playerError) {
         console.error(`Error processing player ${playerId}:`, playerError);
