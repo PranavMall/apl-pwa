@@ -30,6 +30,7 @@ export class PlayerMasterService {
           runOuts: 0,
           fifties: 0,
           hundreds: 0,
+          points: 0,
           // Add other stats as needed
         },
         lastUpdated: new Date().toISOString()
@@ -97,6 +98,7 @@ static async updatePlayerStats(playerId, matchStats) {
       catches: (currentStats.catches || 0) + (matchStats.catches || 0),
       stumpings: (currentStats.stumpings || 0) + (matchStats.stumpings || 0),
       runOuts: (currentStats.runOuts || 0) + (matchStats.runOuts || 0),
+      points: (currentStats.points || 0) + (matchStats.points || 0)
     };
     
     // Check for milestones
@@ -150,7 +152,8 @@ static async updatePlayerStats(playerId, matchStats) {
         wickets: performance.wickets || 0,
         catches: performance.catches || 0,
         stumpings: performance.stumpings || 0,
-        runOuts: performance.runOuts || 0
+        runOuts: performance.runOuts || 0,
+        points: performance.points || 0
       };
       
       // Update player stats
@@ -220,6 +223,7 @@ static async updatePlayerStats(playerId, matchStats) {
         stumpings: 0,
         runOuts: 0,
         fifties: 0,
+        points: 0,
         hundreds: 0
       };
       
@@ -268,7 +272,8 @@ static async updatePlayerStats(playerId, matchStats) {
           wickets: performance?.wickets || 0,
           catches: performance?.catches || 0,
           stumpings: performance?.stumpings || 0,
-          runOuts: performance?.runOuts || 0
+          runOuts: performance?.runOuts || 0,
+          points: performance?.points || 0
         };
         
         // Update player stats
