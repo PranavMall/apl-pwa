@@ -40,7 +40,7 @@ export default function PlayerAdmin() {
     }
   };
 
-  const handleMigrateFromPoints = async () => {
+const handleMigrateFromPoints = async () => {
   try {
     setMessage({ type: 'info', text: 'Starting migration...' });
     
@@ -56,26 +56,91 @@ export default function PlayerAdmin() {
       }
     });
     
+    console.log(`Found ${uniquePlayerIds.size} unique players to migrate`);
+    
     let count = 0;
     for (const playerId of uniquePlayerIds) {
-      // Find a document with this player's name
-      const playerDocs = snapshot.docs.filter(doc => 
-        doc.data().playerId === playerId && doc.data().performance?.name
-      );
-      
-      if (playerDocs.length > 0) {
-        const latestDoc = playerDocs[0].data();
-        await PlayerMasterService.upsertPlayer({
-          id: playerId,
-          name: latestDoc.performance?.name || playerId,
-        });
-        count++;
+      try {
+        // Get all performance entries for this player
+        const playerEntries = snapshot.docs.filter(doc => 
+          doc.data().playerId === playerId
+        );
+        
+        if (playerEntries.length > 0) {
+          // Find an entry with player name
+          const entryWithName = playerEntries.find(doc => 
+            doc.data().performance?.name
+          ) || playerEntries[0];
+          
+          const playerData = entryWithName.data();
+          
+          // Create or update player in master DB
+          await PlayerMasterService.upsertPlayer({
+            id: playerId,
+            name: playerData.performance?.name || playerId,
+            // Try to determine role from performance type
+            role: playerData.performance?.bowling ? 'bowler' : 
+                  playerData.performance?.batting ? 'batsman' : 'unknown',
+            // Initialize with zero stats - we'll calculate them next
+            stats: {
+              matches: 0,
+              runs: 0,
+              wickets: 0,
+              catches: 0,
+              stumpings: 0,
+              runOuts: 0,
+              fifties: 0,
+              hundreds: 0
+            }
+          });
+          
+          // Now process all entries to calculate cumulative stats
+          const processedMatches = new Set(); // Track matches to count them once
+          
+          // Sort entries by timestamp to process chronologically
+          const sortedEntries = playerEntries.sort((a, b) => {
+            const timeA = new Date(a.data().timestamp || 0).getTime();
+            const timeB = new Date(b.data().timestamp || 0).getTime();
+            return timeA - timeB;
+          });
+          
+          for (const entry of sortedEntries) {
+            const entryData = entry.data();
+            const performance = entryData.performance || {};
+            const matchId = entryData.matchId;
+            
+            // Only count each match once for match count
+            const isNewMatch = !processedMatches.has(matchId);
+            if (isNewMatch) {
+              processedMatches.add(matchId);
+            }
+            
+            // Gather stats from this performance
+            const matchStats = {
+              isNewMatch,
+              runs: performance.batting ? (performance.runs || 0) : 0,
+              wickets: performance.bowling ? (performance.wickets || 0) : 0,
+              catches: performance.catches || 0,
+              stumpings: performance.stumpings || 0,
+              runOuts: performance.runouts || 0
+            };
+            
+            // Update player stats with this performance
+            await PlayerMasterService.updatePlayerStats(playerId, matchStats);
+          }
+          
+          count++;
+          console.log(`Processed ${count}/${uniquePlayerIds.size}: ${playerId}`);
+        }
+      } catch (playerError) {
+        console.error(`Error processing player ${playerId}:`, playerError);
       }
     }
     
     setMessage({ type: 'success', text: `Migrated ${count} players from points data` });
     loadPlayers(); // Refresh the list
   } catch (error) {
+    console.error('Migration error:', error);
     setMessage({ type: 'error', text: error.message });
   }
 };
