@@ -193,6 +193,25 @@ static async updatePlayerStats(playerId, matchStats) {
       throw error;
     }
   }
+
+  static async batchImportPlayers(players) {
+  try {
+    const batch = writeBatch(db);
+    let count = 0;
+    
+    for (const player of players) {
+      const playerRef = doc(db, 'playersMaster', player.id);
+      batch.set(playerRef, player);
+      count++;
+    }
+    
+    await batch.commit();
+    return { success: true, count };
+  } catch (error) {
+    console.error('Error batch importing players:', error);
+    throw error;
+  }
+}
   
   // Add functionality to rebuild player stats from scratch
   static async rebuildPlayerStats(playerId) {
