@@ -6,6 +6,7 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../firebase'; // Adjust path as needed for your project
 import { PlayerMasterService } from '@/app/services/PlayerMasterService';
 import { getPlayerList, mapPlayerIds } from '../player-management';
+import { scrapeAndPopulatePlayerMaster } from '../scripts/scrapeIplPlayers';
 
 export default function PlayerAdmin() {
   const [players, setPlayers] = useState([]);
@@ -39,6 +40,28 @@ export default function PlayerAdmin() {
       setMessage({ type: 'error', text: error.message });
     }
   };
+
+  // Add this function inside your component
+const handleScrapeIplPlayers = async () => {
+  try {
+    setMessage({ type: 'info', text: 'Starting IPL player scraping... This may take a few minutes.' });
+    
+    const result = await scrapeAndPopulatePlayerMaster();
+    
+    if (result.success) {
+      setMessage({ 
+        type: 'success', 
+        text: `Successfully imported ${result.totalPlayers} IPL players!` 
+      });
+      loadPlayers(); // Refresh the list
+    } else {
+      setMessage({ type: 'error', text: result.message || 'Failed to scrape IPL players' });
+    }
+  } catch (error) {
+    console.error('Error scraping IPL players:', error);
+    setMessage({ type: 'error', text: error.message });
+  }
+};
 
 const handleMigrateFromPoints = async () => {
   try {
@@ -184,6 +207,21 @@ const handleMigrateFromPoints = async () => {
     >
       Migrate Players from Points Data
     </button>
+<button 
+  onClick={handleScrapeIplPlayers}
+  style={{ 
+    padding: '8px 16px', 
+    backgroundColor: '#0070f3',  // Blue color for IPL
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginLeft: '10px'  // Add some space
+  }}
+>
+  Import IPL 2025 Players
+</button>
+
     {/* Other action buttons */}
   </div>
       {message && (
