@@ -314,6 +314,37 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
     });
 
     try {
+      // Find or create the player in master DB
+      let masterPlayer = await PlayerMasterService.findPlayerByAnyId(playerId);
+      
+      if (!masterPlayer) {
+        // Create new player if not found
+        await PlayerMasterService.upsertPlayer({
+          id: playerId,
+          name: performance.name || playerId,
+          role: performance.type === 'bowling' ? 'bowler' : 
+                performance.type === 'batting' ? 'batsman' : 'unknown',
+        });
+        masterPlayer = { id: playerId };
+      }
+      
+      // Now update their stats based on current performance
+      const matchStats = {
+        isNewMatch: true, // Consider each entry as a new match for now
+        runs: updatedPerformance.batting ? parseInt(updatedPerformance.runs || 0) : 0,
+        wickets: updatedPerformance.bowling ? parseInt(updatedPerformance.wickets || 0) : 0,
+        catches: parseInt(updatedPerformance.catches || 0),
+        stumpings: parseInt(updatedPerformance.stumpings || 0),
+        runOuts: parseInt(updatedPerformance.runouts || 0)
+      };
+      
+      // Update the player's cumulative stats
+      await PlayerMasterService.updatePlayerStats(masterPlayer.id, matchStats);
+    } catch (syncError) {
+      console.error('Error syncing to player master DB:', syncError);
+    }
+
+    try {
       // Check if player exists in master DB
       let masterPlayer = await PlayerMasterService.findPlayerByAnyId(playerId);
       
