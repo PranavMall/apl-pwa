@@ -1,7 +1,7 @@
 // src/app/admin/scripts/scrapeIplPlayers.js
 import axios from 'axios';
 import cheerio from 'cheerio';
-import { db } from '../../../../firebase'; // Use your existing Firebase setup
+import { db } from '../../../firebase'; // Use your existing Firebase setup
 import { PlayerMasterService } from '@/app/services/PlayerMasterService';
 import { doc, setDoc, writeBatch } from 'firebase/firestore';
 
