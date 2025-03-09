@@ -72,53 +72,52 @@ export class PlayerMasterService {
   }
   
   // Update player stats from a match
-  static async updatePlayerStats(playerId, matchStats) {
-    try {
-      // Find player regardless of which ID was used
-      const player = await this.findPlayerByAnyId(playerId);
-      
-      if (!player) {
-        console.error(`Player not found with ID: ${playerId}`);
-        return { success: false, error: 'Player not found' };
-      }
-      
-      // Update the player with primary ID
-      const primaryId = player.id;
-      const playerRef = doc(db, 'playersMaster', primaryId);
-      
-      // Get current stats
-      const currentStats = player.stats || {};
-      
-      // Calculate updated stats
-      const updatedStats = {
-        matches: (currentStats.matches || 0) + (matchStats.isNewMatch ? 1 : 0),
-        runs: (currentStats.runs || 0) + (matchStats.runs || 0),
-        wickets: (currentStats.wickets || 0) + (matchStats.wickets || 0),
-        catches: (currentStats.catches || 0) + (matchStats.catches || 0),
-        stumpings: (currentStats.stumpings || 0) + (matchStats.stumpings || 0),
-        runOuts: (currentStats.runOuts || 0) + (matchStats.runOuts || 0),
-        // Add other stats as needed
-      };
-      
-      // Check for milestones
-      if (matchStats.runs >= 100) {
-        updatedStats.hundreds = (currentStats.hundreds || 0) + 1;
-      } else if (matchStats.runs >= 50) {
-        updatedStats.fifties = (currentStats.fifties || 0) + 1;
-      }
-      
-      // Update player document
-      await setDoc(playerRef, {
-        stats: updatedStats,
-        lastUpdated: new Date().toISOString()
-      }, { merge: true });
-      
-      return { success: true, id: primaryId };
-    } catch (error) {
-      console.error('Error updating player stats:', error);
-      throw error;
+static async updatePlayerStats(playerId, matchStats) {
+  try {
+    // Find player regardless of which ID was used
+    const player = await this.findPlayerByAnyId(playerId);
+    
+    if (!player) {
+      console.error(`Player not found with ID: ${playerId}`);
+      return { success: false, error: 'Player not found' };
     }
+    
+    // Update the player with primary ID
+    const primaryId = player.id;
+    const playerRef = doc(db, 'playersMaster', primaryId);
+    
+    // Get current stats
+    const currentStats = player.stats || {};
+    
+    // Calculate updated stats by adding new values to existing ones
+    const updatedStats = {
+      matches: (currentStats.matches || 0) + (matchStats.isNewMatch ? 1 : 0),
+      runs: (currentStats.runs || 0) + (matchStats.runs || 0),
+      wickets: (currentStats.wickets || 0) + (matchStats.wickets || 0),
+      catches: (currentStats.catches || 0) + (matchStats.catches || 0),
+      stumpings: (currentStats.stumpings || 0) + (matchStats.stumpings || 0),
+      runOuts: (currentStats.runOuts || 0) + (matchStats.runOuts || 0),
+    };
+    
+    // Check for milestones
+    if (matchStats.runs >= 100) {
+      updatedStats.hundreds = (currentStats.hundreds || 0) + 1;
+    } else if (matchStats.runs >= 50) {
+      updatedStats.fifties = (currentStats.fifties || 0) + 1;
+    }
+    
+    // Update player document
+    await setDoc(playerRef, {
+      stats: updatedStats,
+      lastUpdated: new Date().toISOString()
+    }, { merge: true });
+    
+    return { success: true, id: primaryId };
+  } catch (error) {
+    console.error('Error updating player stats:', error);
+    throw error;
   }
+}
   
   // Sync player data from playerPoints collection
   static async syncPlayerFromPoints(matchId, pointsData) {
