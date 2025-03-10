@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import cheerio from 'cheerio';
-import { db } from '../../../../../firebase';
+import { db } from '../../../../firebase';
 import { doc, writeBatch } from 'firebase/firestore';
 
 // IPL teams URLs and shortcuts
