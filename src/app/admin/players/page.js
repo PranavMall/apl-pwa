@@ -6,7 +6,7 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../firebase'; // Adjust path as needed for your project
 import { PlayerMasterService } from '@/app/services/PlayerMasterService';
 import { getPlayerList, mapPlayerIds } from '../player-management';
-import { scrapeAndPopulatePlayerMaster } from '../scripts/scrapeIplPlayers';
+import { importTeamPlayers } from '../scripts/parseIplTeamData';
 
 export default function PlayerAdmin() {
   const [players, setPlayers] = useState([]);
@@ -41,25 +41,32 @@ export default function PlayerAdmin() {
     }
   };
 
-// Update your handleScrapeIplPlayers function in src/app/admin/players/page.js
-const handleScrapeIplPlayers = async () => {
+const handleImportTeamData = async () => {
   try {
-    setMessage({ type: 'info', text: 'Starting IPL player scraping... This may take a few minutes.' });
+    setMessage({ type: 'info', text: 'Processing team data...' });
     
-    const response = await fetch('/api/players/scrape-ipl');
-    const result = await response.json();
+    // Get the HTML content from the textarea
+    const htmlContent = document.getElementById('team-html-input').value;
+    const teamCode = document.getElementById('team-code-input').value;
+    
+    if (!htmlContent || !teamCode) {
+      setMessage({ type: 'error', text: 'Please enter both HTML content and team code' });
+      return;
+    }
+    
+    const result = await importTeamPlayers(htmlContent, teamCode);
     
     if (result.success) {
       setMessage({ 
         type: 'success', 
-        text: `Successfully imported ${result.totalPlayers} IPL players!` 
+        text: `Successfully imported ${result.playerCount} players from ${result.teamName}!` 
       });
       loadPlayers(); // Refresh the list
     } else {
-      setMessage({ type: 'error', text: result.message || 'Failed to scrape IPL players' });
+      setMessage({ type: 'error', text: result.error || 'Failed to import team data' });
     }
   } catch (error) {
-    console.error('Error scraping IPL players:', error);
+    console.error('Error importing team data:', error);
     setMessage({ type: 'error', text: error.message });
   }
 };
@@ -383,6 +390,46 @@ const handleMigrateFromPoints = async () => {
           )}
         </div>
       </div>
+    </div>
+{/* ADD THE NEW IMPORT FORM HERE */}
+      <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <h3>Import Team Players</h3>
+        <p>Paste HTML from team page and enter team code (e.g., GT, CSK, MI)</p>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Team Code:</label>
+          <input 
+            id="team-code-input"
+            type="text" 
+            placeholder="GT" 
+            style={{ width: '100px', padding: '5px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>HTML from Team Page:</label>
+          <textarea 
+            id="team-html-input"
+            style={{ width: '100%', height: '200px', padding: '5px' }} 
+            placeholder="Paste HTML here..."
+          ></textarea>
+        </div>
+        
+        <button
+          onClick={handleImportTeamData}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: '#4caf50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Import Team Players
+        </button>
+      </div>
+      
     </div>
   );
 }
