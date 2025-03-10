@@ -41,12 +41,13 @@ export default function PlayerAdmin() {
     }
   };
 
-  // Add this function inside your component
+// Update your handleScrapeIplPlayers function in src/app/admin/players/page.js
 const handleScrapeIplPlayers = async () => {
   try {
     setMessage({ type: 'info', text: 'Starting IPL player scraping... This may take a few minutes.' });
     
-    const result = await scrapeAndPopulatePlayerMaster();
+    const response = await fetch('/api/players/scrape-ipl');
+    const result = await response.json();
     
     if (result.success) {
       setMessage({ 
