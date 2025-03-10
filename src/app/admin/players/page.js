@@ -391,8 +391,7 @@ const handleMigrateFromPoints = async () => {
         </div>
       </div>
     </div>
-{/* ADD THE NEW IMPORT FORM HERE */}
-      <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
+<div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
         <h3>Import Team Players</h3>
         <p>Paste HTML from team page and enter team code (e.g., GT, CSK, MI)</p>
         
