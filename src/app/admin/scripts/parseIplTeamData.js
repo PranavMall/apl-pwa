@@ -22,13 +22,16 @@ function determineRole(roleText) {
 }
 
 // Function to parse HTML and extract player data
-export function parseTeamHtml(html, teamShortName) {
+export function parseTeamHtml(htmlString, teamShortName) {
   const players = [];
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  
+  // Create a temporary div to hold the HTML content
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlString;
   
   // Find all player cards
-  const playerCards = doc.querySelectorAll('.ih-pcard1');
+  const playerCards = tempDiv.querySelectorAll('.ih-pcard1');
+  console.log(`Found ${playerCards.length} player cards`);
   
   playerCards.forEach(card => {
     // Get player name
@@ -45,7 +48,9 @@ export function parseTeamHtml(html, teamShortName) {
     const role = determineRole(roleText);
     
     // Check if player is foreign
-    const isForeign = !!card.querySelector('.teams-foreign-player-icon');
+    const isForeign = card.querySelector('.teams-foreign-player-icon') !== null;
+    
+    console.log(`Processing player: ${name}, Role: ${role}, Foreign: ${isForeign}`);
     
     // Create player object
     players.push({
@@ -97,11 +102,25 @@ export async function savePlayersToFirebase(players) {
 // Function to handle the team import for a specific team
 export async function importTeamPlayers(html, teamShortName) {
   try {
+    console.log(`Starting import for team ${teamShortName}`);
+    console.log(`HTML length: ${html.length} characters`);
+    
     // Parse HTML
     const players = parseTeamHtml(html, teamShortName);
+    console.log(`Parsed ${players.length} players`);
+    
+    if (players.length === 0) {
+      console.error('No players found in the HTML. Check selectors or HTML structure.');
+      return {
+        success: false,
+        teamName: teamShortName,
+        error: 'No players found in the HTML. Make sure you copied the correct section.'
+      };
+    }
     
     // Save to Firebase
     const result = await savePlayersToFirebase(players);
+    console.log(`Saved ${result.count} players to Firebase`);
     
     return {
       success: true,
