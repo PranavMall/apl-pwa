@@ -1,5 +1,5 @@
 // src/app/admin/scripts/parseIplTeamData.js
-import { db } from '../../../../firebase';
+import { db } from '../../../firebase';
 import { doc, setDoc, writeBatch } from 'firebase/firestore';
 
 // Function to create player ID from name
