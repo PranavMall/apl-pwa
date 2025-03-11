@@ -54,6 +54,8 @@ const handleImportTeamData = async () => {
       return;
     }
     
+    console.log(`Processing HTML for team ${teamCode}`);
+    
     const result = await importTeamPlayers(htmlContent, teamCode);
     
     if (result.success) {
