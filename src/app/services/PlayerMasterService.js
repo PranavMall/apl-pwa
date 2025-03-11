@@ -92,7 +92,7 @@ static async updatePlayerStats(playerId, matchStats) {
     
     // Calculate updated stats by adding new values to existing ones
     const updatedStats = {
-     matches: (currentStats.matches || 0) + (matchStats.isNewMatch ? 1 : 0),
+      matches: (currentStats.matches || 0) + (matchStats.isNewMatch ? 1 : 0),
       battingRuns: (currentStats.battingRuns || 0) + (matchStats.battingRuns || 0),
       bowlingRuns: (currentStats.bowlingRuns || 0) + (matchStats.bowlingRuns || 0),
       wickets: (currentStats.wickets || 0) + (matchStats.wickets || 0),
