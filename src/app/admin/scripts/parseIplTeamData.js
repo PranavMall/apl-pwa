@@ -80,18 +80,41 @@ export function parseTeamHtml(htmlString, teamShortName) {
 }
 
 // Function to save players to Firebase
+// Function to save players to Firebase with better debugging
 export async function savePlayersToFirebase(players) {
   try {
+    console.log(`Starting Firebase save for ${players.length} players...`);
+    
+    // First try a single player as a test
+    if (players.length > 0) {
+      const testPlayer = players[0];
+      console.log(`Testing single player save: ${testPlayer.name}`);
+      const playerRef = doc(db, 'playersMaster', testPlayer.id);
+      
+      try {
+        await setDoc(playerRef, testPlayer, { merge: true });
+        console.log(`Successfully saved test player ${testPlayer.name}`);
+      } catch (singleError) {
+        console.error(`Error saving test player:`, singleError);
+        throw new Error(`Firebase write test failed: ${singleError.message}`);
+      }
+    }
+    
+    // If the test succeeds, try batch for all players
     const batch = writeBatch(db);
     let count = 0;
     
     for (const player of players) {
+      console.log(`Adding ${player.name} to batch`);
       const playerRef = doc(db, 'playersMaster', player.id);
       batch.set(playerRef, player, { merge: true });
       count++;
     }
     
+    console.log(`Committing batch with ${count} players...`);
     await batch.commit();
+    console.log(`Batch commit successful for ${count} players`);
+    
     return { success: true, count };
   } catch (error) {
     console.error('Error saving players to Firebase:', error);
