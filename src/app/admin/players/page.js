@@ -390,45 +390,44 @@ const handleMigrateFromPoints = async () => {
           )}
         </div>
       </div>
-    </div>
-<div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h3>Import Team Players</h3>
-        <p>Paste HTML from team page and enter team code (e.g., GT, CSK, MI)</p>
-        
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Team Code:</label>
-          <input 
-            id="team-code-input"
-            type="text" 
-            placeholder="GT" 
-            style={{ width: '100px', padding: '5px' }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>HTML from Team Page:</label>
-          <textarea 
-            id="team-html-input"
-            style={{ width: '100%', height: '200px', padding: '5px' }} 
-            placeholder="Paste HTML here..."
-          ></textarea>
-        </div>
-        
-        <button
-          onClick={handleImportTeamData}
-          style={{ 
-            padding: '8px 16px', 
-            backgroundColor: '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Import Team Players
-        </button>
+             {/* ADD THE NEW IMPORT FORM HERE - INSIDE THE MAIN DIV */}
+    <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
+      <h3>Import Team Players</h3>
+      <p>Paste HTML from team page and enter team code (e.g., GT, CSK, MI)</p>
+      
+      <div style={{ marginBottom: '10px' }}>
+        <label style={{ display: 'block', marginBottom: '5px' }}>Team Code:</label>
+        <input 
+          id="team-code-input"
+          type="text" 
+          placeholder="GT" 
+          style={{ width: '100px', padding: '5px' }}
+        />
       </div>
       
+      <div style={{ marginBottom: '10px' }}>
+        <label style={{ display: 'block', marginBottom: '5px' }}>HTML from Team Page:</label>
+        <textarea 
+          id="team-html-input"
+          style={{ width: '100%', height: '200px', padding: '5px' }} 
+          placeholder="Paste HTML here..."
+        ></textarea>
+      </div>
+      
+      <button
+        onClick={handleImportTeamData}
+        style={{ 
+          padding: '8px 16px', 
+          backgroundColor: '#4caf50',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        Import Team Players
+      </button>
+    </div>
     </div>
   );
 }
