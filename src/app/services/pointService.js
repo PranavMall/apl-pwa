@@ -329,18 +329,18 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
       }
       
       // Now update their stats based on current performance
-      const matchStats = {
-        isNewMatch: true, // Consider each entry as a new match for now
+  const matchStats = {
+    isNewMatch: true, // Consider each entry as a new match for now
     battingRuns: updatedPerformance.batting ? parseInt(updatedPerformance.runs || 0) : 0,
     bowlingRuns: updatedPerformance.bowling ? parseInt(updatedPerformance.bowler_runs || 0) : 0,
     wickets: updatedPerformance.bowling ? parseInt(updatedPerformance.wickets || 0) : 0,
     catches: parseInt(updatedPerformance.catches || 0),
     stumpings: parseInt(updatedPerformance.stumpings || 0),
     runOuts: parseInt(updatedPerformance.runouts || 0),
-    points: totalPoints, // Add the points from this performance
+    points: totalPoints, // This is the points value we just calculated and stored
     fifties: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 50 && parseInt(updatedPerformance.runs || 0) < 100 ? 1 : 0,
     hundreds: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 100 ? 1 : 0
-      };
+  };
       
       // Update the player's cumulative stats
       await PlayerMasterService.updatePlayerStats(masterPlayer.id, matchStats);
