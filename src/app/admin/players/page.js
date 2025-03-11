@@ -216,7 +216,7 @@ const handleMigrateFromPoints = async () => {
       Migrate Players from Points Data
     </button>
 <button 
-  onClick={handleScrapeIplPlayers}
+  onClick={() => document.getElementById('team-html-input').focus()}
   style={{ 
     padding: '8px 16px', 
     backgroundColor: '#0070f3',  // Blue color for IPL
