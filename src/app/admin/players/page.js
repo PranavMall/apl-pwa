@@ -158,7 +158,7 @@ const handleMigrateFromPoints = async () => {
             const entryData = entry.data();
             const performance = entryData.performance || {};
             const matchId = entryData.matchId;
-            const points = entryData.points || 0;
+            const points = entryData.points || 0; // Extract points from the root level
             
             // Only count each match once for match count
             const isNewMatch = !processedMatches.has(matchId);
@@ -168,17 +168,17 @@ const handleMigrateFromPoints = async () => {
             
             // Gather stats from this performance
             const matchStats = {
-              isNewMatch,
-              battingRuns: performance.batting ? parseInt(performance.runs || 0) : 0,
-              bowlingRuns: performance.bowling ? parseInt(performance.bowler_runs || 0) : 0,
-              wickets: performance.bowling ? parseInt(performance.wickets || 0) : 0,
-              catches: parseInt(performance.catches || 0),
-              stumpings: parseInt(performance.stumpings || 0),
-              runOuts: parseInt(performance.runouts || 0),
-              points: points,
-              fifties: performance.batting && parseInt(performance.runs || 0) >= 50 && parseInt(performance.runs || 0) < 100 ? 1 : 0,
-              hundreds: performance.batting && parseInt(performance.runs || 0) >= 100 ? 1 : 0
-            };
+    isNewMatch,
+    battingRuns: performance.batting ? parseInt(performance.runs || 0) : 0,
+    bowlingRuns: performance.bowling ? parseInt(performance.bowler_runs || 0) : 0,
+    wickets: performance.bowling ? parseInt(performance.wickets || 0) : 0,
+    catches: parseInt(performance.catches || 0),
+    stumpings: parseInt(performance.stumpings || 0),
+    runOuts: parseInt(performance.runouts || 0),
+    points: points, // Add the direct points value
+    fifties: performance.batting && parseInt(performance.runs || 0) >= 50 && parseInt(performance.runs || 0) < 100 ? 1 : 0,
+    hundreds: performance.batting && parseInt(performance.runs || 0) >= 100 ? 1 : 0
+  };
             
             // Update the PRIMARY player's stats
             await PlayerMasterService.updatePlayerStats(primaryId, matchStats);
