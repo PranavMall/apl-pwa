@@ -2,22 +2,27 @@
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  /* Add padding at the bottom to prevent content from being hidden by the nav bar */
+  padding-bottom: 90px;
 }
 
 .tableWrapper {
   overflow-x: auto;
   margin-top: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.95rem;
 }
 
 .tableHeader {
-  background: #f4f4f4;
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  color: white;
   padding: 12px;
   text-align: left;
   font-weight: 600;
@@ -26,7 +31,13 @@
 }
 
 .tableHeader:hover {
-  background: #e4e4e4;
+  background: linear-gradient(45deg, #ff7043, #f9a825);
+}
+
+.sortArrow {
+  display: inline-block;
+  margin-left: 4px;
+  font-weight: bold;
 }
 
 .tableCell {
@@ -34,28 +45,169 @@
   border-bottom: 1px solid #eee;
 }
 
+.tableRow:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
 .tableRow:hover {
-  background: #f8f8f8;
+  background: #fff8e1;
 }
 
 .loading {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
+  min-height: 200px;
   font-size: 1.2rem;
   color: #666;
 }
 
-/* Responsive adjustments */
+.error {
+  color: #d32f2f;
+  background-color: #ffebee;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  text-align: center;
+}
+
+.noData {
+  text-align: center;
+  padding: 32px;
+  color: #757575;
+  font-style: italic;
+}
+
+.filters {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.teamFilter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: white;
+  min-width: 150px;
+  font-size: 0.9rem;
+}
+
+/* Make tabs more visually appealing */
+.tabContainer {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Role badges for different player types */
+.roleBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.batsman {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.bowler {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.allrounder {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.wicketkeeper {
+  background-color: #f3e5f5;
+  color: #6a1b9a;
+}
+
+/* Media queries for responsive design */
 @media (max-width: 768px) {
   .container {
     padding: 10px;
+    padding-bottom: 80px;
   }
   
   .tableCell,
   .tableHeader {
     padding: 8px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
+  
+  .filters {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* Card styling enhancements */
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.cardHeader {
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  color: white;
+  padding: 16px 20px;
+}
+
+.cardTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cardContent {
+  padding: 20px;
+}
+
+/* Player photo placeholder */
+.playerPhoto {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #757575;
+  margin-right: 10px;
+}
+
+/* Team badge */
+.teamBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #f5f5f5;
+  color: #424242;
+}
+
+/* Stats highlight */
+.highlight {
+  font-weight: 700;
+  color: #f57c00;
 }
