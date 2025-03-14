@@ -117,6 +117,88 @@ static async fetchRecentMatches() {
   }
 }
 
+  // Add this method to cricketService.js
+static async fetchAndSyncSpecificMatch(matchId) {
+  if (!process.env.NEXT_PUBLIC_RAPID_API_KEY) {
+    throw new Error('RAPID_API_KEY is not configured');
+  }
+
+  try {
+    console.log(`Starting sync for specific match ${matchId}`);
+
+    // Fetch scorecard directly for the specific match
+    const processedScorecard = await this.fetchScorecard(matchId);
+    
+    // Validate scorecard
+    console.log('Validating scorecard response for match:', matchId);
+    if (!processedScorecard) {
+      console.error('Scorecard response is null or undefined');
+      throw new Error('Failed to fetch scorecard');
+    }
+
+    // Validate the processed scorecard structure
+    if (!processedScorecard.team1 || !processedScorecard.team2) {
+      console.error('Missing team data in processed scorecard:', JSON.stringify(processedScorecard, null, 2));
+      throw new Error('Invalid scorecard data structure - missing team data');
+    }
+    
+    // Create a simpler match object since we don't have full match data
+    const matchData = {
+      matchId: matchId.toString(),
+      matchInfo: {
+        startDate: new Date(),
+        team1: {
+          teamId: processedScorecard.team1?.teamId || '0',
+          teamName: processedScorecard.team1?.teamName || 'Team 1',
+          teamSName: processedScorecard.team1?.teamShortName || 'T1'
+        },
+        team2: {
+          teamId: processedScorecard.team2?.teamId || '0',
+          teamName: processedScorecard.team2?.teamName || 'Team 2',
+          teamSName: processedScorecard.team2?.teamShortName || 'T2'
+        },
+        status: processedScorecard.matchStatus,
+        state: 'Complete'
+      },
+      seriesName: 'Manually Added Match'
+    };
+
+    // Update match data in Firebase
+    const matchDoc = doc(db, 'matches', matchId.toString());
+    
+    const matchDocument = this.validateAndCleanObject({
+      matchId: matchId,
+      lastUpdated: new Date().toISOString(),
+      matchInfo: matchData.matchInfo,
+      scorecard: processedScorecard
+    });
+
+    console.log('Saving match document:', matchDocument);
+    await setDoc(matchDoc, matchDocument, { merge: true });
+    
+    // Calculate and store points
+    try {
+      console.log(`Starting points calculation for match ${matchId}`);
+      await PointService.calculateMatchPoints(matchId, processedScorecard);
+      console.log(`Successfully calculated points for match ${matchId}`);
+      
+      return {
+        success: true,
+        message: `Match ${matchId} synced and points calculated successfully`
+      };
+    } catch (pointsError) {
+      console.error(`Error calculating points for match ${matchId}:`, pointsError);
+      return {
+        success: false,
+        error: `Points calculation failed: ${pointsError.message}`
+      };
+    }
+  } catch (error) {
+    console.error(`Error syncing match ${matchId}:`, error);
+    throw error;
+  }
+}
+
   // Add this to cricketService.js for recalculateAppPlayerStats
 static async recalculateAllPlayerStats() {
   try {
