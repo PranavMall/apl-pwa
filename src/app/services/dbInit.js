@@ -68,15 +68,15 @@ export class DatabaseInitializer {
     try {
       // Initialize current tournament
       const tournamentData = {
-        name: "Pakistan ODI Tri-Series, 2025",
-        startDate: new Date("2024-02-11"),
-        endDate: new Date("2024-03-11"),
-        registrationDeadline: new Date("2024-02-10"),
+        name: "IPL, 2025",
+        startDate: new Date("2025-03-22"),
+        endDate: new Date("2025-05-25"),
+        registrationDeadline: new Date("2025-03-22"),
         status: "active",
         transferWindows: [
           {
-            startDate: new Date("2024-02-18"),
-            endDate: new Date("2024-02-20"),
+            startDate: new Date("2025-03-15"),
+            endDate: new Date("2025-03-22"),
             weekNumber: 1,
             status: "upcoming"
           }
