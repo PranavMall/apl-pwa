@@ -108,7 +108,9 @@ static async updatePlayerStats(playerId, matchStats) {
       runOuts: (currentStats.runOuts || 0) + (matchStats.runOuts || 0),
       points: (currentStats.points || 0) + (matchStats.points || 0),
       fifties: (currentStats.fifties || 0) + (matchStats.fifties || 0),
-      hundreds: (currentStats.hundreds || 0) + (matchStats.hundreds || 0)
+      hundreds: (currentStats.hundreds || 0) + (matchStats.hundreds || 0),
+      fours: (currentStats.fours || 0) + (matchStats.fours || 0),
+      sixes: (currentStats.sixes || 0) + (matchStats.sixes || 0)
     };
     
     // Update processed matches array to prevent duplicate processing
