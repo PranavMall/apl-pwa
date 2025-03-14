@@ -182,7 +182,7 @@ static async calculateMatchPoints(matchId, scorecard) {
   }
 }
 
-  // Modified storePlayerMatchPoints function to handle undefined innings
+// Fix for storePlayerMatchPoints in PointService.js 
 static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
@@ -231,10 +231,10 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
         updatedPerformance = {
           ...existingPerf,
           bowling: true,
-          matchPointsAdded: existingPerf.matchPointsAdded || performance.includesMatchPoints || false, // ADD THIS LINE HERE
+          matchPointsAdded: existingPerf.matchPointsAdded || performance.includesMatchPoints || false,
           overs: performance.overs || 0,
           maidens: performance.maidens || 0,
-          bowler_runs: performance.runs || 0,
+          bowler_runs: performance.bowler_runs || 0,
           wickets: performance.wickets || 0,
           economy: performance.economy || 0
         };
@@ -281,7 +281,7 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
         Object.assign(updatedPerformance, {
           overs: performance.overs || 0,
           maidens: performance.maidens || 0,
-          bowler_runs: performance.runs || 0,
+          bowler_runs: performance.bowler_runs || 0,
           wickets: performance.wickets || 0,
           economy: performance.economy || 0
         });
@@ -329,42 +329,24 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
       }
       
       // Now update their stats based on current performance
-  const matchStats = {
-    isNewMatch: true, // Consider each entry as a new match for now
-    battingRuns: updatedPerformance.batting ? parseInt(updatedPerformance.runs || 0) : 0,
-    bowlingRuns: updatedPerformance.bowling ? parseInt(updatedPerformance.bowler_runs || 0) : 0,
-    wickets: updatedPerformance.bowling ? parseInt(updatedPerformance.wickets || 0) : 0,
-    catches: parseInt(updatedPerformance.catches || 0),
-    stumpings: parseInt(updatedPerformance.stumpings || 0),
-    runOuts: parseInt(updatedPerformance.runouts || 0),
-    points: totalPoints, // This is the points value we just calculated and stored
-    fifties: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 50 && parseInt(updatedPerformance.runs || 0) < 100 ? 1 : 0,
-    hundreds: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 100 ? 1 : 0
-  };
+      const matchStats = {
+        matchId: matchId, // Add matchId to track processed matches
+        isNewMatch: true,
+        battingRuns: updatedPerformance.batting ? parseInt(updatedPerformance.runs || 0) : 0,
+        bowlingRuns: updatedPerformance.bowling ? parseInt(updatedPerformance.bowler_runs || 0) : 0,
+        wickets: updatedPerformance.bowling ? parseInt(updatedPerformance.wickets || 0) : 0,
+        catches: parseInt(updatedPerformance.catches || 0),
+        stumpings: parseInt(updatedPerformance.stumpings || 0),
+        runOuts: parseInt(updatedPerformance.runouts || 0),
+        points: totalPoints,
+        fifties: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 50 && parseInt(updatedPerformance.runs || 0) < 100 ? 1 : 0,
+        hundreds: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 100 ? 1 : 0
+      };
       
       // Update the player's cumulative stats
       await PlayerMasterService.updatePlayerStats(masterPlayer.id, matchStats);
     } catch (syncError) {
       console.error('Error syncing to player master DB:', syncError);
-    }
-
-    try {
-      // Check if player exists in master DB
-      let masterPlayer = await PlayerMasterService.findPlayerByAnyId(playerId);
-      
-      // If not, create a new player entry
-      if (!masterPlayer) {
-        const playerName = performance.name || playerId;
-        await PlayerMasterService.upsertPlayer({
-          id: playerId,
-          name: playerName,
-          role: performance.type === 'bowling' ? 'bowler' : 
-                performance.type === 'batting' ? 'batsman' : 'unknown',
-        });
-      }
-    } catch (syncError) {
-      console.error('Error syncing to player master DB:', syncError);
-      // Don't throw to prevent disrupting the main flow
     }
 
     return true;
