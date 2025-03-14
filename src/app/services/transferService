@@ -1,0 +1,387 @@
+import { db } from '../../firebase';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  limit, 
+  Timestamp,
+  updateDoc,
+  increment,
+  arrayUnion
+} from 'firebase/firestore';
+
+export class transferService {
+  static ROLES = {
+    BATSMAN: 'batsman',
+    BOWLER: 'bowler',
+    ALLROUNDER: 'allrounder',
+    WICKETKEEPER: 'wicketkeeper'
+  };
+  
+  static TEAM_LIMITS = {
+    [this.ROLES.BATSMAN]: 4,
+    [this.ROLES.BOWLER]: 4,
+    [this.ROLES.ALLROUNDER]: 2,
+    [this.ROLES.WICKETKEEPER]: 1
+  };
+  
+  // Get active tournament
+  static async getActiveTournament() {
+    try {
+      const tournamentsRef = collection(db, 'tournaments');
+      const q = query(tournamentsRef, where('status', '==', 'active'), limit(1));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return null;
+      }
+      
+      const tournamentData = snapshot.docs[0].data();
+      return {
+        id: snapshot.docs[0].id,
+        ...tournamentData
+      };
+    } catch (error) {
+      console.error('Error getting active tournament:', error);
+      throw error;
+    }
+  }
+  
+  // Check if transfer window is active
+  static async isTransferWindowActive() {
+    try {
+      const tournament = await this.getActiveTournament();
+      
+      if (!tournament) {
+        return { isActive: false, window: null };
+      }
+      
+      const now = new Date();
+      const transferWindows = tournament.transferWindows || [];
+      
+      // Sort windows by start date
+      const sortedWindows = [...transferWindows].sort((a, b) => {
+        const dateA = a.startDate instanceof Timestamp 
+          ? a.startDate.toDate() 
+          : new Date(a.startDate);
+        const dateB = b.startDate instanceof Timestamp 
+          ? b.startDate.toDate() 
+          : new Date(b.startDate);
+        return dateA - dateB;
+      });
+      
+      // Find current or next window
+      let currentWindow = null;
+      let nextWindow = null;
+      
+      for (const window of sortedWindows) {
+        const startDate = window.startDate instanceof Timestamp 
+          ? window.startDate.toDate() 
+          : new Date(window.startDate);
+        const endDate = window.endDate instanceof Timestamp 
+          ? window.endDate.toDate() 
+          : new Date(window.endDate);
+        
+        if (now >= startDate && now <= endDate) {
+          currentWindow = {
+            ...window,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          };
+          break;
+        }
+        
+        if (startDate > now && (!nextWindow || startDate < new Date(nextWindow.startDate))) {
+          nextWindow = {
+            ...window,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          };
+        }
+      }
+      
+      if (currentWindow) {
+        return { isActive: true, window: currentWindow };
+      }
+      
+      return { isActive: false, window: nextWindow };
+    } catch (error) {
+      console.error('Error checking transfer window:', error);
+      throw error;
+    }
+  }
+  
+  // Get user's team for a tournament
+  static async getUserTeam(userId, tournamentId) {
+    try {
+      const teamRef = doc(db, 'userTeams', `${userId}_${tournamentId}`);
+      const teamDoc = await getDoc(teamRef);
+      
+      if (!teamDoc.exists()) {
+        return null;
+      }
+      
+      return teamDoc.data();
+    } catch (error) {
+      console.error('Error getting user team:', error);
+      throw error;
+    }
+  }
+  
+  // Get all available players
+  static async getAvailablePlayers() {
+    try {
+      const playersRef = collection(db, 'playersMaster');
+      const q = query(playersRef, where('active', '==', true));
+      const snapshot = await getDocs(q);
+      
+      const players = {
+        batsmen: [],
+        bowlers: [],
+        allrounders: [],
+        wicketkeepers: []
+      };
+      
+      snapshot.forEach(doc => {
+        const player = {
+          id: doc.id,
+          ...doc.data()
+        };
+        
+        // Add to appropriate category
+        if (player.role === this.ROLES.BATSMAN) {
+          players.batsmen.push(player);
+        } else if (player.role === this.ROLES.BOWLER) {
+          players.bowlers.push(player);
+        } else if (player.role === this.ROLES.ALLROUNDER) {
+          players.allrounders.push(player);
+        } else if (player.role === this.ROLES.WICKETKEEPER) {
+          players.wicketkeepers.push(player);
+        }
+      });
+      
+      // Sort by points
+      const sortByPoints = (a, b) => {
+        const pointsA = a.stats?.points || 0;
+        const pointsB = b.stats?.points || 0;
+        return pointsB - pointsA;
+      };
+      
+      players.batsmen.sort(sortByPoints);
+      players.bowlers.sort(sortByPoints);
+      players.allrounders.sort(sortByPoints);
+      players.wicketkeepers.sort(sortByPoints);
+      
+      return players;
+    } catch (error) {
+      console.error('Error getting available players:', error);
+      throw error;
+    }
+  }
+  
+  // Save user team
+  static async saveUserTeam(userId, players) {
+    try {
+      const tournament = await this.getActiveTournament();
+      
+      if (!tournament) {
+        return { success: false, error: 'No active tournament found' };
+      }
+      
+      const { isActive } = await this.isTransferWindowActive();
+      
+      if (!isActive) {
+        return { success: false, error: 'Transfer window is not active' };
+      }
+      
+      // Validate team composition
+      const teamComposition = {
+        batsmen: players.filter(p => p.role === this.ROLES.BATSMAN).length,
+        bowlers: players.filter(p => p.role === this.ROLES.BOWLER).length,
+        allrounders: players.filter(p => p.role === this.ROLES.ALLROUNDER).length,
+        wicketkeepers: players.filter(p => p.role === this.ROLES.WICKETKEEPER).length
+      };
+      
+      for (const [role, count] of Object.entries(teamComposition)) {
+        if (count !== this.TEAM_LIMITS[role]) {
+          return { 
+            success: false, 
+            error: `Team must have exactly ${this.TEAM_LIMITS[role]} ${role}(s)` 
+          };
+        }
+      }
+      
+      // Check if team exists
+      const userTeam = await this.getUserTeam(userId, tournament.id);
+      
+      // Determine if this is a new team or update
+      const isNewTeam = !userTeam;
+      
+      // Find current transfer window
+      const now = new Date();
+      const currentWindow = tournament.transferWindows.find(window => {
+        const startDate = window.startDate instanceof Timestamp 
+          ? window.startDate.toDate() 
+          : new Date(window.startDate);
+        const endDate = window.endDate instanceof Timestamp 
+          ? window.endDate.toDate() 
+          : new Date(window.endDate);
+        
+        return now >= startDate && now <= endDate;
+      });
+      
+      // Create/update team document
+      const teamRef = doc(db, 'userTeams', `${userId}_${tournament.id}`);
+      await setDoc(teamRef, {
+        userId,
+        tournamentId: tournament.id,
+        registrationDate: isNewTeam ? now : userTeam.registrationDate,
+        isLateRegistration: isNewTeam ? now > new Date(tournament.registrationDeadline) : userTeam.isLateRegistration,
+        players,
+        transfersRemaining: isNewTeam ? 2 : userTeam.transfersRemaining - 1,
+        lastTransferDate: now,
+        lastTransferWindow: currentWindow ? {
+          startDate: currentWindow.startDate,
+          endDate: currentWindow.endDate,
+          weekNumber: currentWindow.weekNumber
+        } : null,
+        lastUpdated: now
+      }, { merge: true });
+      
+      // Create weekly stats entry if needed
+      if (currentWindow) {
+        await this.createWeeklyStatsEntry(userId, tournament.id, currentWindow);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving user team:', error);
+      throw error;
+    }
+  }
+  
+  // Create or update weekly stats entry
+  static async createWeeklyStatsEntry(userId, tournamentId, transferWindow) {
+    try {
+      const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournamentId}_${transferWindow.weekNumber}`);
+      const weeklyStatsDoc = await getDoc(weeklyStatsRef);
+      
+      if (!weeklyStatsDoc.exists()) {
+        // Create new weekly stats entry
+        await setDoc(weeklyStatsRef, {
+          userId,
+          tournamentId,
+          weekNumber: transferWindow.weekNumber,
+          transferWindowId: `${transferWindow.weekNumber}`,
+          points: 0,
+          rank: 0,
+          createdAt: new Date()
+        });
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error creating weekly stats entry:', error);
+      throw error;
+    }
+  }
+  
+  // Get user's weekly stats
+  static async getUserWeeklyStats(userId) {
+    try {
+      const tournament = await this.getActiveTournament();
+      
+      if (!tournament) {
+        return [];
+      }
+      
+      const weeklyStatsRef = collection(db, 'userWeeklyStats');
+      const q = query(
+        weeklyStatsRef, 
+        where('userId', '==', userId),
+        where('tournamentId', '==', tournament.id),
+        orderBy('weekNumber', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      const weeklyStats = [];
+      snapshot.forEach(doc => {
+        weeklyStats.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      return weeklyStats;
+    } catch (error) {
+      console.error('Error getting user weekly stats:', error);
+      throw error;
+    }
+  }
+  
+  // Process referral
+  static async processReferral(referredUserId, referrerCode) {
+    try {
+      if (!referrerCode) {
+        return { success: false, error: 'No referral code provided' };
+      }
+      
+      // Find user with this referral code
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('referralCode', '==', referrerCode));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return { success: false, error: 'Invalid referral code' };
+      }
+      
+      const referrerDoc = snapshot.docs[0];
+      const referrerId = referrerDoc.id;
+      const referrerData = referrerDoc.data();
+      
+      // Ensure user is not referring themselves
+      if (referrerId === referredUserId) {
+        return { success: false, error: 'You cannot refer yourself' };
+      }
+      
+      // Check if referrer already has max referrals
+      const referrals = referrerData.referrals || [];
+      if (referrals.length >= 3) {
+        // Still track the referral but don't award points
+        await updateDoc(doc(db, 'users', referrerId), {
+          referrals: arrayUnion(referredUserId)
+        });
+        
+        return { 
+          success: true, 
+          message: 'Referral recorded, but referrer has reached maximum bonus points'
+        };
+      }
+      
+      // Update referrer document
+      await updateDoc(doc(db, 'users', referrerId), {
+        referrals: arrayUnion(referredUserId),
+        referralPoints: increment(25),
+        totalPoints: increment(25)
+      });
+      
+      // Update referred user document
+      await updateDoc(doc(db, 'users', referredUserId), {
+        referredBy: referrerId
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error processing referral:', error);
+      throw error;
+    }
+  }
+}
+
+export default transferService;
