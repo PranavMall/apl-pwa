@@ -87,8 +87,15 @@ static async updatePlayerStats(playerId, matchStats) {
     const primaryId = player.id;
     const playerRef = doc(db, 'playersMaster', primaryId);
     
-    // Get current stats
+    // Get current stats and processed matches
     const currentStats = player.stats || {};
+    const processedMatches = player.processedMatches || [];
+    
+    // Check if this match has already been processed
+    if (matchStats.matchId && processedMatches.includes(matchStats.matchId)) {
+      console.log(`Match ${matchStats.matchId} already processed for player ${primaryId}, skipping update`);
+      return { success: true, id: primaryId, skipped: true };
+    }
     
     // Calculate updated stats by adding new values to existing ones
     const updatedStats = {
@@ -104,9 +111,15 @@ static async updatePlayerStats(playerId, matchStats) {
       hundreds: (currentStats.hundreds || 0) + (matchStats.hundreds || 0)
     };
     
+    // Update processed matches array to prevent duplicate processing
+    const updatedProcessedMatches = matchStats.matchId 
+      ? [...(processedMatches || []), matchStats.matchId]
+      : processedMatches;
+    
     // Update player document
     await setDoc(playerRef, {
       stats: updatedStats,
+      processedMatches: updatedProcessedMatches,
       lastUpdated: new Date().toISOString()
     }, { merge: true });
     
