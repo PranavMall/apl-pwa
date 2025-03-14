@@ -102,7 +102,9 @@ const PlayerPerformancePage = () => {
             stumpings: 0,
             points: 0,
             fifties: 0,
-            hundreds: 0
+            hundreds: 0,
+            fours: 0,
+            sixes: 0
           };
           
           playersData.push({
@@ -111,8 +113,6 @@ const PlayerPerformancePage = () => {
             role: playerData.role || 'unknown',
             team: playerData.team || 'Unknown',
             isForeign: playerData.isForeign || false,
-            battingStyle: playerData.battingStyle || '',
-            bowlingStyle: playerData.bowlingStyle || '',
             matches: stats.matches || 0,
             battingRuns: stats.battingRuns || 0,
             bowlingRuns: stats.bowlingRuns || 0,
@@ -122,11 +122,13 @@ const PlayerPerformancePage = () => {
             runOuts: stats.runOuts || 0,
             fifties: stats.fifties || 0,
             hundreds: stats.hundreds || 0,
+            fours: stats.fours || 0,
+            sixes: stats.sixes || 0,
             points: stats.points || 0,
             battingAverage: calculateAverage(stats.battingRuns, stats.matches),
             bowlingAverage: calculateAverage(stats.bowlingRuns, stats.wickets),
-            strikeRate: '0.00',
-            economyRate: '0.00'
+            strikeRate: stats.strikeRate || '0.00',
+            economyRate: stats.economyRate || '0.00'
           });
         }
       });
@@ -174,9 +176,10 @@ const PlayerPerformancePage = () => {
           return (
             <>
               <td className={styles.tableCell}>{player.team}</td>
-              <td className={styles.tableCell}>{player.battingStyle || '-'}</td>
               <td className={styles.tableCell}>{player.matches || 0}</td>
               <td className={styles.tableCell}>{player.battingRuns || 0}</td>
+              <td className={styles.tableCell}>{player.fours || 0}</td>
+              <td className={styles.tableCell}>{player.sixes || 0}</td>
               <td className={styles.tableCell}>{player.battingAverage}</td>
               <td className={styles.tableCell}>{player.fifties || 0}</td>
               <td className={styles.tableCell}>{player.hundreds || 0}</td>
@@ -188,10 +191,10 @@ const PlayerPerformancePage = () => {
           return (
             <>
               <td className={styles.tableCell}>{player.team}</td>
-              <td className={styles.tableCell}>{player.bowlingStyle || '-'}</td>
               <td className={styles.tableCell}>{player.matches || 0}</td>
               <td className={styles.tableCell}>{player.wickets || 0}</td>
               <td className={styles.tableCell}>{player.bowlingAverage}</td>
+              <td className={styles.tableCell}>{player.economyRate || '0.00'}</td>
               <td className={styles.tableCell}>{Math.round(player.points) || 0}</td>
             </>
           );
@@ -251,20 +254,21 @@ const PlayerPerformancePage = () => {
       baseHeaders.push({ key: 'team', label: 'Team' });
     }
 
-    const roleSpecificHeaders = {
+          const roleSpecificHeaders = {
       [PLAYER_ROLES.BATSMAN]: [
-        { key: 'battingStyle', label: 'Batting Style' },
         { key: 'matches', label: 'Matches' },
         { key: 'battingRuns', label: 'Runs' },
+        { key: 'fours', label: '4s' },
+        { key: 'sixes', label: '6s' },
         { key: 'battingAverage', label: 'Average' },
         { key: 'fifties', label: '50s' },
         { key: 'hundreds', label: '100s' }
       ],
       [PLAYER_ROLES.BOWLER]: [
-        { key: 'bowlingStyle', label: 'Bowling Style' },
         { key: 'matches', label: 'Matches' },
         { key: 'wickets', label: 'Wickets' },
-        { key: 'bowlingAverage', label: 'Average' }
+        { key: 'bowlingAverage', label: 'Average' },
+        { key: 'economyRate', label: 'Economy' }
       ],
       [PLAYER_ROLES.ALLROUNDER]: [
         { key: 'matches', label: 'Matches' },
