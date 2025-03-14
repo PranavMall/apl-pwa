@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GoogleAuthProvider,
   signInWithPopup,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { auth, db } from "../../firebase"; // Adjust path to your firebase.js and Firestore initialization
+import { auth, db } from "../../firebase"; 
 import styles from "./page.module.css";
 import { FantasyService } from "../services/fantasyService";
+import { transferService } from "../services/transferService";
+import { generateReferralCode, isValidReferralFormat } from "../utils/referralUtils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,7 +21,9 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState("");
+  const [referralError, setReferralError] = useState("");
 
   // Toggle between Login and Sign-Up forms
   const toggleForm = () => setIsSignUp(!isSignUp);
@@ -37,11 +41,32 @@ export default function LoginPage() {
     }
   };
 
+  // Validate referral code
+  const validateReferralCode = (code) => {
+    if (!code) return true; // Optional field
+    
+    if (!isValidReferralFormat(code)) {
+      setReferralError("Invalid referral code format");
+      return false;
+    }
+    
+    setReferralError("");
+    return true;
+  };
+
   // Handle Email/Password Sign-Up
-const handleSignUp = async (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
+    
+    if (referralCode && !validateReferralCode(referralCode)) {
+      return; // Stop if referral code is invalid
+    }
+    
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Generate a referral code for this user
+      const userReferralCode = generateReferralCode(result.user.uid);
 
       // Create user document
       const userDoc = doc(db, "users", result.user.uid);
@@ -52,17 +77,23 @@ const handleSignUp = async (e) => {
         createdAt: new Date(),
         // Fantasy cricket specific fields
         registrationDate: new Date(),
-        referralCount: 0,
+        referralCode: userReferralCode,
+        referrals: [],
+        referralPoints: 0,
         totalPoints: 0,
         rank: 0
       });
 
       // Initialize user's tournament stats if there's an active tournament
-      // You might want to check for active tournaments first
       await FantasyService.initializeUserTournamentStats(result.user.uid, "bbl-2024");
 
+      // Process referral if provided
+      if (referralCode) {
+        await transferService.processReferral(result.user.uid, referralCode);
+      }
+
       console.log("Sign-Up successful!");
-      router.push("/dashboard");
+      router.push("/profile"); // Redirect to profile page to complete setup
     } catch (error) {
       console.error("Sign-Up error:", error);
       setError(error.message);
@@ -82,25 +113,42 @@ const handleSignUp = async (e) => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+      // Check if user already exists
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+      const isNewUser = !userDoc.exists();
+
+      // Generate a referral code for this user
+      const userReferralCode = generateReferralCode(user.uid);
+
       // Create/update user document
-      const userDoc = doc(db, "users", user.uid);
-      await setDoc(userDoc, {
+      await setDoc(userDocRef, {
         name: user.displayName,
         email: user.email,
         photoURL: user.photoURL,
         createdAt: new Date(),
         // Fantasy cricket specific fields
         registrationDate: new Date(),
-        referralCount: 0,
-        totalPoints: 0,
+        referralCode: userReferralCode,
+        referrals: userDoc.exists() ? userDoc.data().referrals || [] : [],
+        referralPoints: userDoc.exists() ? userDoc.data().referralPoints || 0 : 0,
+        totalPoints: userDoc.exists() ? userDoc.data().totalPoints || 0 : 0,
         rank: 0
       }, { merge: true });
 
-      // Initialize user's tournament stats if there's an active tournament
-      await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
-
-      console.log("Google Sign-In successful!");
-      router.push("/dashboard");
+      // Initialize user's tournament stats if there's an active tournament and this is a new user
+      if (isNewUser) {
+        await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
+        
+        // Process referral if provided
+        if (referralCode) {
+          await transferService.processReferral(user.uid, referralCode);
+        }
+        
+        router.push("/profile"); // New users go to profile setup
+      } else {
+        router.push("/dashboard"); // Existing users go to dashboard
+      }
     } catch (error) {
       console.error("Google Sign-In error:", error);
       setError(error.message);
@@ -171,6 +219,18 @@ const handleSignUp = async (e) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <input
+                  className={styles["flip-card__input"]}
+                  name="referralCode"
+                  placeholder="Referral Code (Optional)"
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => {
+                    setReferralCode(e.target.value);
+                    validateReferralCode(e.target.value);
+                  }}
+                />
+                {referralError && <p className={styles["error-message"]}>{referralError}</p>}
                 {error && <p className={styles["error-message"]}>{error}</p>}
                 <button className={styles["flip-card__btn"]}>Sign Up</button>
               </form>
