@@ -66,51 +66,50 @@ static async fetchRecentMatches() {
     const tournamentMatches = [];
     
     // Add debug logging
-    console.log('API Response:', JSON.stringify(data, null, 2));
+    console.log('API Response structure received');
     
     data.typeMatches?.forEach(typeMatch => {
       typeMatch.seriesMatches?.forEach(seriesMatch => {
         const seriesData = seriesMatch.seriesAdWrapper || seriesMatch;
         const matches = seriesData.matches || [];
         
-        // Check specifically for ICC Champions Trophy, 2025
-        if (seriesData.seriesName?.includes('ICC Champions Trophy, 2025')) {
-          console.log(`Found ICC Champions Trophy  match: ${seriesData.seriesName}`);
-          
-          matches.forEach(match => {
-            if (match.matchInfo) {
-              console.log(`Processing match: ${match.matchInfo.matchId}`);
-              const matchData = {
-                matchId: match.matchInfo.matchId.toString(),
-                matchInfo: {
-                  ...match.matchInfo,
-                  startDate: new Date(match.matchInfo.startDate),
-                  team1: {
-                    teamId: match.matchInfo.team1?.teamId,
-                    teamName: match.matchInfo.team1?.teamName,
-                    teamSName: match.matchInfo.team1?.teamSName,
-                    score: match.matchScore?.team1Score?.inngs1?.score || null
-                  },
-                  team2: {
-                    teamId: match.matchInfo.team2?.teamId,
-                    teamName: match.matchInfo.team2?.teamName,
-                    teamSName: match.matchInfo.team2?.teamSName,
-                    score: match.matchScore?.team2Score?.inngs1?.score || null
-                  },
-                  status: match.matchInfo.status,
-                  state: match.matchInfo.state
+        // Accept matches from all cricket series instead of filtering for only one series
+        // Log the series we're checking
+        console.log(`Found series: ${seriesData.seriesName}`);
+        
+        matches.forEach(match => {
+          if (match.matchInfo) {
+            console.log(`Processing match: ${match.matchInfo.matchId}`);
+            const matchData = {
+              matchId: match.matchInfo.matchId.toString(),
+              matchInfo: {
+                ...match.matchInfo,
+                startDate: new Date(match.matchInfo.startDate),
+                team1: {
+                  teamId: match.matchInfo.team1?.teamId,
+                  teamName: match.matchInfo.team1?.teamName,
+                  teamSName: match.matchInfo.team1?.teamSName,
+                  score: match.matchScore?.team1Score?.inngs1?.score || null
                 },
-                seriesId: seriesData.seriesId,
-                seriesName: seriesData.seriesName
-              };
-              tournamentMatches.push(this.validateAndCleanObject(matchData));
-            }
-          });
-        }
+                team2: {
+                  teamId: match.matchInfo.team2?.teamId,
+                  teamName: match.matchInfo.team2?.teamName,
+                  teamSName: match.matchInfo.team2?.teamSName,
+                  score: match.matchScore?.team2Score?.inngs1?.score || null
+                },
+                status: match.matchInfo.status,
+                state: match.matchInfo.state
+              },
+              seriesId: seriesData.seriesId,
+              seriesName: seriesData.seriesName
+            };
+            tournamentMatches.push(this.validateAndCleanObject(matchData));
+          }
+        });
       });
     });
 
-    console.log(`Total tournament matches found: ${tournamentMatches.length}`);
+    console.log(`Total matches found: ${tournamentMatches.length}`);
     return tournamentMatches;
   } catch (error) {
     console.error('Error fetching matches:', error);
