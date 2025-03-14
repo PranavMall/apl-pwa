@@ -183,6 +183,7 @@ static async calculateMatchPoints(matchId, scorecard) {
 }
 
 // Fix for storePlayerMatchPoints in PointService.js 
+// Fix for storePlayerMatchPoints in PointService.js 
 static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
@@ -340,7 +341,9 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
         runOuts: parseInt(updatedPerformance.runouts || 0),
         points: totalPoints,
         fifties: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 50 && parseInt(updatedPerformance.runs || 0) < 100 ? 1 : 0,
-        hundreds: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 100 ? 1 : 0
+        hundreds: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 100 ? 1 : 0,
+        fours: updatedPerformance.batting ? parseInt(updatedPerformance.fours || 0) : 0,
+        sixes: updatedPerformance.batting ? parseInt(updatedPerformance.sixes || 0) : 0
       };
       
       // Update the player's cumulative stats
