@@ -319,37 +319,148 @@ static async updatePlayerStats(playerId, matchStats) {
     }
   }
   
-  // Map players with similar names
-  static async mapRelatedPlayers(primaryId, alternateIds) {
-    try {
-      const playerRef = doc(db, 'playersMaster', primaryId);
-      const playerDoc = await getDoc(playerRef);
-      
-      if (!playerDoc.exists()) {
-        console.error(`Primary player ${primaryId} not found`);
-        return { success: false, error: 'Primary player not found' };
-      }
-      
-      const player = playerDoc.data();
-      const existingAlternates = player.alternateIds || [];
-      
-      // Add new alternate IDs
-      const updatedAlternates = [
-        ...new Set([...existingAlternates, ...alternateIds])
-      ];
-      
-      // Update player document
-      await setDoc(playerRef, {
-        alternateIds: updatedAlternates,
-        lastUpdated: new Date().toISOString()
-      }, { merge: true });
-      
-      return { success: true, id: primaryId };
-    } catch (error) {
-      console.error('Error mapping related players:', error);
-      throw error;
+// Enhanced version of mapRelatedPlayers to include stat rebuilding
+static async mapRelatedPlayers(primaryId, alternateIds) {
+  try {
+    console.log(`Starting mapping and rebuilding stats: Primary ID ${primaryId}, Alternate IDs: ${alternateIds.join(', ')}`);
+    
+    // Step 1: Find the primary player
+    const playerRef = doc(db, 'playersMaster', primaryId);
+    const playerDoc = await getDoc(playerRef);
+    
+    if (!playerDoc.exists()) {
+      console.error(`Primary player ${primaryId} not found`);
+      return { success: false, error: 'Primary player not found' };
     }
+    
+    // Step 2: Get the player data and existing alternate IDs
+    const player = playerDoc.data();
+    const existingAlternates = player.alternateIds || [];
+    
+    // Step 3: Add new alternate IDs (avoid duplicates)
+    const newAlternateIds = alternateIds.filter(id => !existingAlternates.includes(id));
+    console.log(`Adding ${newAlternateIds.length} new alternate IDs`);
+    
+    if (newAlternateIds.length === 0) {
+      console.log('No new alternate IDs to add');
+      return { 
+        success: true, 
+        id: primaryId, 
+        message: 'No new alternate IDs to add'
+      };
+    }
+    
+    const updatedAlternates = [...existingAlternates, ...newAlternateIds];
+    
+    // Step 4: Update the player document with new alternate IDs
+    await setDoc(playerRef, {
+      alternateIds: updatedAlternates,
+      lastUpdated: new Date().toISOString()
+    }, { merge: true });
+    
+    console.log(`Updated alternate IDs for ${primaryId}`);
+    
+    // Step 5: Reset player stats for clean recalculation
+    await setDoc(playerRef, {
+      stats: {
+        matches: 0,
+        battingRuns: 0,
+        bowlingRuns: 0,
+        wickets: 0,
+        catches: 0,
+        stumpings: 0,
+        runOuts: 0,
+        fifties: 0,
+        hundreds: 0,
+        fours: 0,
+        sixes: 0,
+        points: 0
+      },
+      processedMatches: [],
+      lastUpdated: new Date().toISOString()
+    }, { merge: true });
+    
+    console.log(`Reset stats for ${primaryId}`);
+    
+    // Step 6: Gather all player point entries for primary and all alternate IDs
+    const allIds = [primaryId, ...updatedAlternates];
+    let totalEntries = 0;
+    const processedMatches = new Set();
+    
+    // Process each ID and get its points entries
+    for (const id of allIds) {
+      console.log(`Processing entries for ID: ${id}`);
+      
+      const pointsRef = collection(db, 'playerPoints');
+      const q = query(pointsRef, where('playerId', '==', id));
+      const snapshot = await getDocs(q);
+      
+      // Sort entries by timestamp to process in chronological order
+      const entries = [];
+      snapshot.forEach(doc => {
+        entries.push(doc.data());
+      });
+      
+      entries.sort((a, b) => {
+        const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return aTime - bTime;
+      });
+      
+      console.log(`Found ${entries.length} entries for ID ${id}`);
+      totalEntries += entries.length;
+      
+      // Process each entry to update player stats
+      for (const entry of entries) {
+        const { matchId, performance, points } = entry;
+        
+        // Skip if we've already processed this match for this player
+        // This prevents double-counting if the same match is recorded under multiple IDs
+        if (processedMatches.has(matchId)) {
+          console.log(`Skipping duplicate match ${matchId} for player ${id}`);
+          continue;
+        }
+        
+        // Extract stats from performance
+        const matchStats = {
+          matchId,
+          isNewMatch: true,
+          battingRuns: performance?.batting ? parseInt(performance.runs || 0) : 0,
+          bowlingRuns: performance?.bowling ? parseInt(performance.bowler_runs || 0) : 0,
+          wickets: performance?.bowling ? parseInt(performance.wickets || 0) : 0,
+          catches: parseInt(performance?.catches || 0),
+          stumpings: parseInt(performance?.stumpings || 0),
+          runOuts: parseInt(performance?.runouts || 0),
+          points: points || 0,
+          fifties: performance?.batting && parseInt(performance.runs || 0) >= 50 && parseInt(performance.runs || 0) < 100 ? 1 : 0,
+          hundreds: performance?.batting && parseInt(performance.runs || 0) >= 100 ? 1 : 0,
+          fours: performance?.batting ? parseInt(performance.fours || 0) : 0,
+          sixes: performance?.batting ? parseInt(performance.sixes || 0) : 0
+        };
+        
+        // Update player stats using existing method
+        await this.updatePlayerStats(primaryId, matchStats);
+        
+        // Mark as processed
+        processedMatches.add(matchId);
+      }
+    }
+    
+    console.log(`Completed processing ${totalEntries} entries for ${allIds.length} IDs`);
+    console.log(`Updated stats for ${processedMatches.size} unique matches`);
+    
+    return {
+      success: true,
+      id: primaryId,
+      alternateIdsAdded: newAlternateIds,
+      entriesProcessed: totalEntries,
+      uniqueMatches: processedMatches.size
+    };
+  } catch (error) {
+    console.error(`Error mapping and rebuilding stats for player ${primaryId}:`, error);
+    throw error;
   }
+}
 
   static async batchImportPlayers(players) {
   try {
