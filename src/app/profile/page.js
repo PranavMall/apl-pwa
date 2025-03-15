@@ -133,6 +133,8 @@ const UserProfilePage = () => {
   const checkTransferWindow = async () => {
     try {
       const { isActive, window } = await transferService.isTransferWindowActive();
+      console.log('Transfer window active:', isActive);
+      console.log('Transfer window:', window);
       setIsTransferActive(isActive);
       setTransferWindow(window);
     } catch (error) {
@@ -166,7 +168,7 @@ const UserProfilePage = () => {
     }
   };
 
-const saveProfile = async () => {
+  const saveProfile = async () => {
     if (!teamName.trim()) {
       setSaveMessage({ text: 'Team name is required', type: 'error' });
       return;
@@ -240,7 +242,10 @@ const saveProfile = async () => {
       };
       
       if (selectedPlayers[role].length >= maxByRole[role]) {
-        alert(`You can only select ${maxByRole[role]} ${role}`);
+        setTeamMessage({ 
+          text: `You can only select ${maxByRole[role]} ${role}`, 
+          type: 'error' 
+        });
         return;
       }
       
@@ -263,13 +268,13 @@ const saveProfile = async () => {
   const handleViceCaptainSelection = (player) => {
     // Cannot select captain as vice-captain
     if (captain && captain.id === player.id) {
-      alert('Captain cannot be vice-captain');
+      setTeamMessage({ text: 'Captain cannot be vice-captain', type: 'error' });
       return;
     }
     setViceCaptain(player.id === viceCaptain?.id ? null : player);
   };
 
-const saveTeam = async () => {
+  const saveTeam = async () => {
     try {
       setTeamMessage({ text: '', type: '' });
       
@@ -349,8 +354,8 @@ const saveTeam = async () => {
 
   const copyReferralCode = () => {
     navigator.clipboard.writeText(referralCode)
-      .then(() => alert('Referral code copied to clipboard!'))
-      .catch(err => alert('Failed to copy code. Please try again.'));
+      .then(() => setSaveMessage({ text: 'Referral code copied to clipboard!', type: 'success' }))
+      .catch(err => setSaveMessage({ text: 'Failed to copy code. Please try again.', type: 'error' }));
   };
 
   if (loading) {
@@ -435,11 +440,13 @@ const saveTeam = async () => {
                 Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
               </p>
             </div>
-                  {saveMessage.text && (
+
+            {saveMessage.text && (
               <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
                 {saveMessage.text}
               </div>
             )}
+            
             <button 
               className={styles.saveButton}
               onClick={saveProfile}
@@ -668,7 +675,6 @@ const saveTeam = async () => {
                   {teamMessage.text}
                 </div>
               )}
-              </div>
 
               <button 
                 className={styles.saveTeamButton}
