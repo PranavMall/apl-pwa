@@ -20,6 +20,8 @@ const UserProfilePage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
+  const [teamMessage, setTeamMessage] = useState({ text: '', type: '' });
   const [userProfile, setUserProfile] = useState(null);
   const [teamName, setTeamName] = useState('');
   const [bio, setBio] = useState('');
@@ -164,14 +166,15 @@ const UserProfilePage = () => {
     }
   };
 
-  const saveProfile = async () => {
+const saveProfile = async () => {
     if (!teamName.trim()) {
-      alert('Team name is required');
+      setSaveMessage({ text: 'Team name is required', type: 'error' });
       return;
     }
     
     try {
       setSaving(true);
+      setSaveMessage({ text: '', type: '' });
       
       // Upload photo if changed
       let profilePhotoURL = photoURL;
@@ -182,22 +185,36 @@ const UserProfilePage = () => {
       // Generate referral code if not exists
       const code = referralCode || generateReferralCode(user.uid);
       
-      // Update user profile
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        teamName: teamName.trim(),
+      // Only allow updating teamName if it hasn't been set before
+      const updateData = {
         bio: bio.trim(),
         photoURL: profilePhotoURL,
         referralCode: code,
         updatedAt: new Date()
-      });
+      };
+      
+      // Only update team name if it's not already set
+      if (!userProfile?.teamName && teamName.trim()) {
+        updateData.teamName = teamName.trim();
+      }
+      
+      // Update user profile
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, updateData);
       
       setReferralCode(code);
-      alert('Profile saved successfully');
+      setSaveMessage({ text: 'Profile saved successfully', type: 'success' });
+      
+      // Update local user profile data
+      setUserProfile(prev => ({
+        ...prev,
+        ...updateData
+      }));
+      
       setSaving(false);
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Error saving profile. Please try again.');
+      setSaveMessage({ text: 'Error saving profile. Please try again.', type: 'error' });
       setSaving(false);
     }
   };
@@ -252,8 +269,10 @@ const UserProfilePage = () => {
     setViceCaptain(player.id === viceCaptain?.id ? null : player);
   };
 
-  const saveTeam = async () => {
+const saveTeam = async () => {
     try {
+      setTeamMessage({ text: '', type: '' });
+      
       // Validate team selection
       const totalPlayers = 
         selectedPlayers.batsmen.length + 
@@ -262,17 +281,20 @@ const UserProfilePage = () => {
         selectedPlayers.wicketkeepers.length;
       
       if (totalPlayers !== 11) {
-        alert(`You must select exactly 11 players. Current: ${totalPlayers}`);
+        setTeamMessage({ 
+          text: `You must select exactly 11 players. Current: ${totalPlayers}`, 
+          type: 'error' 
+        });
         return;
       }
       
       if (!captain) {
-        alert('You must select a captain');
+        setTeamMessage({ text: 'You must select a captain', type: 'error' });
         return;
       }
       
       if (!viceCaptain) {
-        alert('You must select a vice-captain');
+        setTeamMessage({ text: 'You must select a vice-captain', type: 'error' });
         return;
       }
       
@@ -304,17 +326,23 @@ const UserProfilePage = () => {
       
       const result = await transferService.saveUserTeam(user.uid, allPlayers);
       if (result.success) {
-        alert('Team saved successfully!');
+        setTeamMessage({ text: 'Team saved successfully!', type: 'success' });
         // Refresh team data
         fetchUserData();
       } else {
-        alert(`Error saving team: ${result.error}`);
+        setTeamMessage({ 
+          text: `Error saving team: ${result.error || 'Unknown error'}`, 
+          type: 'error' 
+        });
       }
       
       setSaving(false);
     } catch (error) {
       console.error('Error saving team:', error);
-      alert('Error saving team. Please try again.');
+      setTeamMessage({ 
+        text: 'Error saving team. Please try again.', 
+        type: 'error' 
+      });
       setSaving(false);
     }
   };
@@ -372,8 +400,13 @@ const UserProfilePage = () => {
                 onChange={(e) => setTeamName(e.target.value)}
                 className={styles.input}
                 placeholder="Your Fantasy Team Name"
+                disabled={userProfile?.teamName}
+                title={userProfile?.teamName ? "Team name cannot be changed after saving" : ""}
                 required
               />
+              {userProfile?.teamName && (
+                <p className={styles.fieldHint}>Team name cannot be changed after first save</p>
+              )}
             </div>
 
             <div className={styles.formGroup}>
@@ -402,7 +435,11 @@ const UserProfilePage = () => {
                 Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
               </p>
             </div>
-
+                  {saveMessage.text && (
+              <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
+                {saveMessage.text}
+              </div>
+            )}
             <button 
               className={styles.saveButton}
               onClick={saveProfile}
@@ -624,6 +661,13 @@ const UserProfilePage = () => {
                     <span>Vice-Captain: {viceCaptain?.name || 'Not selected'}</span>
                   </div>
                 </div>
+              </div>
+              
+              {teamMessage.text && (
+                <div className={`${styles.statusMessage} ${styles[teamMessage.type]}`}>
+                  {teamMessage.text}
+                </div>
+              )}
               </div>
 
               <button 
