@@ -50,9 +50,9 @@ export class DatabaseInitializer {
           viceCaptain: PointService.POINTS.MULTIPLIERS.VICE_CAPTAIN
         },
         user: {
-          lateRegistration: PointService.POINTS.USER.LATE_REGISTRATION,
-          referralBonus: PointService.POINTS.USER.REFERRAL,
-          maxReferrals: PointService.POINTS.USER.MAX_REFERRALS
+          lateRegistration: PointService.POINTS.USER?.LATE_REGISTRATION || -25,
+          referralBonus: PointService.POINTS.USER?.REFERRAL || 25,
+          maxReferrals: PointService.POINTS.USER?.MAX_REFERRALS || 3
         }
       });
 
@@ -66,26 +66,64 @@ export class DatabaseInitializer {
 
   static async initializeTournament() {
     try {
-      // Initialize current tournament
+      // Get current date (for testing)
+      const now = new Date();
+      
+      // IPL 2025 dates
+      const tournamentStart = new Date("2025-03-22"); // IPL starts March 22, 2025
+      const tournamentEnd = new Date("2025-05-25");   // IPL ends May 25, 2025
+      
+      // Registration starts today (March 15, 2025)
+      const registrationStart = new Date("2025-03-15");
+      
+      // Create transfer windows (weekly)
+      // First window: March 15-21 (before tournament starts)
+      // Following windows: Weekly throughout the tournament
+      const transferWindows = [];
+      
+      // First transfer window (pre-tournament)
+      transferWindows.push({
+        startDate: new Date("2025-03-15"), // Today
+        endDate: new Date("2025-03-21"),   // Day before tournament starts
+        weekNumber: 1,
+        status: "active"  // First window is active now
+      });
+      
+      // Weekly windows during the tournament
+      let windowStartDate = new Date("2025-03-29"); // First Saturday after tournament starts
+      let weekNumber = 2;
+      
+      while (windowStartDate <= tournamentEnd) {
+        // Each window is Friday and Saturday
+        const windowEndDate = new Date(windowStartDate);
+        windowEndDate.setDate(windowStartDate.getDate() + 1); // End next day
+        
+        transferWindows.push({
+          startDate: windowStartDate,
+          endDate: windowEndDate,
+          weekNumber: weekNumber,
+          status: "upcoming"
+        });
+        
+        // Move to next week
+        const nextWindowStart = new Date(windowStartDate);
+        nextWindowStart.setDate(windowStartDate.getDate() + 7); // Next Friday
+        windowStartDate = nextWindowStart;
+        weekNumber++;
+      }
+      
+      // Initialize tournament document
       const tournamentData = {
-        name: "IPL, 2025",
-        startDate: new Date("2025-03-22"),
-        endDate: new Date("2025-05-25"),
-        registrationDeadline: new Date("2025-03-22"),
+        name: "IPL 2025",
+        startDate: tournamentStart,
+        endDate: tournamentEnd,
+        registrationDeadline: tournamentStart, // Can register until tournament starts
         status: "active",
-        transferWindows: [
-          {
-            startDate: new Date("2025-03-15"),
-            endDate: new Date("2025-03-22"),
-            weekNumber: 1,
-            status: "upcoming"
-          }
-          // Add more transfer windows as needed
-        ]
+        transferWindows: transferWindows
       };
 
-      await setDoc(doc(db, 'tournaments', 'bbl-2024'), tournamentData);
-      console.log('Tournament initialized');
+      await setDoc(doc(db, 'tournaments', 'ipl-2025'), tournamentData);
+      console.log('Tournament initialized with correct dates and transfer windows');
       return true;
     } catch (error) {
       console.error('Error initializing tournament:', error);
