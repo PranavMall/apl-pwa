@@ -52,42 +52,65 @@ export class transferService {
     }
   }
   
-  // Check if transfer window is active
+// Check if transfer window is active
   static async isTransferWindowActive() {
     try {
+      console.log("Checking transfer window status...");
       const tournament = await this.getActiveTournament();
       
       if (!tournament) {
+        console.log("No active tournament found");
         return { isActive: false, window: null };
       }
       
-      const now = new Date();
-      const transferWindows = tournament.transferWindows || [];
+      console.log("Active tournament found:", tournament.name);
       
-      // Sort windows by start date
-      const sortedWindows = [...transferWindows].sort((a, b) => {
-        const dateA = a.startDate instanceof Timestamp 
-          ? a.startDate.toDate() 
-          : new Date(a.startDate);
-        const dateB = b.startDate instanceof Timestamp 
-          ? b.startDate.toDate() 
-          : new Date(b.startDate);
-        return dateA - dateB;
-      });
+      const now = new Date();
+      console.log("Current date:", now.toISOString());
+      
+      const transferWindows = tournament.transferWindows || [];
+      console.log(`Found ${transferWindows.length} transfer windows`);
       
       // Find current or next window
       let currentWindow = null;
       let nextWindow = null;
       
-      for (const window of sortedWindows) {
-        const startDate = window.startDate instanceof Timestamp 
-          ? window.startDate.toDate() 
-          : new Date(window.startDate);
-        const endDate = window.endDate instanceof Timestamp 
-          ? window.endDate.toDate() 
-          : new Date(window.endDate);
+      for (const window of transferWindows) {
+        // Handle both Firestore Timestamp and JavaScript Date objects
+        let startDate, endDate;
         
-        if (now >= startDate && now <= endDate) {
+        if (window.startDate && typeof window.startDate === 'object' && window.startDate.toDate) {
+          // It's a Firestore Timestamp
+          startDate = window.startDate.toDate();
+        } else if (window.startDate && window.startDate.seconds) {
+          // It's a serialized Timestamp
+          startDate = new Date(window.startDate.seconds * 1000);
+        } else {
+          // It's a Date string or object
+          startDate = new Date(window.startDate);
+        }
+        
+        if (window.endDate && typeof window.endDate === 'object' && window.endDate.toDate) {
+          // It's a Firestore Timestamp
+          endDate = window.endDate.toDate();
+        } else if (window.endDate && window.endDate.seconds) {
+          // It's a serialized Timestamp
+          endDate = new Date(window.endDate.seconds * 1000);
+        } else {
+          // It's a Date string or object
+          endDate = new Date(window.endDate);
+        }
+        
+        console.log(`Window ${window.weekNumber}: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        console.log(`Window status: ${window.status}`);
+        
+        // Add an extra day to end date for inclusive comparison (until end of day)
+        const endOfDayDate = new Date(endDate);
+        endOfDayDate.setHours(23, 59, 59, 999);
+        
+        // Check if current time is within window
+        if (now >= startDate && now <= endOfDayDate) {
+          console.log(`Current time is within window ${window.weekNumber}`);
           currentWindow = {
             ...window,
             startDate: startDate.toISOString(),
@@ -96,6 +119,7 @@ export class transferService {
           break;
         }
         
+        // Track next upcoming window
         if (startDate > now && (!nextWindow || startDate < new Date(nextWindow.startDate))) {
           nextWindow = {
             ...window,
@@ -105,10 +129,44 @@ export class transferService {
         }
       }
       
+      // If a window is marked as active, consider it active regardless of dates
+      if (!currentWindow) {
+        const activeWindow = transferWindows.find(w => w.status === "active");
+        if (activeWindow) {
+          console.log("Found window with active status");
+          let startDate = activeWindow.startDate;
+          let endDate = activeWindow.endDate;
+          
+          if (typeof startDate === 'object' && startDate.toDate) {
+            startDate = startDate.toDate();
+          } else if (startDate && startDate.seconds) {
+            startDate = new Date(startDate.seconds * 1000);
+          } else {
+            startDate = new Date(startDate);
+          }
+          
+          if (typeof endDate === 'object' && endDate.toDate) {
+            endDate = endDate.toDate();
+          } else if (endDate && endDate.seconds) {
+            endDate = new Date(endDate.seconds * 1000);
+          } else {
+            endDate = new Date(endDate);
+          }
+          
+          currentWindow = {
+            ...activeWindow,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          };
+        }
+      }
+      
       if (currentWindow) {
+        console.log("Transfer window is ACTIVE");
         return { isActive: true, window: currentWindow };
       }
       
+      console.log("Transfer window is NOT active");
       return { isActive: false, window: nextWindow };
     } catch (error) {
       console.error('Error checking transfer window:', error);
