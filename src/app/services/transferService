@@ -258,12 +258,12 @@ export class transferService {
       }
       
       // Validate team composition
-      const teamComposition = {
-        batsmen: players.filter(p => p.role === this.ROLES.BATSMAN).length,
-        bowlers: players.filter(p => p.role === this.ROLES.BOWLER).length,
-        allrounders: players.filter(p => p.role === this.ROLES.ALLROUNDER).length,
-        wicketkeepers: players.filter(p => p.role === this.ROLES.WICKETKEEPER).length
-      };
+const teamComposition = {
+  batsmen: players.filter(p => p.role === 'batsman').length,
+  bowlers: players.filter(p => p.role === 'bowler').length,
+  allrounders: players.filter(p => p.role === 'allrounder').length,
+  wicketkeepers: players.filter(p => p.role === 'wicketkeeper').length
+};
       
       for (const [role, count] of Object.entries(teamComposition)) {
         if (count !== this.TEAM_LIMITS[role]) {
