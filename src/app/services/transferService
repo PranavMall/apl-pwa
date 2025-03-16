@@ -17,11 +17,11 @@ import {
 
 export class transferService {
   static ROLES = {
-  BATSMAN: 'batsmen',  // Change from 'batsman' to 'batsmen'
-  BOWLER: 'bowlers',   // Change from 'bowler' to 'bowlers'
-  ALLROUNDER: 'allrounders',  // Change from 'allrounder' to 'allrounders'
-  WICKETKEEPER: 'wicketkeepers'  // Change from 'wicketkeeper' to 'wicketkeepers'
-};
+    BATSMAN: 'batsman',
+    BOWLER: 'bowler',
+    ALLROUNDER: 'allrounder',
+    WICKETKEEPER: 'wicketkeeper'
+  };
   
   static TEAM_LIMITS = {
     [this.ROLES.BATSMAN]: 4,
@@ -257,22 +257,28 @@ export class transferService {
         return { success: false, error: 'Transfer window is not active' };
       }
       
-      // Validate team composition
-const teamComposition = {
-  batsmen: players.filter(p => p.role === 'batsman').length,
-  bowlers: players.filter(p => p.role === 'bowler').length,
-  allrounders: players.filter(p => p.role === 'allrounder').length,
-  wicketkeepers: players.filter(p => p.role === 'wicketkeeper').length
-};
-      
-      for (const [role, count] of Object.entries(teamComposition)) {
-        if (count !== this.TEAM_LIMITS[role]) {
-          return { 
-            success: false, 
-            error: `Team must have exactly ${this.TEAM_LIMITS[role]} ${role}(s)` 
-          };
-        }
-      }
+      // Validate team composition - FIX HERE
+    const batsmenCount = players.filter(p => p.role === this.ROLES.BATSMAN).length;
+    const bowlersCount = players.filter(p => p.role === this.ROLES.BOWLER).length;
+    const allroundersCount = players.filter(p => p.role === this.ROLES.ALLROUNDER).length;
+    const wicketkeepersCount = players.filter(p => p.role === this.ROLES.WICKETKEEPER).length;
+    
+    // Check each role count explicitly
+    if (batsmenCount !== this.TEAM_LIMITS[this.ROLES.BATSMAN]) {
+      return { success: false, error: `Team must have exactly ${this.TEAM_LIMITS[this.ROLES.BATSMAN]} batsmen` };
+    }
+    
+    if (bowlersCount !== this.TEAM_LIMITS[this.ROLES.BOWLER]) {
+      return { success: false, error: `Team must have exactly ${this.TEAM_LIMITS[this.ROLES.BOWLER]} bowlers` };
+    }
+    
+    if (allroundersCount !== this.TEAM_LIMITS[this.ROLES.ALLROUNDER]) {
+      return { success: false, error: `Team must have exactly ${this.TEAM_LIMITS[this.ROLES.ALLROUNDER]} all-rounders` };
+    }
+    
+    if (wicketkeepersCount !== this.TEAM_LIMITS[this.ROLES.WICKETKEEPER]) {
+      return { success: false, error: `Team must have exactly ${this.TEAM_LIMITS[this.ROLES.WICKETKEEPER]} wicket-keeper` };
+    }
       
       // Check if team exists
       const userTeam = await this.getUserTeam(userId, tournament.id);
