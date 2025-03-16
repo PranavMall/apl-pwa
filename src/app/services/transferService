@@ -17,11 +17,11 @@ import {
 
 export class transferService {
   static ROLES = {
-    BATSMAN: 'batsman',
-    BOWLER: 'bowler',
-    ALLROUNDER: 'allrounder',
-    WICKETKEEPER: 'wicketkeeper'
-  };
+  BATSMAN: 'batsmen',  // Change from 'batsman' to 'batsmen'
+  BOWLER: 'bowlers',   // Change from 'bowler' to 'bowlers'
+  ALLROUNDER: 'allrounders',  // Change from 'allrounder' to 'allrounders'
+  WICKETKEEPER: 'wicketkeepers'  // Change from 'wicketkeeper' to 'wicketkeepers'
+};
   
   static TEAM_LIMITS = {
     [this.ROLES.BATSMAN]: 4,
