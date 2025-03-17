@@ -52,7 +52,7 @@ export class transferService {
     }
   }
 
-// Update isTransferWindowActive to more reliably detect active windows
+// Replace or update your isTransferWindowActive function with this implementation
 static async isTransferWindowActive() {
   try {
     console.log("Checking transfer window status...");
@@ -65,65 +65,84 @@ static async isTransferWindowActive() {
     
     console.log("Active tournament found:", tournament.name);
     
-    const now = new Date();
-    console.log("Current date:", now.toISOString());
-    
     const transferWindows = tournament.transferWindows || [];
     console.log(`Found ${transferWindows.length} transfer windows`);
     
-    // Find current or next window
-    let currentWindow = null;
-    let nextWindow = null;
-    
-    // First check for explicitly active windows
-    const activeWindow = transferWindows.find(w => w.status === "active");
-    if (activeWindow) {
-      console.log("Found window explicitly marked as active");
-      currentWindow = {
-        ...activeWindow,
-        startDate: typeof activeWindow.startDate === 'object' ? 
-                  activeWindow.startDate.toDate?.() || activeWindow.startDate : 
-                  new Date(activeWindow.startDate),
-        endDate: typeof activeWindow.endDate === 'object' ? 
-                activeWindow.endDate.toDate?.() || activeWindow.endDate : 
-                new Date(activeWindow.endDate)
-      };
-      
-      return { isActive: true, window: currentWindow };
+    // First check: Is any window explicitly marked as "active"?
+    for (const window of transferWindows) {
+      if (window.status === "active") {
+        console.log(`Found window with explicit 'active' status: Week ${window.weekNumber}`);
+        
+        // Convert dates to proper format
+        const startDate = window.startDate instanceof Date ? 
+                         window.startDate : 
+                         (window.startDate?.toDate ? 
+                          window.startDate.toDate() : 
+                          new Date(window.startDate));
+                         
+        const endDate = window.endDate instanceof Date ? 
+                       window.endDate : 
+                       (window.endDate?.toDate ? 
+                        window.endDate.toDate() : 
+                        new Date(window.endDate));
+        
+        return { 
+          isActive: true, 
+          window: {
+            ...window,
+            startDate: startDate,
+            endDate: endDate
+          }
+        };
+      }
     }
     
-    // Then check date-based windows
+    // Second check: Is current time within any window date range?
+    const now = new Date();
+    let nextWindow = null;
+    
     for (const window of transferWindows) {
-      // Handle date conversion (existing code)
-      // ...
+      const startDate = window.startDate instanceof Date ? 
+                       window.startDate : 
+                       (window.startDate?.toDate ? 
+                        window.startDate.toDate() : 
+                        new Date(window.startDate));
+                       
+      const endDate = window.endDate instanceof Date ? 
+                     window.endDate : 
+                     (window.endDate?.toDate ? 
+                      window.endDate.toDate() : 
+                      new Date(window.endDate));
       
-      // Check if current time is within window
-      if (now >= startDate && now <= endOfDayDate) {
-        console.log(`Current time is within window ${window.weekNumber}`);
-        currentWindow = {
-          ...window,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
+      // Add an extra day to end date for inclusive comparison
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setHours(23, 59, 59, 999);
+      
+      console.log(`Comparing current time to window ${window.weekNumber}: ${startDate} - ${adjustedEndDate}`);
+      
+      if (now >= startDate && now <= adjustedEndDate) {
+        console.log(`Current time is within window dates: Week ${window.weekNumber}`);
+        return { 
+          isActive: true, 
+          window: {
+            ...window,
+            startDate: startDate,
+            endDate: endDate
+          }
         };
-        break;
       }
       
       // Track next upcoming window
-      if (startDate > now && (!nextWindow || startDate < new Date(nextWindow.startDate))) {
+      if (startDate > now && (!nextWindow || startDate < nextWindow.startDate)) {
         nextWindow = {
           ...window,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
+          startDate: startDate,
+          endDate: endDate
         };
       }
     }
     
-    if (currentWindow) {
-      console.log("Transfer window is ACTIVE");
-      return { isActive: true, window: currentWindow };
-    }
-    
-    console.log("Transfer window is NOT active");
+    console.log("No active transfer window found");
     return { isActive: false, window: nextWindow };
   } catch (error) {
     console.error('Error checking transfer window:', error);
