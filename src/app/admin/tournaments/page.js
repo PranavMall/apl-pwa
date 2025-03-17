@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/authContext';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, deleteDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import withAuth from '@/app/components/withAuth';
 import styles from './admin.module.css';
@@ -16,6 +16,7 @@ const AdminTournamentPage = () => {
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [transferWindows, setTransferWindows] = useState([]);
+  const [matchAssignments, setMatchAssignments] = useState([]);
   const convertToGST = (dateString) => {
     if (!dateString) return null;
     const date = new Date(dateString);
@@ -67,6 +68,30 @@ const AdminTournamentPage = () => {
     }
   };
 
+  // Add this function to your AdminTournamentPage component
+const fetchMatchAssignments = async () => {
+  if (!selectedTournament) return;
+  
+  try {
+    const assignmentsRef = collection(db, 'matchWeeks');
+    const q = query(assignmentsRef, where('tournamentId', '==', selectedTournament.id));
+    const snapshot = await getDocs(q);
+    
+    const assignments = [];
+    snapshot.forEach(doc => {
+      assignments.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    setMatchAssignments(assignments);
+  } catch (error) {
+    console.error('Error fetching match assignments:', error);
+    setMessage({ type: 'error', text: `Error fetching match assignments: ${error.message}` });
+  }
+};
+
   // Fetch all tournaments
   const fetchTournaments = async () => {
     try {
@@ -105,6 +130,17 @@ const AdminTournamentPage = () => {
     }
   };
 
+  const handleDeleteAssignment = async (matchId) => {
+  try {
+    await deleteDoc(doc(db, 'matchWeeks', matchId));
+    setMessage({ type: 'success', text: 'Match assignment deleted successfully' });
+    fetchMatchAssignments();
+  } catch (error) {
+    console.error('Error deleting match assignment:', error);
+    setMessage({ type: 'error', text: `Error deleting match assignment: ${error.message}` });
+  }
+};
+
   // Helper function to format dates from Firestore
   const formatDate = (firestoreDate) => {
     if (!firestoreDate) return '';
@@ -122,36 +158,40 @@ const AdminTournamentPage = () => {
   };
 
   // Handle selecting a tournament
-  const handleSelectTournament = (tournament) => {
-    setSelectedTournament(tournament);
-    
-    // Extract transfer windows
-    const windows = tournament.transferWindows || [];
-    
-    // Sort windows by week number
-    const sortedWindows = [...windows].sort((a, b) => a.weekNumber - b.weekNumber);
-    
-    // Format dates for display
-    const processedWindows = sortedWindows.map(window => ({
-      ...window,
-      displayStartDate: formatDate(window.startDate),
-      displayEndDate: formatDate(window.endDate)
-    }));
-    
-    setTransferWindows(processedWindows);
-    
-    // Reset new window form with the next week number
-    const nextWeekNumber = processedWindows.length > 0 
-      ? Math.max(...processedWindows.map(w => w.weekNumber)) + 1 
-      : 1;
-    
-    setNewWindow({
-      startDate: '',
-      endDate: '',
-      weekNumber: nextWeekNumber,
-      status: 'upcoming'
-    });
-  };
+// Modify your handleSelectTournament function to also fetch match assignments
+const handleSelectTournament = (tournament) => {
+  setSelectedTournament(tournament);
+  
+  // Extract transfer windows
+  const windows = tournament.transferWindows || [];
+  
+  // Sort windows by week number
+  const sortedWindows = [...windows].sort((a, b) => a.weekNumber - b.weekNumber);
+  
+  // Format dates for display
+  const processedWindows = sortedWindows.map(window => ({
+    ...window,
+    displayStartDate: formatDate(window.startDate),
+    displayEndDate: formatDate(window.endDate)
+  }));
+  
+  setTransferWindows(processedWindows);
+  
+  // Reset new window form with the next week number
+  const nextWeekNumber = processedWindows.length > 0 
+    ? Math.max(...processedWindows.map(w => w.weekNumber)) + 1 
+    : 1;
+  
+  setNewWindow({
+    startDate: '',
+    endDate: '',
+    weekNumber: nextWeekNumber,
+    status: 'upcoming'
+  });
+  
+  // Add this line to fetch match assignments
+  fetchMatchAssignments();
+};
 
   // Handle input change for new tournament
   const handleTournamentChange = (e) => {
@@ -517,6 +557,40 @@ const handleAssignMatch = async (e) => {
             </form>
           </div>
         </div>
+                    <div className={styles.matchAssignments}>
+  <h3>Current Match Assignments</h3>
+  {matchAssignments.length > 0 ? (
+    <table className={styles.windowsTable}>
+      <thead>
+        <tr>
+          <th>Match ID</th>
+          <th>Week Number</th>
+          <th>Assigned At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {matchAssignments.map((assignment) => (
+          <tr key={assignment.id}>
+            <td>{assignment.matchId}</td>
+            <td>Week {assignment.weekNumber}</td>
+            <td>{assignment.assignedAt ? new Date(assignment.assignedAt.seconds * 1000).toLocaleString() : 'N/A'}</td>
+            <td>
+              <button
+                className={styles.actionButton}
+                onClick={() => handleDeleteAssignment(assignment.matchId)}
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ) : (
+    <p className={styles.noData}>No match assignments yet.</p>
+  )}
+</div>
         
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Transfer Windows Management</h2>
