@@ -1,6 +1,7 @@
 // app/api/cron/update-matches/route.js
 import { cricketService } from '@/app/services/cricketService';
 import { PointService } from '@/app/services/pointService';
+import { transferService } from "@/app/services/transferService";
 import { PlayerMasterService } from '@/app/services/PlayerMasterService'; 
 import { NextResponse } from 'next/server';
 import { 
@@ -359,6 +360,20 @@ export async function GET(request) {
           });
         }
       }
+      // Add this code before the final return statement:
+if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
+  // For each processed match, update user team points
+  for (const result of results) {
+    if (result.status === 'completed' || result.pointsCalculated) {
+      try {
+        await transferService.updateUserWeeklyStats(result.matchId);
+        console.log(`Updated user weekly stats for match ${result.matchId}`);
+      } catch (error) {
+        console.error(`Error updating user weekly stats for match ${result.matchId}:`, error);
+      }
+    }
+  }
+}
 
       const totalElapsedSeconds = (Date.now() - requestStartTime) / 1000;
       return NextResponse.json({
