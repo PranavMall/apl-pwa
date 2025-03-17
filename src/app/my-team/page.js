@@ -121,102 +121,129 @@ const MyTeamPage = () => {
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>My Team</h1>
-      
       {transferWindow && (
         <div className={styles.transferInfo}>
-          <h3>Transfer Window Status</h3>
-          <div className={styles.transferStatus}>
-            {isTransferActive ? (
-              <div className={styles.activeWindow}>
-                <span>Transfer Window Open!</span>
-                <button
-                  className={styles.editTeamButton}
-                  onClick={() => router.push('/profile')}
-                >
-                  Edit Team
-                </button>
-              </div>
-            ) : (
-              <div className={styles.inactiveWindow}>
-                <span>Transfer Window Closed</span>
-                <p>Next window opens on {new Date(transferWindow.startDate).toLocaleDateString()}</p>
-              </div>
-            )}
-            <div className={styles.transfersRemaining}>
-              <span>Transfers Remaining: {userTeam.transfersRemaining || 0}</span>
-            </div>
-          </div>
+        <h3>Transfer Window Status</h3>
+        <div className={styles.transferStatus}>
+      {isTransferActive ? (
+        <div className={styles.activeWindow}>
+          <span>Transfer Window Open!</span>
+          <button
+            className={styles.editTeamButton}
+            // Remove the redirect to profile page
+            // Just display a message or let them edit directly on this page
+            onClick={() => setMessage({ type: 'info', text: 'You can edit your team directly on this page' })}
+          >
+            Edit Team
+          </button>
+        </div>
+      ) : (
+        <div className={styles.inactiveWindow}>
+          <span>Transfer Window Closed</span>
+          <p>Next window opens on {new Date(transferWindow.startDate).toLocaleDateString()}</p>
         </div>
       )}
+      <div className={styles.transfersRemaining}>
+        <span>Transfers Remaining: {userTeam.transfersRemaining || 0}</span>
+      </div>
+    </div>
+  </div>
+)}
 
       <div className={styles.teamDisplay}>
-        <Card className={styles.teamCard}>
-          <CardHeader>
-            <CardTitle>Current Team</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={styles.specialPlayers}>
-              <div className={styles.playerRole}>
-                <h3>Captain</h3>
-                {captain ? (
-                  <div className={styles.captainCard}>
-                    <span className={styles.captainName}>{captain.name}</span>
-                    <div className={styles.playerDetails}>
-                      <span className={styles.roleBadge}>{captain.role}</span>
-                      <span className={styles.teamBadge}>{captain.team}</span>
-                    </div>
-                    <div className={styles.captainMultiplier}>
-                      2x Points
-                    </div>
+  <Card className={styles.teamCard}>
+    <CardHeader>
+      <CardTitle>Current Team</CardTitle>
+    </CardHeader>
+    <CardContent>
+      {userTeam ? (
+        <>
+          <div className={styles.specialPlayers}>
+            <div className={styles.playerRole}>
+              <h3>Captain</h3>
+              {userTeam.players.find(p => p.isCaptain) ? (
+                <div className={styles.captainCard}>
+                  <span className={styles.captainName}>{userTeam.players.find(p => p.isCaptain).name}</span>
+                  <div className={styles.playerDetails}>
+                    <span className={styles.roleBadge}>{userTeam.players.find(p => p.isCaptain).role}</span>
+                    <span className={styles.teamBadge}>{userTeam.players.find(p => p.isCaptain).team}</span>
                   </div>
-                ) : (
-                  <div className={styles.notSelected}>Not selected</div>
-                )}
-              </div>
-              
-              <div className={styles.playerRole}>
-                <h3>Vice-Captain</h3>
-                {viceCaptain ? (
-                  <div className={styles.viceCaptainCard}>
-                    <span className={styles.captainName}>{viceCaptain.name}</span>
-                    <div className={styles.playerDetails}>
-                      <span className={styles.roleBadge}>{viceCaptain.role}</span>
-                      <span className={styles.teamBadge}>{viceCaptain.team}</span>
-                    </div>
-                    <div className={styles.captainMultiplier}>
-                      1.5x Points
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.notSelected}>Not selected</div>
-                )}
-              </div>
-            </div>
-            
-            <div className={styles.playerCategories}>
-              {Object.entries(groupedPlayers).map(([role, players]) => (
-                <div key={role} className={styles.roleSection}>
-                  <h3 className={styles.roleTitle}>{role.charAt(0).toUpperCase() + role.slice(1)}s ({players.length})</h3>
-                  <div className={styles.playersGrid}>
-                    {players.map(player => (
-                      <div key={player.id} className={styles.playerCard}>
-                        <div className={styles.playerName}>{player.name}</div>
-                        <div className={styles.playerTeam}>{player.team}</div>
-                        {(player.isCaptain || player.isViceCaptain) && (
-                          <div className={styles.captainBadge}>
-                            {player.isCaptain ? 'C' : 'VC'}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  <div className={styles.captainMultiplier}>
+                    2x Points
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div className={styles.notSelected}>Not selected</div>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
+            
+            <div className={styles.playerRole}>
+              <h3>Vice-Captain</h3>
+              {userTeam.players.find(p => p.isViceCaptain) ? (
+                <div className={styles.viceCaptainCard}>
+                  <span className={styles.captainName}>{userTeam.players.find(p => p.isViceCaptain).name}</span>
+                  <div className={styles.playerDetails}>
+                    <span className={styles.roleBadge}>{userTeam.players.find(p => p.isViceCaptain).role}</span>
+                    <span className={styles.teamBadge}>{userTeam.players.find(p => p.isViceCaptain).team}</span>
+                  </div>
+                  <div className={styles.captainMultiplier}>
+                    1.5x Points
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.notSelected}>Not selected</div>
+              )}
+            </div>
+          </div>
+          
+          <div className={styles.playerCategories}>
+            {Object.entries(groupPlayersByRole(userTeam.players || [])).map(([role, players]) => (
+              <div key={role} className={styles.roleSection}>
+                <h3 className={styles.roleTitle}>{role.charAt(0).toUpperCase() + role.slice(1)}s ({players.length})</h3>
+                <div className={styles.playersGrid}>
+                  {players.map(player => (
+                    <div key={player.id} className={styles.playerCard}>
+                      <div className={styles.playerName}>{player.name}</div>
+                      <div className={styles.playerTeam}>{player.team}</div>
+                      {(player.isCaptain || player.isViceCaptain) && (
+                        <div className={styles.captainBadge}>
+                          {player.isCaptain ? 'C' : 'VC'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {isTransferActive && (
+            <div className={styles.editOptions}>
+              <button 
+                className={styles.editTeamButton}
+                onClick={() => router.push('/profile')}
+              >
+                Edit Team
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className={styles.noTeamMessage}>
+          <p>You don't have a team yet for the current tournament.</p>
+          {isTransferActive && (
+            <button 
+              className={styles.createTeamButton}
+              onClick={() => router.push('/profile')}
+            >
+              Create Team
+            </button>
+          )}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</div>
       <div className={styles.statsSection}>
         <Card className={styles.statsCard}>
           <CardHeader>
