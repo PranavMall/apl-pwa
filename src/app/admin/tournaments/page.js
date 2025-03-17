@@ -15,6 +15,13 @@ const AdminTournamentPage = () => {
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [transferWindows, setTransferWindows] = useState([]);
+  const convertToGST = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    // No need to adjust timezone as Firestore handles this
+    // Firebase stores dates in UTC and will convert to the client's timezone when displayed
+    return date;
+  };
   
   // New tournament form
   const [newTournament, setNewTournament] = useState({
