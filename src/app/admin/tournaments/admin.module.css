@@ -1,0 +1,383 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: var(--font-geist-sans, sans-serif);
+  /* Add substantial padding to avoid bottom nav overlap */
+  padding-bottom: 120px;
+}
+
+.pageTitle {
+  font-size: 28px;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.errorMessage {
+  background: #ffebee;
+  color: #c62828;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.message {
+  padding: 10px 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.info {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.sectionTitle {
+  font-size: 22px;
+  margin-bottom: 20px;
+  color: #333;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+/* Tournament List */
+.tournamentList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.tournamentItem {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 4px solid transparent;
+}
+
+.tournamentItem:hover {
+  background: #f0f0f0;
+}
+
+.tournamentItem.selected {
+  background: #f0f7ff;
+  border-left: 4px solid #2196f3;
+}
+
+.tournamentItem h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.tournamentDetails {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Status colors */
+.active {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.upcoming {
+  color: #0d47a1;
+  font-weight: 600;
+}
+
+.completed {
+  color: #555;
+  font-weight: 600;
+}
+
+/* Form Container */
+.formContainer {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.formContainer h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #333;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.formGroup input,
+.formGroup select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  color: #333;
+}
+
+.formGroup input:focus,
+.formGroup select:focus {
+  border-color: #2196f3;
+  outline: none;
+}
+
+.button {
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 10px;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+/* Tournament Header */
+.tournamentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.tournamentHeader h3 {
+  font-size: 20px;
+  margin: 0;
+  color: #333;
+}
+
+.statusButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.statusButton {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.statusButton.selected {
+  color: white;
+}
+
+.statusButton:hover {
+  opacity: 0.9;
+}
+
+.statusButton:nth-child(1) {
+  background: #f0f7ff;
+  color: #0d47a1;
+}
+
+.statusButton:nth-child(1).selected {
+  background: #0d47a1;
+}
+
+.statusButton:nth-child(2) {
+  background: #f1f8e9;
+  color: #2e7d32;
+}
+
+.statusButton:nth-child(2).selected {
+  background: #2e7d32;
+}
+
+.statusButton:nth-child(3) {
+  background: #f5f5f5;
+  color: #616161;
+}
+
+.statusButton:nth-child(3).selected {
+  background: #616161;
+}
+
+/* Transfer Windows Table */
+.windowsList {
+  margin-bottom: 30px;
+}
+
+.windowsList h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #333;
+}
+
+.windowsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.windowsTable th {
+  background: #f5f5f5;
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+}
+
+.windowsTable td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.actionButton {
+  margin-right: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.actionButton:hover {
+  opacity: 0.9;
+}
+
+.actionButton:nth-child(1) {
+  background: #f1f8e9;
+  color: #2e7d32;
+}
+
+.actionButton:nth-child(1).selected {
+  background: #2e7d32;
+  color: white;
+}
+
+.actionButton:nth-child(2) {
+  background: #f0f7ff;
+  color: #0d47a1;
+}
+
+.actionButton:nth-child(2).selected {
+  background: #0d47a1;
+  color: white;
+}
+
+.actionButton:nth-child(3) {
+  background: #f5f5f5;
+  color: #616161;
+}
+
+.actionButton:nth-child(3).selected {
+  background: #616161;
+  color: white;
+}
+
+.noData {
+  color: #888;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.noSelection {
+  color: #888;
+  font-style: italic;
+  text-align: center;
+  padding: 30px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .container {
+    padding: 15px;
+    padding-bottom: 100px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tournamentHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .statusButtons {
+    width: 100%;
+  }
+  
+  .actionButton {
+    display: block;
+    width: 100%;
+    margin-bottom: 5px;
+  }
+  
+  .windowsTable {
+    display: block;
+    overflow-x: auto;
+  }
+}
