@@ -48,10 +48,10 @@ const BottomNavigation = () => {
   const loggedInLinks = [
     { label: "Dashboard", href: "/dashboard", icon: "🏠" },
     { label: "Leaderboard", href: "/leaderboard", icon: "📊" },
-    { label: "Player Performance", href: "/player-performance", icon: "⚾" },
+    { label: "Player Performance", href: "/player-performance", icon: "🏏" },
     { 
-      label: "Settings", 
-      href: "/settings", 
+      label: "Profile", 
+      href: "/profile", 
       icon: getProfileIcon()
     },
   ];
