@@ -173,6 +173,152 @@ static async isTransferWindowActive() {
     throw error;
   }
 }
+
+static async updateUserWeeklyStats(matchId) {
+  try {
+    // Get all user teams
+    const userTeamsRef = collection(db, 'userTeams');
+    const teamsSnapshot = await getDocs(userTeamsRef);
+    
+    // Get match data to determine week number
+    const matchRef = doc(db, 'matches', matchId);
+    const matchDoc = await getDoc(matchRef);
+    if (!matchDoc.exists()) {
+      throw new Error(`Match ${matchId} not found`);
+    }
+    
+    const matchData = matchDoc.data();
+    const matchDate = matchData.matchInfo?.startDate || new Date();
+    
+    // Get active tournament
+    const tournament = await this.getActiveTournament();
+    if (!tournament) {
+      console.warn('No active tournament found');
+      return;
+    }
+    
+    // Find which week this match belongs to
+    const matchWeek = this.findMatchWeek(matchDate, tournament.transferWindows);
+    if (!matchWeek) {
+      console.warn(`Could not determine week for match ${matchId}`);
+      return;
+    }
+    
+    // Process each user team
+    const updatePromises = [];
+    teamsSnapshot.forEach(teamDoc => {
+      const team = teamDoc.data();
+      const userId = team.userId;
+      const players = team.players || [];
+      
+      updatePromises.push(
+        this.calculateAndUpdateUserPoints(userId, players, matchId, tournament.id, matchWeek)
+      );
+    });
+    
+    await Promise.all(updatePromises);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating user weekly stats:', error);
+    throw error;
+  }
+}
+
+static findMatchWeek(matchDate, transferWindows) {
+  // Find the transfer window that includes this match date
+  for (const window of transferWindows) {
+    const startDate = window.startDate instanceof Timestamp 
+      ? window.startDate.toDate() 
+      : new Date(window.startDate);
+    const endDate = window.endDate instanceof Timestamp 
+      ? window.endDate.toDate() 
+      : new Date(window.endDate);
+    
+    if (matchDate >= startDate && matchDate <= endDate) {
+      return window.weekNumber;
+    }
+  }
+  
+  // If no exact match, use the closest window before the match
+  let closestWindow = null;
+  let smallestDiff = Number.MAX_SAFE_INTEGER;
+  
+  for (const window of transferWindows) {
+    const endDate = window.endDate instanceof Timestamp 
+      ? window.endDate.toDate() 
+      : new Date(window.endDate);
+    
+    if (endDate <= matchDate) {
+      const diff = matchDate - endDate;
+      if (diff < smallestDiff) {
+        smallestDiff = diff;
+        closestWindow = window;
+      }
+    }
+  }
+  
+  return closestWindow ? closestWindow.weekNumber : null;
+}
+
+static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber) {
+  try {
+    // Initialize total points for this match
+    let totalPoints = 0;
+    
+    // Get match points for each player
+    for (const player of players) {
+      // Create player doc ID from name or use existing ID
+      const playerId = player.id;
+      
+      // Check if player has points for this match
+      const pointsRef = doc(db, 'playerPoints', `${playerId}_${matchId}`);
+      const pointsDoc = await getDoc(pointsRef);
+      
+      if (pointsDoc.exists()) {
+        const playerPoints = pointsDoc.data().points || 0;
+        
+        // Apply captain/vice-captain multipliers
+        let multipliedPoints = playerPoints;
+        if (player.isCaptain) {
+          multipliedPoints *= 2;
+        } else if (player.isViceCaptain) {
+          multipliedPoints *= 1.5;
+        }
+        
+        totalPoints += multipliedPoints;
+      }
+    }
+    
+    // Update user's weekly stats
+    const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournamentId}_${weekNumber}`);
+    const weeklyStatsDoc = await getDoc(weeklyStatsRef);
+    
+    if (weeklyStatsDoc.exists()) {
+      // Update existing stats
+      const currentPoints = weeklyStatsDoc.data().points || 0;
+      await updateDoc(weeklyStatsRef, {
+        points: currentPoints + totalPoints,
+        updatedAt: new Date()
+      });
+    } else {
+      // Create new stats entry
+      await setDoc(weeklyStatsRef, {
+        userId,
+        tournamentId,
+        weekNumber,
+        points: totalPoints,
+        rank: 0,
+        transferWindowId: `${weekNumber}`,
+        createdAt: new Date()
+      });
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Error calculating points for user ${userId}:`, error);
+    return { success: false, error: error.message };
+  }
+}
   
   // Get user's team for a tournament
   static async getUserTeam(userId, tournamentId) {
