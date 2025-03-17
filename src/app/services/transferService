@@ -51,114 +51,85 @@ export class transferService {
       throw error;
     }
   }
-  
-// Check if transfer window is active
-  static async isTransferWindowActive() {
-    try {
-      console.log("Checking transfer window status...");
-      const tournament = await this.getActiveTournament();
+
+// Update isTransferWindowActive to more reliably detect active windows
+static async isTransferWindowActive() {
+  try {
+    console.log("Checking transfer window status...");
+    const tournament = await this.getActiveTournament();
+    
+    if (!tournament) {
+      console.log("No active tournament found");
+      return { isActive: false, window: null };
+    }
+    
+    console.log("Active tournament found:", tournament.name);
+    
+    const now = new Date();
+    console.log("Current date:", now.toISOString());
+    
+    const transferWindows = tournament.transferWindows || [];
+    console.log(`Found ${transferWindows.length} transfer windows`);
+    
+    // Find current or next window
+    let currentWindow = null;
+    let nextWindow = null;
+    
+    // First check for explicitly active windows
+    const activeWindow = transferWindows.find(w => w.status === "active");
+    if (activeWindow) {
+      console.log("Found window explicitly marked as active");
+      currentWindow = {
+        ...activeWindow,
+        startDate: typeof activeWindow.startDate === 'object' ? 
+                  activeWindow.startDate.toDate?.() || activeWindow.startDate : 
+                  new Date(activeWindow.startDate),
+        endDate: typeof activeWindow.endDate === 'object' ? 
+                activeWindow.endDate.toDate?.() || activeWindow.endDate : 
+                new Date(activeWindow.endDate)
+      };
       
-      if (!tournament) {
-        console.log("No active tournament found");
-        return { isActive: false, window: null };
+      return { isActive: true, window: currentWindow };
+    }
+    
+    // Then check date-based windows
+    for (const window of transferWindows) {
+      // Handle date conversion (existing code)
+      // ...
+      
+      // Check if current time is within window
+      if (now >= startDate && now <= endOfDayDate) {
+        console.log(`Current time is within window ${window.weekNumber}`);
+        currentWindow = {
+          ...window,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        };
+        break;
       }
       
-      console.log("Active tournament found:", tournament.name);
-      
-      const now = new Date();
-      console.log("Current date:", now.toISOString());
-      
-      const transferWindows = tournament.transferWindows || [];
-      console.log(`Found ${transferWindows.length} transfer windows`);
-      
-      // Find current or next window
-      let currentWindow = null;
-      let nextWindow = null;
-      
-      for (const window of transferWindows) {
-        // Handle both Firestore Timestamp and JavaScript Date objects
-        let startDate, endDate;
-        
-        if (window.startDate && typeof window.startDate === 'object' && window.startDate.toDate) {
-          // It's a Firestore Timestamp
-          startDate = window.startDate.toDate();
-        } else if (window.startDate && window.startDate.seconds) {
-          // It's a serialized Timestamp
-          startDate = new Date(window.startDate.seconds * 1000);
-        } else {
-          // It's a Date string or object
-          startDate = new Date(window.startDate);
-        }
-        
-        if (window.endDate && typeof window.endDate === 'object' && window.endDate.toDate) {
-          // It's a Firestore Timestamp
-          endDate = window.endDate.toDate();
-        } else if (window.endDate && window.endDate.seconds) {
-          // It's a serialized Timestamp
-          endDate = new Date(window.endDate.seconds * 1000);
-        } else {
-          // It's a Date string or object
-          endDate = new Date(window.endDate);
-        }
-        
-        console.log(`Window ${window.weekNumber}: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-        console.log(`Window status: ${window.status}`);
-        
-        // Add an extra day to end date for inclusive comparison (until end of day)
-        const endOfDayDate = new Date(endDate);
-        endOfDayDate.setHours(23, 59, 59, 999);
-        
-        // Check if current time is within window
-        if (now >= startDate && now <= endOfDayDate) {
-          console.log(`Current time is within window ${window.weekNumber}`);
-          currentWindow = {
-            ...window,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString()
-          };
-          break;
-        }
-        
-        // Track next upcoming window
-        if (startDate > now && (!nextWindow || startDate < new Date(nextWindow.startDate))) {
-          nextWindow = {
-            ...window,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString()
-          };
-        }
+      // Track next upcoming window
+      if (startDate > now && (!nextWindow || startDate < new Date(nextWindow.startDate))) {
+        nextWindow = {
+          ...window,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        };
       }
-      
-      // If a window is marked as active, consider it active regardless of dates
-if (!currentWindow) {
-  // If no window is active based on dates, check if any window is explicitly marked as active
-  const activeWindow = transferWindows.find(w => w.status === "active");
-  if (activeWindow) {
-    console.log("Found window marked as active regardless of date");
-    currentWindow = {
-      ...activeWindow,
-      startDate: typeof activeWindow.startDate === 'object' ? 
-                 activeWindow.startDate.toDate?.() || activeWindow.startDate : 
-                 new Date(activeWindow.startDate),
-      endDate: typeof activeWindow.endDate === 'object' ? 
-              activeWindow.endDate.toDate?.() || activeWindow.endDate : 
-              new Date(activeWindow.endDate)
-    };
+    }
+    
+    if (currentWindow) {
+      console.log("Transfer window is ACTIVE");
+      return { isActive: true, window: currentWindow };
+    }
+    
+    console.log("Transfer window is NOT active");
+    return { isActive: false, window: nextWindow };
+  } catch (error) {
+    console.error('Error checking transfer window:', error);
+    throw error;
   }
 }
-      
-      if (currentWindow) {
-        console.log("Transfer window is ACTIVE");
-        return { isActive: true, window: currentWindow };
-      }
-      
-      console.log("Transfer window is NOT active");
-      return { isActive: false, window: nextWindow };
-    } catch (error) {
-      console.error('Error checking transfer window:', error);
-      throw error;
-    }
-  }
   
   // Get user's team for a tournament
   static async getUserTeam(userId, tournamentId) {
@@ -176,6 +147,76 @@ if (!currentWindow) {
       throw error;
     }
   }
+
+// Add to src/app/services/transferService.js
+static async getUserWeeklyStats(userId) {
+  try {
+    const tournament = await this.getActiveTournament();
+    
+    if (!tournament) {
+      return [];
+    }
+    
+    // Modify this query to get ALL weekly stats, not just those from active windows
+    const weeklyStatsRef = collection(db, 'userWeeklyStats');
+    const q = query(
+      weeklyStatsRef, 
+      where('userId', '==', userId),
+      where('tournamentId', '==', tournament.id),
+      orderBy('weekNumber', 'desc')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    const weeklyStats = [];
+    snapshot.forEach(doc => {
+      weeklyStats.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return weeklyStats;
+  } catch (error) {
+    console.error('Error getting user weekly stats:', error);
+    throw error;
+  }
+}
+// Add to src/app/services/transferService.js
+// This function should run on a schedule (via cron job) or when matches are processed
+
+static async ensureWeeklyStatsForAllUsers(tournamentId) {
+  try {
+    // Get active tournament
+    const tournament = await this.getActiveTournament();
+    if (!tournament) return { success: false, error: 'No active tournament found' };
+    
+    // Get all users with teams
+    const userTeamsRef = collection(db, 'userTeams');
+    const q = query(userTeamsRef, where('tournamentId', '==', tournamentId));
+    const snapshot = await getDocs(q);
+    
+    const promises = [];
+    snapshot.forEach(doc => {
+      const userData = doc.data();
+      // Get current week number or latest window
+      const currentWindow = tournament.transferWindows.find(w => w.status === 'active') || 
+        tournament.transferWindows.sort((a, b) => b.weekNumber - a.weekNumber)[0];
+      
+      if (currentWindow) {
+        promises.push(
+          this.createWeeklyStatsEntry(userData.userId, tournament.id, currentWindow)
+        );
+      }
+    });
+    
+    await Promise.all(promises);
+    return { success: true };
+  } catch (error) {
+    console.error('Error ensuring weekly stats:', error);
+    throw error;
+  }
+}
   
   // Get all available players
   static async getAvailablePlayers() {
