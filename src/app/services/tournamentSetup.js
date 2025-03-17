@@ -27,15 +27,19 @@ export const createTournament = async () => {
     // IMPORTANT: First window is NOW for testing
     // Make it active for the current date and the next 3 days
     const currentDate = new Date(now);
+    // Set start date to beginning of today
+    currentDate.setHours(0, 0, 0, 0);
     const endDate = new Date(now);
+    endDate.setDate(now.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
     endDate.setDate(now.getDate() - 1); // Testing end date scenario
     
     transferWindows.push({
-      startDate: currentDate,
-      endDate: endDate,
-      weekNumber: 1,
-      status: "active"  // Explicitly mark as active
-    });
+  startDate: currentDate,
+  endDate: endDate,
+  weekNumber: 1,
+  status: "active"  // Explicitly mark as active
+});
     
     // Add more future windows
     for (let i = 1; i <= 8; i++) {
