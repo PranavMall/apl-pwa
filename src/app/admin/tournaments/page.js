@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orde
 import { db } from '../../../firebase';
 import withAuth from '@/app/components/withAuth';
 import styles from './admin.module.css';
+import { transferService } from "@/app/services/transferService";
 
 const AdminTournamentPage = () => {
   const { user } = useAuth();
