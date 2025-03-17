@@ -54,19 +54,19 @@ const MyTeamPage = () => {
   };
   
   const checkTransferWindow = async () => {
-    try {
-      const { isActive, window } = await transferService.isTransferWindowActive();
-      setIsTransferActive(isActive);
-      setTransferWindow(window);
-      
-      // If transfer window is active, redirect to profile page
-      if (isActive) {
-        router.push('/profile');
-      }
-    } catch (error) {
-      console.error('Error checking transfer window:', error);
-    }
-  };
+  try {
+    const { isActive, window } = await transferService.isTransferWindowActive();
+    setIsTransferActive(isActive);
+    setTransferWindow(window);
+    
+    // Remove these lines:
+    // if (isActive) {
+    //   router.push('/profile');
+    // }
+  } catch (error) {
+    console.error('Error checking transfer window:', error);
+  }
+};
   
   // Group players by role for display
   const groupPlayersByRole = (players) => {
