@@ -104,6 +104,42 @@ const AdminTournamentPage = () => {
     }
   };
 
+  // In your tournament admin page
+const [matchAssignment, setMatchAssignment] = useState({
+  matchId: '',
+  weekNumber: ''
+});
+
+const handleMatchAssignmentChange = (e) => {
+  const { name, value } = e.target;
+  setMatchAssignment(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+const handleAssignMatch = async (e) => {
+  e.preventDefault();
+  
+  try {
+    await setDoc(doc(db, 'matchWeeks', matchAssignment.matchId), {
+      matchId: matchAssignment.matchId,
+      tournamentId: selectedTournament.id,
+      weekNumber: parseInt(matchAssignment.weekNumber),
+      assignedAt: new Date()
+    });
+    
+    setMessage({ type: 'success', text: 'Match assigned successfully' });
+    setMatchAssignment({ matchId: '', weekNumber: '' });
+    
+    // Refresh the list of match assignments
+    fetchMatchAssignments();
+  } catch (error) {
+    console.error('Error assigning match:', error);
+    setMessage({ type: 'error', text: `Error assigning match: ${error.message}` });
+  }
+};
+
   // Helper function to format dates from Firestore
   const formatDate = (firestoreDate) => {
     if (!firestoreDate) return '';
@@ -631,6 +667,54 @@ const AdminTournamentPage = () => {
         </div>
       </div>
     </div>
+<div className={styles.section}>
+  <h2 className={styles.sectionTitle}>Match Week Assignment</h2>
+  
+  <div className={styles.formContainer}>
+    <h3>Assign Match to Week</h3>
+    <form onSubmit={handleAssignMatch}>
+      <div className={styles.formGroup}>
+        <label htmlFor="matchId">Match ID</label>
+        <input
+          type="text"
+          id="matchId"
+          name="matchId"
+          value={matchAssignment.matchId}
+          onChange={handleMatchAssignmentChange}
+          required
+        />
+      </div>
+      
+      <div className={styles.formGroup}>
+        <label htmlFor="weekNumber">Week Number</label>
+        <select
+          id="weekNumber"
+          name="weekNumber"
+          value={matchAssignment.weekNumber}
+          onChange={handleMatchAssignmentChange}
+          required
+        >
+          {transferWindows.map(window => (
+            <option key={window.weekNumber} value={window.weekNumber}>
+              Week {window.weekNumber}
+            </option>
+          ))}
+        </select>
+      </div>
+      
+      <button type="submit" className={styles.button}>
+        Assign Match
+      </button>
+    </form>
+  </div>
+  
+  <div className={styles.matchAssignments}>
+    <h3>Current Match Assignments</h3>
+    {/* List of current match assignments */}
+  </div>
+</div>
+
+
   );
 };
 
