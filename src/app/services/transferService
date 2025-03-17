@@ -31,26 +31,49 @@ export class transferService {
   };
   
   // Get active tournament
-  static async getActiveTournament() {
-    try {
-      const tournamentsRef = collection(db, 'tournaments');
-      const q = query(tournamentsRef, where('status', '==', 'active'), limit(1));
-      const snapshot = await getDocs(q);
+static async getActiveTournament() {
+  try {
+    console.log("Getting active tournament...");
+    const tournamentsRef = collection(db, 'tournaments');
+    
+    // Query for tournaments with status 'active'
+    const q = query(tournamentsRef, where('status', '==', 'active'), limit(1));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      console.log("No tournament with 'active' status found");
+      // Fallback to getting the most recent tournament
+      const allQuery = query(tournamentsRef, orderBy('createdAt', 'desc'), limit(1));
+      const allSnapshot = await getDocs(allQuery);
       
-      if (snapshot.empty) {
+      if (allSnapshot.empty) {
+        console.log("No tournaments found at all");
         return null;
       }
       
-      const tournamentData = snapshot.docs[0].data();
+      const tournamentData = allSnapshot.docs[0].data();
+      const tournamentId = allSnapshot.docs[0].id;
+      console.log(`Found most recent tournament: ${tournamentId}`);
+      
       return {
-        id: snapshot.docs[0].id,
+        id: tournamentId,
         ...tournamentData
       };
-    } catch (error) {
-      console.error('Error getting active tournament:', error);
-      throw error;
     }
+    
+    const tournamentData = snapshot.docs[0].data();
+    const tournamentId = snapshot.docs[0].id;
+    console.log(`Found active tournament: ${tournamentId}`);
+    
+    return {
+      id: tournamentId,
+      ...tournamentData
+    };
+  } catch (error) {
+    console.error('Error getting active tournament:', error);
+    throw error;
   }
+}
 
 // Replace or update your isTransferWindowActive function with this implementation
 static async isTransferWindowActive() {
