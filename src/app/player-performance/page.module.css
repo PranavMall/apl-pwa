@@ -1,88 +1,25 @@
 .container {
-  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  /* Add padding at the bottom to prevent content from being hidden by the nav bar */
+  padding: 20px;
+  font-family: var(--font-geist-sans, sans-serif);
+  /* Add padding at bottom for mobile navigation */
   padding-bottom: 90px;
 }
 
-.tableWrapper {
-  overflow-x: auto;
-  margin-top: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.pageTitle {
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+  color: #333;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  font-size: 0.95rem;
-}
-
-.tableHeader {
-  background: linear-gradient(45deg, #f9a825, #ff7043);
-  color: white;
-  padding: 12px;
-  text-align: left;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.tableHeader:hover {
-  background: linear-gradient(45deg, #ff7043, #f9a825);
-}
-
-.sortArrow {
-  display: inline-block;
-  margin-left: 4px;
-  font-weight: bold;
-}
-
-.tableCell {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.tableRow:nth-child(even) {
-  background-color: #f9f9f9;
-}
-
-.tableRow:hover {
-  background: #fff8e1;
-}
-
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  font-size: 1.2rem;
-  color: #666;
-}
-
-.error {
-  color: #d32f2f;
-  background-color: #ffebee;
-  padding: 16px;
-  border-radius: 8px;
-  margin: 16px 0;
-  text-align: center;
-}
-
-.noData {
-  text-align: center;
-  padding: 32px;
-  color: #757575;
-  font-style: italic;
-}
-
+/* Filter controls */
 .filters {
   display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 25px;
+  align-items: center;
 }
 
 .teamFilter {
@@ -91,29 +28,112 @@
   gap: 10px;
 }
 
+.teamFilter label {
+  font-weight: 500;
+  color: #444;
+}
+
 .select {
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 15px;
+  border-radius: 8px;
   border: 1px solid #ddd;
   background: white;
-  min-width: 150px;
-  font-size: 0.9rem;
+  min-width: 180px;
+  font-size: 0.95rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Make tabs more visually appealing */
-.tabContainer {
-  background: white;
+/* Tabs styling */
+.tabs-list {
+  display: flex;
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 5px;
+  margin-bottom: 20px;
+  gap: 5px;
+  overflow-x: auto;
+  width: 100%;
+  /* Allow scrolling on very small screens without breaking layout */
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabs-trigger {
+  flex: 1;
+  padding: 12px 15px;
+  background: transparent;
+  border: none;
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  min-width: max-content;
 }
 
-/* Role badges for different player types */
+.tabs-trigger[data-state="active"] {
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Table container */
+.tableWrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  background: white;
+  margin-bottom: 30px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px; /* Ensure table doesn't get too cramped */
+}
+
+.tableHeader {
+  background: linear-gradient(45deg, #ff9a00, #ff6a00);
+  color: white;
+  text-align: left;
+  padding: 15px;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tableHeader:hover {
+  background: linear-gradient(45deg, #ff6a00, #ff9a00);
+}
+
+.sortArrow {
+  display: inline-block;
+  margin-left: 4px;
+}
+
+.tableCell {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tableRow:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.tableRow:hover {
+  background-color: #fff5e6;
+}
+
+/* Role badges */
 .roleBadge {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -138,76 +158,82 @@
   color: #6a1b9a;
 }
 
-/* Media queries for responsive design */
+/* Status messages */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 1.1rem;
+  color: #666;
+}
+
+.error {
+  color: #d32f2f;
+  background-color: #ffebee;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  text-align: center;
+}
+
+.noData {
+  text-align: center;
+  padding: 40px 20px;
+  color: #757575;
+  font-style: italic;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .container {
-    padding: 10px;
-    padding-bottom: 80px;
+    padding: 15px;
   }
   
-  .tableCell,
-  .tableHeader {
-    padding: 8px;
-    font-size: 0.85rem;
+  .pageTitle {
+    font-size: 1.5rem;
   }
   
   .filters {
     flex-direction: column;
-    gap: 10px;
+    align-items: flex-start;
   }
-}
-
-/* Card styling enhancements */
-.card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.cardHeader {
-  background: linear-gradient(45deg, #f9a825, #ff7043);
-  color: white;
-  padding: 16px 20px;
-}
-
-.cardTitle {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.cardContent {
-  padding: 20px;
-}
-
-/* Player photo placeholder */
-.playerPhoto {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: #757575;
-  margin-right: 10px;
-}
-
-/* Team badge */
-.teamBadge {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background-color: #f5f5f5;
-  color: #424242;
-}
-
-/* Stats highlight */
-.highlight {
-  font-weight: 700;
-  color: #f57c00;
+  
+  .teamFilter {
+    width: 100%;
+  }
+  
+  .select {
+    width: 100%;
+  }
+  
+  .tabs-trigger {
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+  
+  .tableCell {
+    padding: 10px;
+  }
+  
+  /* Make fantasy points sticky on mobile */
+  .fantasyPointsHeader,
+  .fantasyPointsCell {
+    position: sticky;
+    right: 0;
+    background: inherit; /* Keep background */
+    box-shadow: -5px 0 10px rgba(0,0,0,0.1);
+    z-index: 2;
+  }
+  
+  .fantasyPointsHeader {
+    background: linear-gradient(45deg, #ff9a00, #ff6a00);
+  }
+  
+  .fantasyPointsCell {
+    font-weight: 600;
+    color: #e65100;
+  }
 }
