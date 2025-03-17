@@ -130,36 +130,22 @@ export class transferService {
       }
       
       // If a window is marked as active, consider it active regardless of dates
-      if (!currentWindow) {
-        const activeWindow = transferWindows.find(w => w.status === "active");
-        if (activeWindow) {
-          console.log("Found window with active status");
-          let startDate = activeWindow.startDate;
-          let endDate = activeWindow.endDate;
-          
-          if (typeof startDate === 'object' && startDate.toDate) {
-            startDate = startDate.toDate();
-          } else if (startDate && startDate.seconds) {
-            startDate = new Date(startDate.seconds * 1000);
-          } else {
-            startDate = new Date(startDate);
-          }
-          
-          if (typeof endDate === 'object' && endDate.toDate) {
-            endDate = endDate.toDate();
-          } else if (endDate && endDate.seconds) {
-            endDate = new Date(endDate.seconds * 1000);
-          } else {
-            endDate = new Date(endDate);
-          }
-          
-          currentWindow = {
-            ...activeWindow,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString()
-          };
-        }
-      }
+if (!currentWindow) {
+  // If no window is active based on dates, check if any window is explicitly marked as active
+  const activeWindow = transferWindows.find(w => w.status === "active");
+  if (activeWindow) {
+    console.log("Found window marked as active regardless of date");
+    currentWindow = {
+      ...activeWindow,
+      startDate: typeof activeWindow.startDate === 'object' ? 
+                 activeWindow.startDate.toDate?.() || activeWindow.startDate : 
+                 new Date(activeWindow.startDate),
+      endDate: typeof activeWindow.endDate === 'object' ? 
+              activeWindow.endDate.toDate?.() || activeWindow.endDate : 
+              new Date(activeWindow.endDate)
+    };
+  }
+}
       
       if (currentWindow) {
         console.log("Transfer window is ACTIVE");
