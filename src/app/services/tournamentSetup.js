@@ -28,7 +28,7 @@ export const createTournament = async () => {
     // Make it active for the current date and the next 3 days
     const currentDate = new Date(now);
     const endDate = new Date(now);
-    endDate.setDate(now.getDate() + 1); // 3 days from now
+    endDate.setDate(now.getDate() - 1); // Testing end date scenario
     
     transferWindows.push({
       startDate: currentDate,
