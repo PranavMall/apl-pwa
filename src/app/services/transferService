@@ -176,33 +176,59 @@ static async isTransferWindowActive() {
 
 static async updateUserWeeklyStats(matchId) {
   try {
-    // Get all user teams
+    console.log(`Starting weekly stats update for match ${matchId}`);
+    
+    // First try to get the week number from the explicit mapping
+    const matchWeekRef = doc(db, 'matchWeeks', matchId);
+    const matchWeekDoc = await getDoc(matchWeekRef);
+    
+    let weekNumber;
+    let tournamentId;
+    
+    // If we have an explicit mapping, use it
+    if (matchWeekDoc.exists()) {
+      weekNumber = matchWeekDoc.data().weekNumber;
+      tournamentId = matchWeekDoc.data().tournamentId;
+      console.log(`Found explicit mapping: Match ${matchId} belongs to Week ${weekNumber}`);
+    } else {
+      // Otherwise, fall back to calculating based on date
+      // Get match data
+      const matchRef = doc(db, 'matches', matchId);
+      const matchDoc = await getDoc(matchRef);
+      if (!matchDoc.exists()) {
+        throw new Error(`Match ${matchId} not found`);
+      }
+      
+      const matchData = matchDoc.data();
+      const matchDate = matchData.matchInfo?.startDate || 
+                         matchData.matchHeader?.matchStartTimestamp || 
+                         new Date();
+      
+      // Get active tournament
+      const tournament = await this.getActiveTournament();
+      if (!tournament) {
+        console.warn('No active tournament found');
+        return { success: false, error: 'No active tournament found' };
+      }
+      
+      tournamentId = tournament.id;
+      
+      // Find which week this match belongs to
+      weekNumber = this.findMatchWeek(matchDate, tournament.transferWindows);
+      if (!weekNumber) {
+        console.warn(`Could not determine week for match ${matchId}`);
+        return { success: false, error: 'Could not determine week' };
+      }
+      
+      console.log(`Calculated match ${matchId} belongs to Week ${weekNumber}`);
+    }
+    
+    // Get all user teams for this tournament
     const userTeamsRef = collection(db, 'userTeams');
-    const teamsSnapshot = await getDocs(userTeamsRef);
+    const userTeamsQuery = query(userTeamsRef, where('tournamentId', '==', tournamentId));
+    const teamsSnapshot = await getDocs(userTeamsQuery);
     
-    // Get match data to determine week number
-    const matchRef = doc(db, 'matches', matchId);
-    const matchDoc = await getDoc(matchRef);
-    if (!matchDoc.exists()) {
-      throw new Error(`Match ${matchId} not found`);
-    }
-    
-    const matchData = matchDoc.data();
-    const matchDate = matchData.matchInfo?.startDate || new Date();
-    
-    // Get active tournament
-    const tournament = await this.getActiveTournament();
-    if (!tournament) {
-      console.warn('No active tournament found');
-      return;
-    }
-    
-    // Find which week this match belongs to
-    const matchWeek = this.findMatchWeek(matchDate, tournament.transferWindows);
-    if (!matchWeek) {
-      console.warn(`Could not determine week for match ${matchId}`);
-      return;
-    }
+    console.log(`Processing ${teamsSnapshot.size} user teams for tournament ${tournamentId}`);
     
     // Process each user team
     const updatePromises = [];
@@ -212,11 +238,13 @@ static async updateUserWeeklyStats(matchId) {
       const players = team.players || [];
       
       updatePromises.push(
-        this.calculateAndUpdateUserPoints(userId, players, matchId, tournament.id, matchWeek)
+        this.calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber)
       );
     });
     
     await Promise.all(updatePromises);
+    console.log(`Successfully updated weekly stats for ${updatePromises.length} users`);
+    
     return { success: true };
   } catch (error) {
     console.error('Error updating user weekly stats:', error);
@@ -225,39 +253,47 @@ static async updateUserWeeklyStats(matchId) {
 }
 
 static findMatchWeek(matchDate, transferWindows) {
+  if (!matchDate || !transferWindows || transferWindows.length === 0) {
+    console.log("Missing data to determine match week - defaulting to week 1");
+    return 1;
+  }
+
+  // Convert matchDate to a proper Date object if it's not already
+  const matchDateObj = matchDate instanceof Date ? 
+    matchDate : 
+    (matchDate.toDate ? matchDate.toDate() : new Date(matchDate));
+  
+  console.log(`Finding week for match date: ${matchDateObj.toISOString()}`);
+  
+  // Sort transfer windows by week number for reliable fallback
+  const sortedWindows = [...transferWindows].sort((a, b) => a.weekNumber - b.weekNumber);
+  
+  // Default to first week if all else fails
+  const defaultWeek = sortedWindows[0]?.weekNumber || 1;
+  
   // Find the transfer window that includes this match date
-  for (const window of transferWindows) {
-    const startDate = window.startDate instanceof Timestamp 
-      ? window.startDate.toDate() 
-      : new Date(window.startDate);
-    const endDate = window.endDate instanceof Timestamp 
-      ? window.endDate.toDate() 
-      : new Date(window.endDate);
-    
-    if (matchDate >= startDate && matchDate <= endDate) {
-      return window.weekNumber;
-    }
-  }
-  
-  // If no exact match, use the closest window before the match
-  let closestWindow = null;
-  let smallestDiff = Number.MAX_SAFE_INTEGER;
-  
-  for (const window of transferWindows) {
-    const endDate = window.endDate instanceof Timestamp 
-      ? window.endDate.toDate() 
-      : new Date(window.endDate);
-    
-    if (endDate <= matchDate) {
-      const diff = matchDate - endDate;
-      if (diff < smallestDiff) {
-        smallestDiff = diff;
-        closestWindow = window;
+  for (const window of sortedWindows) {
+    try {
+      // Handle different date formats
+      const startDate = window.startDate instanceof Date ? 
+        window.startDate : 
+        (window.startDate.toDate ? window.startDate.toDate() : new Date(window.startDate));
+      
+      const endDate = window.endDate instanceof Date ? 
+        window.endDate : 
+        (window.endDate.toDate ? window.endDate.toDate() : new Date(window.endDate));
+      
+      if (matchDateObj >= startDate && matchDateObj <= endDate) {
+        return window.weekNumber;
       }
+    } catch (error) {
+      console.error(`Error processing window ${window.weekNumber}:`, error);
+      continue;
     }
   }
   
-  return closestWindow ? closestWindow.weekNumber : null;
+  // If we can't find a perfect match, return the default
+  return defaultWeek;
 }
 
 static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber) {
