@@ -87,6 +87,13 @@
   width: 100px;
 }
 
+.bonusColumn {
+  text-align: center;
+  width: 100px;
+  color: #4caf50;
+  font-weight: 500;
+}
+
 .totalColumn {
   font-weight: 600;
   text-align: center;
