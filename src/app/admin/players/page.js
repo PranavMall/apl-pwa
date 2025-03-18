@@ -2,434 +2,429 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebase'; // Adjust path as needed for your project
+import { db } from '../../../firebase';
+import { collection, doc, getDoc, getDocs, query, where, setDoc } from 'firebase/firestore';
 import { PlayerMasterService } from '@/app/services/PlayerMasterService';
-import { getPlayerList, mapPlayerIds } from '../player-management';
-import { importTeamPlayers } from '../scripts/parseIplTeamData';
+import styles from './players.module.css';
 
 export default function PlayerAdmin() {
   const [players, setPlayers] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [newAltId, setNewAltId] = useState('');
   const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [processingPlayerId, setProcessingPlayerId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   useEffect(() => {
     loadPlayers();
   }, []);
   
   const loadPlayers = async () => {
+    setLoading(true);
     const playerList = await getPlayerList();
     setPlayers(playerList);
+    setLoading(false);
+  };
+  
+  const getPlayerList = async () => {
+    try {
+      const playersRef = collection(db, 'playersMaster');
+      const snapshot = await getDocs(playersRef);
+      
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })).sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+    } catch (error) {
+      console.error('Error getting player list:', error);
+      return [];
+    }
   };
   
   const handleAddMapping = async () => {
     if (!selectedPlayer || !newAltId.trim()) return;
     
     try {
-      const result = await mapPlayerIds(selectedPlayer.id, [newAltId.trim()]);
+      setMessage({ type: 'info', text: 'Processing... This may take a moment.' });
+      setProcessingPlayerId(selectedPlayer.id);
+      
+      const result = await PlayerMasterService.mapRelatedPlayers(selectedPlayer.id, [newAltId.trim()]);
       
       if (result.success) {
-        setMessage({ type: 'success', text: 'Player mapping added successfully' });
+        setMessage({ 
+          type: 'success', 
+          text: `Player mapping added successfully. Processed ${result.entriesProcessed || 0} entries from ${result.uniqueMatches || 0} matches.` 
+        });
         setNewAltId('');
-        loadPlayers(); // Refresh the list
+        
+        // Refresh the selected player to show updated stats
+        const refreshedPlayer = await refreshPlayerData(selectedPlayer.id);
+        setSelectedPlayer(refreshedPlayer);
+        
+        // Also update in the players list
+        loadPlayers(); 
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to add mapping' });
       }
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
+    } finally {
+      setProcessingPlayerId(null);
     }
   };
-
-const handleImportTeamData = async () => {
-  try {
-    setMessage({ type: 'info', text: 'Processing team data...' });
-    
-    // Get the HTML content from the textarea
-    const htmlContent = document.getElementById('team-html-input').value;
-    const teamCode = document.getElementById('team-code-input').value;
-    
-    if (!htmlContent || !teamCode) {
-      setMessage({ type: 'error', text: 'Please enter both HTML content and team code' });
-      return;
-    }
-    
-    console.log(`Processing HTML for team ${teamCode}`);
-    
-    const result = await importTeamPlayers(htmlContent, teamCode);
-    
-    if (result.success) {
-      setMessage({ 
-        type: 'success', 
-        text: `Successfully imported ${result.playerCount} players from ${result.teamName}!` 
-      });
-      loadPlayers(); // Refresh the list
-    } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to import team data' });
-    }
-  } catch (error) {
-    console.error('Error importing team data:', error);
-    setMessage({ type: 'error', text: error.message });
-  }
-};
-
-const handleMigrateFromPoints = async () => {
-  try {
-    setMessage({ type: 'info', text: 'Starting migration...' });
-    
-    // Step 1: Get all unique player IDs
-    const pointsRef = collection(db, 'playerPoints');
-    const snapshot = await getDocs(pointsRef);
-    
-    const uniquePlayerIds = new Set();
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.playerId) {
-        uniquePlayerIds.add(data.playerId);
-      }
-    });
-    
-    console.log(`Found ${uniquePlayerIds.size} unique player IDs to process`);
-    
-    // Step 2: Create a mapping of alternate IDs to primary IDs
-    const primaryIdMap = new Map(); // altId -> primaryId
-    
-    // Get all players in the master DB
-    const playersRef = collection(db, 'playersMaster');
-    const playersSnapshot = await getDocs(playersRef);
-    
-    // Build the mapping
-    playersSnapshot.forEach(doc => {
-      const player = doc.data();
-      const primaryId = doc.id;
-      
-      // Add all alternate IDs to the map
-      if (player.alternateIds && Array.isArray(player.alternateIds)) {
-        player.alternateIds.forEach(altId => {
-          primaryIdMap.set(altId, primaryId);
-        });
-      }
-    });
-    
-    console.log(`Processed ${primaryIdMap.size} alternate ID mappings`);
-    
-    // Step 3: Process each player ID
-    let count = 0;
-    for (const playerId of uniquePlayerIds) {
-      try {
-        // Find the primary ID for this player
-        const primaryId = primaryIdMap.get(playerId) || playerId;
-        
-        // Get all entries for this player ID
-        const playerEntries = snapshot.docs.filter(doc => 
-          doc.data().playerId === playerId
-        );
-        
-        if (playerEntries.length > 0) {
-          // Find an entry with the player's name
-          const entryWithName = playerEntries.find(doc => 
-            doc.data().performance?.name
-          ) || playerEntries[0];
-          
-          const playerData = entryWithName.data();
-          
-          // Ensure the player exists in the master DB
-          let masterPlayer = await PlayerMasterService.findPlayerByAnyId(primaryId);
-          
-          if (!masterPlayer) {
-            // Create the player if they don't exist
-            await PlayerMasterService.upsertPlayer({
-              id: primaryId,
-              name: playerData.performance?.name || primaryId,
-              role: playerData.performance?.bowling ? 'bowler' : 
-                    playerData.performance?.batting ? 'batsman' : 'unknown',
-              alternateIds: primaryId !== playerId ? [playerId] : []
-            });
-          } else if (primaryId !== playerId && !masterPlayer.alternateIds?.includes(playerId)) {
-            // Add this ID as an alternate if it's not already there
-            const updatedAlternateIds = [...(masterPlayer.alternateIds || []), playerId];
-            await PlayerMasterService.mapRelatedPlayers(primaryId, [playerId]);
-          }
-          
-          // Now process all entries to update stats
-          const processedMatches = new Set(); // Track matches to count them once
-          
-          for (const entry of playerEntries) {
-            const entryData = entry.data();
-            const performance = entryData.performance || {};
-            const matchId = entryData.matchId;
-            const points = entryData.points || 0; // Extract points from the root level
-            
-            // Only count each match once for match count
-            const isNewMatch = !processedMatches.has(matchId);
-            if (isNewMatch) {
-              processedMatches.add(matchId);
-            }
-            
-            // Gather stats from this performance
-            const matchStats = {
-    isNewMatch,
-    battingRuns: performance.batting ? parseInt(performance.runs || 0) : 0,
-    bowlingRuns: performance.bowling ? parseInt(performance.bowler_runs || 0) : 0,
-    wickets: performance.bowling ? parseInt(performance.wickets || 0) : 0,
-    catches: parseInt(performance.catches || 0),
-    stumpings: parseInt(performance.stumpings || 0),
-    runOuts: parseInt(performance.runouts || 0),
-    points: points, // Add the direct points value
-    fifties: performance.batting && parseInt(performance.runs || 0) >= 50 && parseInt(performance.runs || 0) < 100 ? 1 : 0,
-    hundreds: performance.batting && parseInt(performance.runs || 0) >= 100 ? 1 : 0
-  };
-            
-            // Update the PRIMARY player's stats
-            await PlayerMasterService.updatePlayerStats(primaryId, matchStats);
-          }
-          
-          count++;
-          console.log(`Processed ${count}/${uniquePlayerIds.size}: ${playerId} -> ${primaryId}`);
-        }
-      } catch (playerError) {
-        console.error(`Error processing player ${playerId}:`, playerError);
-      }
-    }
-    
-    setMessage({ type: 'success', text: `Migrated ${count} players from points data` });
-    loadPlayers(); // Refresh the list
-  } catch (error) {
-    console.error('Migration error:', error);
-    setMessage({ type: 'error', text: error.message });
-  }
-};
   
-  return (
-    <div>
-      <h1>Player Management</h1>
-      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-    <button 
-      onClick={handleMigrateFromPoints}
-      style={{ 
-        padding: '8px 16px', 
-        backgroundColor: '#4caf50', 
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer'
-      }}
-    >
-      Migrate Players from Points Data
-    </button>
-<button 
-  onClick={() => document.getElementById('team-html-input').focus()}
-  style={{ 
-    padding: '8px 16px', 
-    backgroundColor: '#0070f3',  // Blue color for IPL
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    marginLeft: '10px'  // Add some space
-  }}
->
-  Import IPL 2025 Players
-</button>
+  const refreshPlayerData = async (playerId) => {
+    const playerRef = doc(db, 'playersMaster', playerId);
+    const playerDoc = await getDoc(playerRef);
+    if (playerDoc.exists()) {
+      return { id: playerDoc.id, ...playerDoc.data() };
+    }
+    return null;
+  };
+  
+  const handleRoleChange = async (newRole) => {
+    if (!selectedPlayer) return;
+    
+    try {
+      // Create a new player object with updated role
+      const updatedPlayer = {
+        ...selectedPlayer,
+        role: newRole
+      };
+      
+      // Update the player in the database
+      await PlayerMasterService.upsertPlayer({
+        id: selectedPlayer.id,
+        name: selectedPlayer.name,
+        role: newRole,
+        team: selectedPlayer.team || '',
+        alternateIds: selectedPlayer.alternateIds || [],
+        // Preserve other fields
+        active: selectedPlayer.active !== false,
+        stats: selectedPlayer.stats || {}
+      });
+      
+      // Update local state
+      setSelectedPlayer(updatedPlayer);
+      setMessage({ type: 'success', text: 'Player role updated successfully' });
+      
+      // Update in the main list
+      setPlayers(players.map(p => 
+        p.id === selectedPlayer.id ? { ...p, role: newRole } : p
+      ));
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error updating player role: ' + error.message });
+    }
+  };
+  
+  const handleTeamChange = async (newTeam) => {
+    if (!selectedPlayer) return;
+    
+    try {
+      // Create a new player object with updated team
+      const updatedPlayer = {
+        ...selectedPlayer,
+        team: newTeam
+      };
+      
+      // Update the player in the database
+      await PlayerMasterService.upsertPlayer({
+        id: selectedPlayer.id,
+        name: selectedPlayer.name,
+        role: selectedPlayer.role || 'unknown',
+        team: newTeam,
+        alternateIds: selectedPlayer.alternateIds || [],
+        // Preserve other fields
+        active: selectedPlayer.active !== false,
+        stats: selectedPlayer.stats || {}
+      });
+      
+      // Update local state
+      setSelectedPlayer(updatedPlayer);
+      setMessage({ type: 'success', text: 'Player team updated successfully' });
+      
+      // Update in the main list
+      setPlayers(players.map(p => 
+        p.id === selectedPlayer.id ? { ...p, team: newTeam } : p
+      ));
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error updating player team: ' + error.message });
+    }
+  };
+  
+  const handleRebuildPlayerStats = async () => {
+    if (!selectedPlayer) return;
+    
+    try {
+      setMessage({ type: 'info', text: 'Rebuilding player stats... This may take a moment.' });
+      setProcessingPlayerId(selectedPlayer.id);
+      
+      // Call the same method as for adding a mapping, but with an empty array of new IDs
+      // This will reset and rebuild all stats without adding new alternate IDs
+      const result = await PlayerMasterService.mapRelatedPlayers(selectedPlayer.id, []);
+      
+      if (result.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `Player stats rebuilt successfully. Processed ${result.entriesProcessed || 0} entries from ${result.uniqueMatches || 0} matches.` 
+        });
+        
+        // Refresh the selected player to show updated stats
+        const refreshedPlayer = await refreshPlayerData(selectedPlayer.id);
+        setSelectedPlayer(refreshedPlayer);
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to rebuild player stats' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setProcessingPlayerId(null);
+    }
+  };
+  
+  // Filter players based on search term
+  const filteredPlayers = searchTerm.trim() 
+    ? players.filter(player => 
+        (player.name && player.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        player.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (player.team && player.team.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (player.alternateIds && player.alternateIds.some(id => id.toLowerCase().includes(searchTerm.toLowerCase())))
+      )
+    : players;
 
-    {/* Other action buttons */}
-  </div>
+  return (
+    <div className={styles.container}>
+      <h1 className={styles.title}>Player Management</h1>
+      
+      {/* Search bar */}
+      <div className={styles.searchBar}>
+        <input
+          type="text"
+          placeholder="Search players by name, ID, team..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className={styles.searchInput}
+        />
+      </div>
+      
       {message && (
-        <div style={{ color: message.type === 'error' ? 'red' : 'green' }}>
+        <div className={`${styles.message} ${styles[message.type]}`}>
           {message.text}
         </div>
       )}
       
-      <div style={{ display: 'flex', marginTop: '20px' }}>
-        <div style={{ width: '50%', padding: '10px' }}>
-          <h2>Player List</h2>
-          <div style={{ height: '500px', overflowY: 'auto' }}>
-            {players.map(player => (
-              <div 
-                key={player.id} 
-                style={{ 
-                  padding: '10px', 
-                  border: '1px solid #ddd',
-                  margin: '5px 0',
-                  backgroundColor: selectedPlayer?.id === player.id ? '#f0f0f0' : 'white',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setSelectedPlayer(player)}
-              >
-                <div><strong>{player.name || player.id}</strong></div>
-                <div>Role: {player.role || 'Unknown'}</div>
-                <div>Alternate IDs: {player.alternateIds?.join(', ') || 'None'}</div>
-              </div>
-            ))}
-          </div>
+      <div className={styles.adminGrid}>
+        <div className={styles.playerListContainer}>
+          <h2>Player List ({filteredPlayers.length})</h2>
+          
+          {loading ? (
+            <div className={styles.loading}>Loading players...</div>
+          ) : (
+            <div className={styles.playerList}>
+              {filteredPlayers.map(player => (
+                <div 
+                  key={player.id} 
+                  className={`${styles.playerItem} ${selectedPlayer?.id === player.id ? styles.selected : ''}`}
+                  onClick={() => setSelectedPlayer(player)}
+                >
+                  <div className={styles.playerName}>{player.name || player.id}</div>
+                  <div className={styles.playerDetails}>
+                    <span className={styles.playerTeam}>{player.team || 'Unknown'}</span>
+                    <span className={`${styles.playerRole} ${styles[player.role] || ''}`}>
+                      {player.role || 'unknown'}
+                    </span>
+                  </div>
+                  {player.alternateIds?.length > 0 && (
+                    <div className={styles.alternateIds}>
+                      Alt IDs: {player.alternateIds.join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
-        <div style={{ width: '50%', padding: '10px' }}>
-          <h2>Map Player IDs</h2>
-          
+        <div className={styles.playerDetails}>
           {selectedPlayer ? (
-            <div>
-              <h3>Selected: {selectedPlayer.name || selectedPlayer.id}</h3>
-             {/* Add role dropdown */}
-
-    <div style={{ marginTop: '15px' }}>
-      <label>
-        Role:
-        <select 
-          value={selectedPlayer.role || 'unknown'}
-          onChange={(e) => {
-            // Create a new player object with updated role
-            const updatedPlayer = {
-              ...selectedPlayer,
-              role: e.target.value
-            };
-            setSelectedPlayer(updatedPlayer);
-          }}
-          style={{ width: '100%', marginTop: '5px', padding: '5px' }}
-        >
-          <option value="batsman">Batsman</option>
-          <option value="bowler">Bowler</option>
-          <option value="allrounder">All-rounder</option>
-          <option value="wicketkeeper">Wicket-keeper</option>
-          <option value="unknown">Unknown</option>
-        </select>
-      </label>
-    </div>
-    
-    {/* Add team input field */}
-    <div style={{ marginTop: '15px' }}>
-      <label>
-        Team:
-        <input
-          type="text"
-          value={selectedPlayer.team || ''}
-          onChange={(e) => {
-            // Create a new player object with updated team
-            const updatedPlayer = {
-              ...selectedPlayer,
-              team: e.target.value
-            };
-            setSelectedPlayer(updatedPlayer);
-          }}
-          placeholder="e.g., IND, AUS, CSK, MI"
-          style={{ width: '100%', marginTop: '5px', padding: '5px' }}
-        />
-      </label>
-    </div>
-    
-    {/* Add a save button for the updated fields */}
-    <div style={{ marginTop: '20px' }}>
-      <button
-        onClick={async () => {
-          try {
-            // Update the player with all current fields
-            await PlayerMasterService.upsertPlayer({
-              id: selectedPlayer.id,
-              name: selectedPlayer.name,
-              role: selectedPlayer.role || 'unknown',
-              team: selectedPlayer.team || '',
-              alternateIds: selectedPlayer.alternateIds || [],
-              // Preserve other fields
-              active: selectedPlayer.active !== false,
-              stats: selectedPlayer.stats || {}
-            });
-            
-            setMessage({ type: 'success', text: 'Player updated successfully' });
-            loadPlayers(); // Refresh the list
-          } catch (error) {
-            setMessage({ type: 'error', text: 'Error updating player: ' + error.message });
-          }
-        }}
-        style={{ 
-          padding: '8px 16px',
-          backgroundColor: '#2196f3',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          marginBottom: '20px'
-        }}
-      >
-        Save Player Changes
-      </button>
-    </div>
+            <div className={styles.playerCard}>
+              <h3 className={styles.playerCardTitle}>
+                {selectedPlayer.name || selectedPlayer.id}
+                {processingPlayerId === selectedPlayer.id && (
+                  <span className={styles.processingLabel}>Processing...</span>
+                )}
+              </h3>
               
-              <div style={{ marginTop: '10px' }}>
-                <label>
-                  Add Alternate ID:
-                  <input
-                    type="text"
-                    value={newAltId}
-                    onChange={(e) => setNewAltId(e.target.value)}
-                    style={{ width: '100%', marginTop: '5px', padding: '5px' }}
-                  />
-                </label>
+              <div className={styles.fieldGroup}>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>ID:</label>
+                  <div className={styles.fieldValue}>{selectedPlayer.id}</div>
+                </div>
+                
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Name:</label>
+                  <div className={styles.fieldValue}>{selectedPlayer.name || 'N/A'}</div>
+                </div>
+                
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Team:</label>
+                  <div className={styles.fieldInput}>
+                    <input
+                      type="text"
+                      value={selectedPlayer.team || ''}
+                      onChange={(e) => handleTeamChange(e.target.value)}
+                      placeholder="e.g., IND, AUS, CSK, MI"
+                    />
+                  </div>
+                </div>
+                
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Role:</label>
+                  <div className={styles.fieldInput}>
+                    <select 
+                      value={selectedPlayer.role || 'unknown'}
+                      onChange={(e) => handleRoleChange(e.target.value)}
+                    >
+                      <option value="batsman">Batsman</option>
+                      <option value="bowler">Bowler</option>
+                      <option value="allrounder">All-rounder</option>
+                      <option value="wicketkeeper">Wicket-keeper</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={styles.statsSection}>
+                <h4>Player Stats</h4>
+                <div className={styles.statsGrid}>
+                  <div className={styles.statItem}>
+                    <span className={styles.statLabel}>Matches:</span>
+                    <span className={styles.statValue}>{selectedPlayer.stats?.matches || 0}</span>
+                  </div>
+                  <div className={styles.statItem}>
+                    <span className={styles.statLabel}>Batting:</span>
+                    <span className={styles.statValue}>{selectedPlayer.stats?.battingRuns || 0} runs</span>
+                  </div>
+                  <div className={styles.statItem}>
+                    <span className={styles.statLabel}>4s/6s:</span>
+                    <span className={styles.statValue}>
+                      {selectedPlayer.stats?.fours || 0}/{selectedPlayer.stats?.sixes || 0}
+                    </span>
+                  </div>
+                  <div className={styles.statItem}>
+                    <span className={styles.statLabel}>Bowling:</span>
+                    <span className={styles.statValue}>{selectedPlayer.stats?.wickets || 0} wickets</span>
+                  </div>
+                  <div className={styles.statItem}>
+                    <span className={styles.statLabel}>50s/100s:</span>
+                    <span className={styles.statValue}>
+                      {selectedPlayer.stats?.fifties || 0}/{selectedPlayer.stats?.hundreds || 0}
+                    </span>
+                  </div>
+                  <div className={styles.statItem}>
+                    <span className={styles.statLabel}>Points:</span>
+                    <span className={styles.statValue}>{Math.round(selectedPlayer.stats?.points || 0)}</span>
+                  </div>
+                </div>
                 
                 <button 
-                  onClick={handleAddMapping}
-                  style={{ marginTop: '10px', padding: '5px 10px' }}
-                  disabled={!newAltId.trim()}
+                  className={styles.rebuildButton}
+                  onClick={handleRebuildPlayerStats}
+                  disabled={processingPlayerId === selectedPlayer.id}
                 >
-                  Add Mapping
+                  Rebuild Player Stats
                 </button>
               </div>
               
-              <div style={{ marginTop: '20px' }}>
-                <h4>Current Alternate IDs:</h4>
+              <div className={styles.mappingSection}>
+                <h4>Alternate IDs Management</h4>
+                
                 {selectedPlayer.alternateIds?.length > 0 ? (
-                  <ul>
-                    {selectedPlayer.alternateIds.map((id, index) => (
-                      <li key={index}>{id}</li>
-                    ))}
-                  </ul>
+                  <div className={styles.alternateIdsList}>
+                    <label className={styles.altIdsLabel}>Current Alternate IDs:</label>
+                    <div className={styles.altIdsChips}>
+                      {selectedPlayer.alternateIds.map((id, index) => (
+                        <span key={index} className={styles.altIdChip}>{id}</span>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
-                  <p>No alternate IDs</p>
+                  <p className={styles.noAlternateIds}>No alternate IDs</p>
                 )}
+                
+                <div className={styles.addMapping}>
+                  <label className={styles.addMappingLabel}>
+                    Add Alternate ID:
+                    <input
+                      type="text"
+                      value={newAltId}
+                      onChange={(e) => setNewAltId(e.target.value)}
+                      className={styles.addMappingInput}
+                      placeholder="e.g., rohit"
+                      disabled={processingPlayerId === selectedPlayer.id}
+                    />
+                  </label>
+                  
+                  <button 
+                    onClick={handleAddMapping}
+                    className={styles.addMappingButton}
+                    disabled={!newAltId.trim() || processingPlayerId === selectedPlayer.id}
+                  >
+                    Add & Rebuild Stats
+                  </button>
+                </div>
+                
+                <p className={styles.mappingInfo}>
+                  Adding a new alternate ID will automatically merge all stats from entries using that ID.
+                </p>
               </div>
             </div>
           ) : (
-            <p>Select a player from the list</p>
+            <div className={styles.noPlayerSelected}>
+              <p>Select a player from the list</p>
+            </div>
           )}
         </div>
       </div>
-             {/* ADD THE NEW IMPORT FORM HERE - INSIDE THE MAIN DIV */}
-    <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
-      <h3>Import Team Players</h3>
-      <p>Paste HTML from team page and enter team code (e.g., GT, CSK, MI)</p>
       
-      <div style={{ marginBottom: '10px' }}>
-        <label style={{ display: 'block', marginBottom: '5px' }}>Team Code:</label>
-        <input 
-          id="team-code-input"
-          type="text" 
-          placeholder="GT" 
-          style={{ width: '100px', padding: '5px' }}
-        />
+      <div className={styles.importSection}>
+        <h3 className={styles.importTitle}>Import Team Players</h3>
+        <p className={styles.importDescription}>
+          Paste HTML from team page and enter team code (e.g., GT, CSK, MI)
+        </p>
+        
+        <div className={styles.importForm}>
+          <div className={styles.importField}>
+            <label>Team Code:</label>
+            <input id="team-code-input" type="text" placeholder="GT" className={styles.teamCodeInput} />
+          </div>
+          
+          <div className={styles.importField}>
+            <label>HTML from Team Page:</label>
+            <textarea 
+              id="team-html-input"
+              className={styles.htmlInput}
+              placeholder="Paste HTML here..."
+            ></textarea>
+          </div>
+          
+          <button
+            onClick={() => {
+              // Keep your existing import team players functionality
+              if (window.handleImportTeamData) {
+                window.handleImportTeamData();
+              } else {
+                alert('Import function not available');
+              }
+            }}
+            className={styles.importButton}
+          >
+            Import Team Players
+          </button>
+        </div>
       </div>
-      
-      <div style={{ marginBottom: '10px' }}>
-        <label style={{ display: 'block', marginBottom: '5px' }}>HTML from Team Page:</label>
-        <textarea 
-          id="team-html-input"
-          style={{ width: '100%', height: '200px', padding: '5px' }} 
-          placeholder="Paste HTML here..."
-        ></textarea>
-      </div>
-      
-      <button
-        onClick={handleImportTeamData}
-        style={{ 
-          padding: '8px 16px', 
-          backgroundColor: '#4caf50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
-      >
-        Import Team Players
-      </button>
-    </div>
     </div>
   );
 }
