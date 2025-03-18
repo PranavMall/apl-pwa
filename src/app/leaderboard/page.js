@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { collection, query, getDocs, where, orderBy } from "firebase/firestore";
+import { collection, query, getDocs, where, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useAuth } from "@/app/context/authContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/components/ui/card";
@@ -41,13 +41,21 @@ const LeaderboardPage = () => {
       
       const users = {};
       usersSnapshot.forEach(doc => {
-        users[doc.id] = {
-          id: doc.id,
-          teamName: doc.data().teamName || "Unnamed Team",
-          photoURL: doc.data().photoURL,
-          weeks: {},
-          totalPoints: 0
-        };
+        // Get user data
+        const userData = doc.data();
+        
+        // Include all users who have a teamName (as they've registered)
+        if (userData.teamName) {
+          users[doc.id] = {
+            id: doc.id,
+            teamName: userData.teamName || "Unnamed Team",
+            photoURL: userData.photoURL,
+            weeks: {},
+            weeklyTotalPoints: 0,
+            referralPoints: userData.referralPoints || 0,
+            totalPoints: 0
+          };
+        }
       });
       
       // Get completed transfer windows to determine which weeks to show
@@ -79,14 +87,28 @@ const LeaderboardPage = () => {
           // Add week points
           users[userId].weeks[weekNumber] = points;
           
-          // Update total points
-          users[userId].totalPoints += points;
+          // Update weekly total points
+          users[userId].weeklyTotalPoints = (users[userId].weeklyTotalPoints || 0) + points;
         }
       });
       
+      // Get referral bonuses for each user
+      for (const userId in users) {
+        const userRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          // Add referral points if they exist
+          users[userId].referralPoints = userData.referralPoints || 0;
+          
+          // Calculate total points (weekly points + referral bonus)
+          users[userId].totalPoints = (users[userId].weeklyTotalPoints || 0) + users[userId].referralPoints;
+        }
+      }
+      
       // Convert to array and sort by total points
       const leaderboardArray = Object.values(users)
-        .filter(user => user.totalPoints > 0) // Only show users with points
         .sort((a, b) => b.totalPoints - a.totalPoints);
       
       // Assign ranks
@@ -125,7 +147,7 @@ const LeaderboardPage = () => {
           <CardTitle>{activeTournament?.name || "Tournament"} Leaderboard</CardTitle>
         </CardHeader>
         <CardContent>
-          {leaderboardData.length > 0 ? (
+          {leaderboardData.length > 0 || true ? (
             <div className={styles.tableWrapper}>
               <table className={styles.leaderboardTable}>
                 <thead>
@@ -135,6 +157,7 @@ const LeaderboardPage = () => {
                     {weekNumbers.map(weekNum => (
                       <th key={weekNum}>Week {weekNum}</th>
                     ))}
+                    <th>Bonus Points</th>
                     <th>Total Points</th>
                   </tr>
                 </thead>
@@ -172,8 +195,11 @@ const LeaderboardPage = () => {
                           {team.weeks[weekNum] || '-'}
                         </td>
                       ))}
+                      <td className={styles.bonusColumn}>
+                        {team.referralPoints || 0}
+                      </td>
                       <td className={styles.totalColumn}>
-                        {team.totalPoints}
+                        {team.totalPoints || 0}
                       </td>
                     </tr>
                   ))}
@@ -202,8 +228,11 @@ const LeaderboardPage = () => {
           Captain gets 2x points and Vice-Captain gets 1.5x points.
         </p>
         <p>
+          Bonus points are awarded for referrals (25 points per successful referral, up to 3 referrals).
+        </p>
+        <p>
           The leaderboard shows the last 5 completed weeks of the tournament.
-          Total points determine your overall rank.
+          Total points determine your overall rank (Weekly points + Bonus points).
         </p>
       </div>
     </div>
