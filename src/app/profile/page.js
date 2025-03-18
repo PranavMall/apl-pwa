@@ -8,12 +8,11 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/firebase';
 import { useAuth } from '@/app/context/authContext';
 import withAuth from '@/app/components/withAuth';
-// Import components from your existing component structure
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
 import styles from './profile.module.css';
 import { transferService } from '../services/transferService';
-import { generateReferralCode } from '../utils/referralUtils';
+import { generateReferralCode, isValidReferralFormat } from '../utils/referralUtils';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -28,6 +27,9 @@ const UserProfilePage = () => {
   const [photoURL, setPhotoURL] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
   const [referralCode, setReferralCode] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
+  const [processingReferral, setProcessingReferral] = useState(false);
+  const [referralMessage, setReferralMessage] = useState({ text: '', type: '' });
   const [transferWindow, setTransferWindow] = useState(null);
   const [isTransferActive, setIsTransferActive] = useState(false);
   const [userTeam, setUserTeam] = useState(null);
@@ -218,6 +220,56 @@ const UserProfilePage = () => {
       console.error('Error saving profile:', error);
       setSaveMessage({ text: 'Error saving profile. Please try again.', type: 'error' });
       setSaving(false);
+    }
+  };
+
+  const handleReferralSubmit = async () => {
+    if (!referrerCode.trim()) {
+      setReferralMessage({ text: 'Please enter a referral code', type: 'error' });
+      return;
+    }
+
+    // Validate referral code format
+    if (!isValidReferralFormat(referrerCode)) {
+      setReferralMessage({ 
+        text: 'Invalid referral code format (must start with APL-)', 
+        type: 'error' 
+      });
+      return;
+    }
+
+    try {
+      setProcessingReferral(true);
+      setReferralMessage({ text: '', type: '' });
+
+      // Process the referral
+      const result = await transferService.processReferral(user.uid, referrerCode);
+      
+      if (result.success) {
+        setReferralMessage({ 
+          text: 'Referral code applied successfully! Points have been awarded.', 
+          type: 'success' 
+        });
+        
+        // Update local user profile data to show referral has been used
+        setUserProfile(prev => ({
+          ...prev,
+          referredBy: result.referrerId || 'applied'
+        }));
+      } else {
+        setReferralMessage({ 
+          text: result.error || 'Failed to apply referral code', 
+          type: 'error' 
+        });
+      }
+    } catch (error) {
+      console.error('Error applying referral code:', error);
+      setReferralMessage({ 
+        text: 'Error processing referral: ' + error.message, 
+        type: 'error' 
+      });
+    } finally {
+      setProcessingReferral(false);
     }
   };
 
@@ -440,6 +492,48 @@ const UserProfilePage = () => {
                 Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
               </p>
             </div>
+
+            {/* Only show referrer code input if user hasn't used one yet */}
+            {!userProfile?.referredBy && (
+              <div className={styles.referralSection}>
+                <h3>Enter Referrer's Code</h3>
+                <p className={styles.referralInfo}>
+                  If someone referred you, enter their code to earn bonus points!
+                </p>
+                <div className={styles.formGroup}>
+                  <input
+                    type="text"
+                    value={referrerCode}
+                    onChange={(e) => setReferrerCode(e.target.value)}
+                    className={styles.input}
+                    placeholder="Enter referrer's code (e.g., APL-ABC123)"
+                    disabled={processingReferral}
+                  />
+                </div>
+                
+                {referralMessage.text && (
+                  <div className={`${styles.statusMessage} ${styles[referralMessage.type]}`}>
+                    {referralMessage.text}
+                  </div>
+                )}
+                
+                <button 
+                  className={styles.saveButton}
+                  onClick={handleReferralSubmit}
+                  disabled={processingReferral}
+                  style={{ marginTop: '10px' }}
+                >
+                  {processingReferral ? 'Processing...' : 'Apply Referral Code'}
+                </button>
+              </div>
+            )}
+
+            {/* If user has already used a referral, show that info */}
+            {userProfile?.referredBy && (
+              <div className={styles.referralInfo}>
+                <p>You have already used a referral code.</p>
+              </div>
+            )}
 
             {saveMessage.text && (
               <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
