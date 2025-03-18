@@ -777,11 +777,14 @@ static async processReferral(referredUserId, referrerCode) {
       return { success: false, error: 'No referral code provided' };
     }
     
+    console.log(`Processing referral code ${referrerCode} for user ${referredUserId}`);
+    
     // First check if user has already been referred
     const referredUserRef = doc(db, 'users', referredUserId);
     const referredUserDoc = await getDoc(referredUserRef);
     
     if (referredUserDoc.exists() && referredUserDoc.data().referredBy) {
+      console.log('User has already used a referral code');
       return { success: false, error: 'You have already used a referral code' };
     }
     
@@ -791,6 +794,7 @@ static async processReferral(referredUserId, referrerCode) {
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) {
+      console.log('No user found with the provided referral code');
       return { success: false, error: 'Invalid referral code - no matching user found' };
     }
     
@@ -798,8 +802,11 @@ static async processReferral(referredUserId, referrerCode) {
     const referrerId = referrerDoc.id;
     const referrerData = referrerDoc.data();
     
+    console.log(`Found referrer: ${referrerId}`);
+    
     // Ensure user is not referring themselves
     if (referrerId === referredUserId) {
+      console.log('User attempting to refer themselves');
       return { success: false, error: 'You cannot refer yourself' };
     }
     
@@ -808,6 +815,8 @@ static async processReferral(referredUserId, referrerCode) {
     const maxReferrals = 3; // Max referrals allowed
     
     if (referrals.length >= maxReferrals) {
+      console.log('Referrer has reached maximum number of referrals');
+      
       // Still track the referral but don't award points
       await updateDoc(doc(db, 'users', referrerId), {
         referrals: arrayUnion(referredUserId)
@@ -825,6 +834,9 @@ static async processReferral(referredUserId, referrerCode) {
       };
     }
     
+    // If we get here, the referral is valid and points should be awarded
+    console.log('Awarding referral points');
+    
     // Calculate points to award (can be configured elsewhere)
     const referralPoints = 25;
     
@@ -839,6 +851,8 @@ static async processReferral(referredUserId, referrerCode) {
     await updateDoc(doc(db, 'users', referredUserId), {
       referredBy: referrerId
     });
+    
+    console.log(`Successfully processed referral. ${referralPoints} points awarded to ${referrerId}`);
     
     return { 
       success: true,
