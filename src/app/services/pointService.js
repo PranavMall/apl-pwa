@@ -183,7 +183,6 @@ static async calculateMatchPoints(matchId, scorecard) {
 }
 
 // Fix for storePlayerMatchPoints in PointService.js 
-// Fix for storePlayerMatchPoints in PointService.js 
 static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
   try {
     const pointsDocId = `${playerId}_${matchId}`;
@@ -296,16 +295,7 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
       }
     }
 
-    // Log for debugging
-    console.log(`Points calculation for ${performance.name || playerId}:`, {
-      type: performance.type,
-      newPoints,
-      existingPoints: existingData?.points || 0,
-      totalPoints,
-      performance: updatedPerformance
-    });
-
-    // Store updated data
+    // Store updated playerPoints data (never skip this)
     await setDoc(pointsDocRef, {
       playerId,
       matchId,
@@ -315,51 +305,71 @@ static async storePlayerMatchPoints(playerId, matchId, newPoints, performance) {
     });
 
     try {
-      // Find or create the player in master DB
+      // CRITICAL FIX: Only try to update PlayerMaster if player exists
+      // Don't create new players in PlayerMaster automatically
       let masterPlayer = await PlayerMasterService.findPlayerByAnyId(playerId);
       
-      if (!masterPlayer) {
-        // Create new player if not found
-        await PlayerMasterService.upsertPlayer({
+      if (masterPlayer) {
+        // Player exists in master, update their stats
+        // Extract stats from performance data
+        const matchStats = {
+          matchId: matchId,
+          isNewMatch: true,
+          battingRuns: parseInt(performance.runs || updatedPerformance.runs || 0),
+          bowlingRuns: parseInt(performance.bowler_runs || updatedPerformance.bowler_runs || 0),
+          wickets: parseInt(performance.wickets || updatedPerformance.wickets || 0),
+          catches: parseInt(performance.catches || updatedPerformance.catches || 0),
+          stumpings: parseInt(performance.stumpings || updatedPerformance.stumpings || 0),
+          runOuts: parseInt(performance.runouts || updatedPerformance.runouts || 0),
+          points: totalPoints,
+          fifties: parseInt(performance.runs || updatedPerformance.runs || 0) >= 50 && 
+                  parseInt(performance.runs || updatedPerformance.runs || 0) < 100 ? 1 : 0,
+          hundreds: parseInt(performance.runs || updatedPerformance.runs || 0) >= 100 ? 1 : 0,
+          fours: parseInt(performance.fours || updatedPerformance.fours || 0),
+          sixes: parseInt(performance.sixes || updatedPerformance.sixes || 0)
+        };
+        
+        // Update the player's cumulative stats
+        await PlayerMasterService.updatePlayerStats(masterPlayer.id, matchStats);
+        console.log(`Updated master stats for ${masterPlayer.id}`);
+      } else {
+        // INTEGRATION WITH EXISTING ADMIN: Add to pending mappings collection
+        // This is where we store potential mappings for admin review
+        // The collection name might need to change depending on what your admin page expects
+        
+        const pendingMappingRef = doc(db, 'pendingPlayerMappings', playerId);
+        await setDoc(pendingMappingRef, {
           id: playerId,
           name: performance.name || playerId,
-          role: performance.type === 'bowling' ? 'bowler' : 
-                performance.type === 'batting' ? 'batsman' : 'unknown',
-        });
-        masterPlayer = { id: playerId };
+          team: performance.team || 'unknown',
+          suggestedRole: performance.type === 'bowling' ? 'bowler' : 
+                        performance.type === 'batting' ? 'batsman' : 
+                        performance.type === 'fielding' ? 'wicketkeeper' : 'unknown',
+          matchIds: [matchId],
+          points: totalPoints,
+          lastSeen: new Date().toISOString(),
+          needsMapping: true,
+          performance: {
+            runs: performance.runs || 0,
+            balls: performance.balls || 0,
+            wickets: performance.wickets || 0,
+            fours: performance.fours || 0,
+            sixes: performance.sixes || 0,
+            catches: performance.catches || 0,
+            stumpings: performance.stumpings || 0,
+            runOuts: performance.runouts || 0
+          }
+        }, { merge: true });
+        
+        console.log(`Player ${playerId} (${performance.name}) not found in PlayerMaster. Added to pendingPlayerMappings for admin review.`);
       }
-      
-      // Now update their stats based on current performance
-      const matchStats = {
-        matchId: matchId, // Add matchId to track processed matches
-        isNewMatch: true,
-        battingRuns: updatedPerformance.batting ? parseInt(updatedPerformance.runs || 0) : 0,
-        bowlingRuns: updatedPerformance.bowling ? parseInt(updatedPerformance.bowler_runs || 0) : 0,
-        wickets: updatedPerformance.bowling ? parseInt(updatedPerformance.wickets || 0) : 0,
-        catches: parseInt(updatedPerformance.catches || 0),
-        stumpings: parseInt(updatedPerformance.stumpings || 0),
-        runOuts: parseInt(updatedPerformance.runouts || 0),
-        points: totalPoints,
-        fifties: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 50 && parseInt(updatedPerformance.runs || 0) < 100 ? 1 : 0,
-        hundreds: updatedPerformance.batting && parseInt(updatedPerformance.runs || 0) >= 100 ? 1 : 0,
-        fours: updatedPerformance.batting ? parseInt(updatedPerformance.fours || 0) : 0,
-        sixes: updatedPerformance.batting ? parseInt(updatedPerformance.sixes || 0) : 0
-      };
-      
-      // Update the player's cumulative stats
-      await PlayerMasterService.updatePlayerStats(masterPlayer.id, matchStats);
     } catch (syncError) {
       console.error('Error syncing to player master DB:', syncError);
     }
 
     return true;
   } catch (error) {
-    console.error('Error storing player match points:', error, {
-      playerId,
-      matchId,
-      points: newPoints,
-      performance: JSON.stringify(performance, null, 2)
-    });
+    console.error('Error storing player match points:', error);
     throw error;
   }
 }
