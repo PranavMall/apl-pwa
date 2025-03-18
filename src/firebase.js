@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { isValidReferralFormat, generateReferralCode } from './app/utils/referralUtils';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -17,6 +18,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Add to firebase.js temporarily
+// Check if code is running in browser environment
+if (typeof window !== 'undefined') {
+  // Only define these functions in browser context
 window.fixUserReferralCode = async function(userId) {
   try {
     const userRef = doc(db, 'users', userId);
@@ -44,10 +48,11 @@ window.fixUserReferralCode = async function(userId) {
     });
     
     return { success: true, oldCode: currentCode, newCode };
-  } catch (error) {
-    console.error('Error fixing user referral code:', error);
-    return { success: false, error: error.message };
   }
-};
+    } catch (error) {
+      console.error('Error fixing referral codes:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
 export { auth, db };
