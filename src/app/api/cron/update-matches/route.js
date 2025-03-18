@@ -11,7 +11,8 @@ import {
   getDocs, 
   query, 
   where, 
-  setDoc 
+  setDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { db } from '../../../../firebase';
 
@@ -372,6 +373,36 @@ if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
         console.error(`Error updating user weekly stats for match ${result.matchId}:`, error);
       }
     }
+  }
+  try {
+    // Get the active tournament
+    const tournament = await transferService.getActiveTournament();
+    if (tournament) {
+      // Update rankings for all affected weeks
+      const affectedWeeks = new Set();
+      for (const result of results) {
+        if (result.status === 'completed' || result.pointsCalculated) {
+          // Get week number for this match
+          const matchWeekRef = doc(db, 'matchWeeks', result.matchId);
+          const matchWeekDoc = await getDoc(matchWeekRef);
+          if (matchWeekDoc.exists()) {
+            affectedWeeks.add(matchWeekDoc.data().weekNumber);
+          }
+        }
+      }
+      
+      // Update rankings for each affected week
+      for (const weekNumber of affectedWeeks) {
+        await transferService.updateWeeklyRankings(tournament.id, weekNumber);
+      }
+      
+      // Update overall rankings
+      await transferService.updateOverallRankings(tournament.id);
+      
+      console.log('Rankings updated successfully');
+    }
+  } catch (error) {
+    console.error('Error updating rankings:', error);
   }
 }
 
