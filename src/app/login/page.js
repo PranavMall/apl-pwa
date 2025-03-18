@@ -46,7 +46,7 @@ export default function LoginPage() {
     if (!code) return true; // Optional field
     
     if (!isValidReferralFormat(code)) {
-      setReferralError("Invalid referral code format");
+      setReferralError("Invalid referral code format (must start with APL-)");
       return false;
     }
     
@@ -160,6 +160,7 @@ export default function LoginPage() {
       <div className={styles["card-switch"]}>
         <label className={styles.switch}>
           <input type="checkbox" className={styles.toggle} onChange={toggleForm} />
+          <span className={styles["card-side"]}></span>
           <div className={styles["flip-card__inner"]}>
             {/* Login Form */}
             <div className={styles["flip-card__front"]}>
