@@ -26,9 +26,7 @@ export const generateReferralCode = (userId) => {
  * @returns {boolean} Whether the code is in a valid format
  */
 export const isValidReferralFormat = (code) => {
-  // More flexible regex that just checks for APL- prefix followed by alphanumeric characters
-  // Allow various formats as long as they start with APL- and have at least 7 characters after
-  const regex = /^APL-[A-Z0-9]{7,}$/;
+  const regex = /^APL-[A-Z0-9]{7,}$/i; // The 'i' flag makes the pattern case-insensitive
   return regex.test(code);
 };
 
