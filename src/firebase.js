@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore'; // Added necessary imports
 import { getAuth } from 'firebase/auth';
-import { isValidReferralFormat, generateReferralCode } from './src/app/utils/referralUtils';
+import { isValidReferralFormat, generateReferralCode } from '@/app/utils/referralUtils';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
