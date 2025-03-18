@@ -1,0 +1,232 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 100px; /* Space for bottom navigation */
+}
+
+.pageTitle {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.leaderboardCard {
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.leaderboardTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.leaderboardTable th {
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  color: white;
+  text-align: left;
+  padding: 12px 15px;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.leaderboardTable td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.leaderboardTable tr:hover {
+  background-color: #f9f9f9;
+}
+
+.leaderboardTable .currentUser {
+  background-color: #fff8e1;
+}
+
+.leaderboardTable .currentUser td {
+  font-weight: 600;
+}
+
+.rankColumn {
+  width: 60px;
+  text-align: center;
+}
+
+.teamColumn {
+  min-width: 180px;
+}
+
+.pointsColumn {
+  text-align: center;
+  width: 100px;
+}
+
+.totalColumn {
+  font-weight: 600;
+  text-align: center;
+  color: #ff6f00;
+  width: 120px;
+}
+
+.teamInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.userPhoto {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userPhotoPlaceholder {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.youBadge {
+  background: #4caf50;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 5px;
+}
+
+.topRank {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank1 {
+  background: #ffd700; /* Gold */
+}
+
+.rank2 {
+  background: #c0c0c0; /* Silver */
+}
+
+.rank3 {
+  background: #cd7f32; /* Bronze */
+}
+
+.userRankCard {
+  background: linear-gradient(45deg, #f9a825, #ff7043);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.rankHighlight {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.infoCard {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.infoCard h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.infoCard p {
+  color: #555;
+  margin-bottom: 10px;
+}
+
+.noData {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #666;
+  text-align: center;
+}
+
+.noData p {
+  margin: 5px 0;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+    padding-bottom: 80px;
+  }
+  
+  .pageTitle {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+  }
+  
+  .leaderboardTable {
+    font-size: 0.85rem;
+  }
+  
+  .leaderboardTable th,
+  .leaderboardTable td {
+    padding: 10px;
+  }
+  
+  .teamColumn {
+    min-width: 120px;
+  }
+  
+  .pointsColumn,
+  .totalColumn {
+    width: 70px;
+  }
+}
