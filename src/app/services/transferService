@@ -771,49 +771,46 @@ static async updateOverallRankings(tournamentId) {
 }
   
   // Process referral
-  static async processReferral(referredUserId, referrerCode) {
-    try {
-      if (!referrerCode) {
-        return { success: false, error: 'No referral code provided' };
-      }
-      
-      // Find user with this referral code
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('referralCode', '==', referrerCode));
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        return { success: false, error: 'Invalid referral code' };
-      }
-      
-      const referrerDoc = snapshot.docs[0];
-      const referrerId = referrerDoc.id;
-      const referrerData = referrerDoc.data();
-      
-      // Ensure user is not referring themselves
-      if (referrerId === referredUserId) {
-        return { success: false, error: 'You cannot refer yourself' };
-      }
-      
-      // Check if referrer already has max referrals
-      const referrals = referrerData.referrals || [];
-      if (referrals.length >= 3) {
-        // Still track the referral but don't award points
-        await updateDoc(doc(db, 'users', referrerId), {
-          referrals: arrayUnion(referredUserId)
-        });
-        
-        return { 
-          success: true, 
-          message: 'Referral recorded, but referrer has reached maximum bonus points'
-        };
-      }
-      
-      // Update referrer document
+static async processReferral(referredUserId, referrerCode) {
+  try {
+    if (!referrerCode) {
+      return { success: false, error: 'No referral code provided' };
+    }
+    
+    // First check if user has already been referred
+    const referredUserRef = doc(db, 'users', referredUserId);
+    const referredUserDoc = await getDoc(referredUserRef);
+    
+    if (referredUserDoc.exists() && referredUserDoc.data().referredBy) {
+      return { success: false, error: 'You have already used a referral code' };
+    }
+    
+    // Find user with this referral code
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('referralCode', '==', referrerCode));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      return { success: false, error: 'Invalid referral code - no matching user found' };
+    }
+    
+    const referrerDoc = snapshot.docs[0];
+    const referrerId = referrerDoc.id;
+    const referrerData = referrerDoc.data();
+    
+    // Ensure user is not referring themselves
+    if (referrerId === referredUserId) {
+      return { success: false, error: 'You cannot refer yourself' };
+    }
+    
+    // Check if referrer already has max referrals
+    const referrals = referrerData.referrals || [];
+    const maxReferrals = 3; // Max referrals allowed
+    
+    if (referrals.length >= maxReferrals) {
+      // Still track the referral but don't award points
       await updateDoc(doc(db, 'users', referrerId), {
-        referrals: arrayUnion(referredUserId),
-        referralPoints: increment(25),
-        totalPoints: increment(25)
+        referrals: arrayUnion(referredUserId)
       });
       
       // Update referred user document
@@ -821,12 +818,38 @@ static async updateOverallRankings(tournamentId) {
         referredBy: referrerId
       });
       
-      return { success: true };
-    } catch (error) {
-      console.error('Error processing referral:', error);
-      throw error;
+      return { 
+        success: true,
+        referrerId,
+        message: 'Referral recorded, but referrer has reached maximum bonus points'
+      };
     }
+    
+    // Calculate points to award (can be configured elsewhere)
+    const referralPoints = 25;
+    
+    // Update referrer document with new referral and points
+    await updateDoc(doc(db, 'users', referrerId), {
+      referrals: arrayUnion(referredUserId),
+      referralPoints: increment(referralPoints),
+      totalPoints: increment(referralPoints)
+    });
+    
+    // Update referred user document
+    await updateDoc(doc(db, 'users', referredUserId), {
+      referredBy: referrerId
+    });
+    
+    return { 
+      success: true,
+      referrerId,
+      pointsAwarded: referralPoints
+    };
+  } catch (error) {
+    console.error('Error processing referral:', error);
+    throw error;
   }
+}
 }
 
 export default transferService;
