@@ -320,70 +320,64 @@ const PlayerPerformancePage = () => {
             )}
           </div>
           
-          <Tabs 
-            value={activeRole} 
-            onValueChange={(value) => setActiveRole(value)}
-          >
-            <TabsList>
-              <TabsTrigger value={PLAYER_ROLES.BATSMAN}>
-                Batsmen
-              </TabsTrigger>
-              <TabsTrigger value={PLAYER_ROLES.BOWLER}>
-                Bowlers
-              </TabsTrigger>
-              <TabsTrigger value={PLAYER_ROLES.ALLROUNDER}>
-                All-rounders
-              </TabsTrigger>
-              <TabsTrigger value={PLAYER_ROLES.WICKETKEEPER}>
-                Wicket-keepers
-              </TabsTrigger>
-            </TabsList>
+    <div className={styles.tabs}>
+  {Object.values(PLAYER_ROLES).map((role) => (
+    <button
+      key={role}
+      className={`${styles.tab} ${activeRole === role ? styles.activeTab : ""}`}
+      onClick={() => setActiveRole(role)}
+    >
+      {role === PLAYER_ROLES.BATSMAN ? "Batsmen" : 
+       role === PLAYER_ROLES.BOWLER ? "Bowlers" : 
+       role === PLAYER_ROLES.ALLROUNDER ? "All-rounders" : "Wicket-keepers"}
+    </button>
+  ))}
+</div>
 
-            {Object.values(PLAYER_ROLES).map((role) => (
-              <TabsContent key={role} value={role}>
-                {loading ? (
-                  <div className={styles.loading}>Loading players...</div>
-                ) : error ? (
-                  <div className={styles.error}>{error}</div>
-                ) : players.length === 0 ? (
-                  <div className={styles.noData}>
-                    No {role} data available
-                    {selectedTeam && ` for team ${selectedTeam}`}
-                  </div>
-                ) : (
-                  <div className={styles.tableWrapper}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          {getTableHeaders().map((header) => (
-                            <th
-                              key={header.key}
-                              className={styles.tableHeader}
-                              onClick={() => sortPlayers(header.key)}
-                            >
-                              {header.label}
-                              {sortConfig.key === header.key && (
-                                <span className={styles.sortArrow}>
-                                  {sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}
-                                </span>
-                              )}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {players.map((player) => (
-                          <tr key={player.id} className={styles.tableRow}>
-                            {renderPlayerStats(player)}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </TabsContent>
+{Object.values(PLAYER_ROLES).map((role) => (
+  <div key={role} style={{ display: activeRole === role ? 'block' : 'none' }}>
+    {loading ? (
+      <div className={styles.loading}>Loading players...</div>
+    ) : error ? (
+      <div className={styles.error}>{error}</div>
+    ) : players.length === 0 ? (
+      <div className={styles.noData}>
+        No {role} data available
+        {selectedTeam && ` for team ${selectedTeam}`}
+      </div>
+    ) : (
+      <div className={styles.tableWrapper}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              {getTableHeaders().map((header) => (
+                <th
+                  key={header.key}
+                  className={styles.tableHeader}
+                  onClick={() => sortPlayers(header.key)}
+                >
+                  {header.label}
+                  {sortConfig.key === header.key && (
+                    <span className={styles.sortArrow}>
+                      {sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}
+                    </span>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((player) => (
+              <tr key={player.id} className={styles.tableRow}>
+                {renderPlayerStats(player)}
+              </tr>
             ))}
-          </Tabs>
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+))}
         </CardContent>
       </Card>
     </div>
