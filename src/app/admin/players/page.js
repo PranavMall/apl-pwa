@@ -1,9 +1,8 @@
-// src/app/admin/players/page.js
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { db } from '../../../firebase';
-import { collection, doc, getDoc, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc } from 'firebase/firestore';
 import { PlayerMasterService } from '@/app/services/PlayerMasterService';
 import styles from './players.module.css';
 
@@ -15,6 +14,20 @@ export default function PlayerAdmin() {
   const [loading, setLoading] = useState(false);
   const [processingPlayerId, setProcessingPlayerId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // Add the missing state variables
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingMappings, setPendingMappings] = useState([]);
+  const [pendingToMap, setPendingToMap] = useState(null);
+  const [mappingSearchTerm, setMappingSearchTerm] = useState('');
+  const [processingId, setProcessingId] = useState(null);
+  
+  // Compute filtered master players based on mapping search term
+  const filteredMasterPlayers = mappingSearchTerm.trim() 
+    ? players.filter(player => 
+        (player.name && player.name.toLowerCase().includes(mappingSearchTerm.toLowerCase())) ||
+        player.id.toLowerCase().includes(mappingSearchTerm.toLowerCase()) ||
+        (player.team && player.team.toLowerCase().includes(mappingSearchTerm.toLowerCase())))
+    : players;
   
   const loadPlayers = async () => {
     setLoading(true);
@@ -39,73 +52,73 @@ export default function PlayerAdmin() {
   };
 
   const fetchPendingMappings = async () => {
-  try {
-    setPendingLoading(true);
-    const pendingRef = collection(db, 'pendingPlayerMappings');
-    const q = query(pendingRef, where('needsMapping', '==', true));
-    const snapshot = await getDocs(q);
-    
-    const pendingList = [];
-    snapshot.forEach(doc => {
-      pendingList.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    setPendingMappings(pendingList);
-    setPendingLoading(false);
-  } catch (error) {
-    console.error('Error fetching pending mappings:', error);
-    setMessage({ type: 'error', text: 'Error loading pending player mappings' });
-    setPendingLoading(false);
-  }
-};
-
-// Add to your useEffect to load pending mappings
-useEffect(() => {
-  // Existing code to load players
-  loadPlayers();
-  // Also load pending mappings
-  fetchPendingMappings();
-}, []);
-
-// Add a handler for mapping pending players to master players
-const handleMapPendingPlayer = async (pendingId, targetMasterId) => {
-  try {
-    setProcessingId(pendingId);
-    setMessage({ type: 'info', text: 'Processing mapping...' });
-    
-    // Add the pending ID as an alternate ID for the master player
-    const result = await PlayerMasterService.mapRelatedPlayers(targetMasterId, [pendingId]);
-    
-    if (result.success) {
-      // Mark the pending mapping as processed
-      const pendingRef = doc(db, 'pendingPlayerMappings', pendingId);
-      await updateDoc(pendingRef, {
-        needsMapping: false, 
-        mappedTo: targetMasterId,
-        mappedAt: new Date().toISOString()
+    try {
+      setPendingLoading(true);
+      const pendingRef = collection(db, 'pendingPlayerMappings');
+      const q = query(pendingRef, where('needsMapping', '==', true));
+      const snapshot = await getDocs(q);
+      
+      const pendingList = [];
+      snapshot.forEach(doc => {
+        pendingList.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
       
-      setMessage({ 
-        type: 'success', 
-        text: `Player mapping successful! Stats from ${pendingId} have been associated with the master player.`
-      });
-      
-      // Refresh both lists
-      loadPlayers();
-      fetchPendingMappings();
-    } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to map player' });
+      setPendingMappings(pendingList);
+      setPendingLoading(false);
+    } catch (error) {
+      console.error('Error fetching pending mappings:', error);
+      setMessage({ type: 'error', text: 'Error loading pending player mappings' });
+      setPendingLoading(false);
     }
-  } catch (error) {
-    console.error('Error mapping pending player:', error);
-    setMessage({ type: 'error', text: 'Error mapping player: ' + error.message });
-  } finally {
-    setProcessingId(null);
-  }
-};
+  };
+
+  // Add to your useEffect to load pending mappings
+  useEffect(() => {
+    // Existing code to load players
+    loadPlayers();
+    // Also load pending mappings
+    fetchPendingMappings();
+  }, []);
+
+  // Add a handler for mapping pending players to master players
+  const handleMapPendingPlayer = async (pendingId, targetMasterId) => {
+    try {
+      setProcessingId(pendingId);
+      setMessage({ type: 'info', text: 'Processing mapping...' });
+      
+      // Add the pending ID as an alternate ID for the master player
+      const result = await PlayerMasterService.mapRelatedPlayers(targetMasterId, [pendingId]);
+      
+      if (result.success) {
+        // Mark the pending mapping as processed
+        const pendingRef = doc(db, 'pendingPlayerMappings', pendingId);
+        await updateDoc(pendingRef, {
+          needsMapping: false, 
+          mappedTo: targetMasterId,
+          mappedAt: new Date().toISOString()
+        });
+        
+        setMessage({ 
+          type: 'success', 
+          text: `Player mapping successful! Stats from ${pendingId} have been associated with the master player.`
+        });
+        
+        // Refresh both lists
+        loadPlayers();
+        fetchPendingMappings();
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to map player' });
+      }
+    } catch (error) {
+      console.error('Error mapping pending player:', error);
+      setMessage({ type: 'error', text: 'Error mapping player: ' + error.message });
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   
   const handleAddMapping = async () => {
@@ -403,76 +416,77 @@ const handleMapPendingPlayer = async (pendingId, targetMasterId) => {
                   Rebuild Player Stats
                 </button>
               </div>
-                    {pendingMappings && pendingMappings.length > 0 && (
-  <div className={styles.section}>
-    <h2 className={styles.sectionTitle}>Unmapped Players ({pendingMappings.length})</h2>
-    <p className={styles.sectionDescription}>
-      These players were found in match data but don't exist in the Player Master database.
-      Select a pending player and then a master player to map them together.
-    </p>
+                    
+              {pendingMappings && pendingMappings.length > 0 && (
+                <div className={styles.section}>
+                  <h2 className={styles.sectionTitle}>Unmapped Players ({pendingMappings.length})</h2>
+                  <p className={styles.sectionDescription}>
+                    These players were found in match data but don't exist in the Player Master database.
+                    Select a pending player and then a master player to map them together.
+                  </p>
 
-    <div className={styles.pendingList}>
-      {pendingMappings.map(player => (
-        <div 
-          key={player.id} 
-          className={`${styles.playerItem} ${pendingToMap?.id === player.id ? styles.selected : ''}`}
-          onClick={() => setPendingToMap(player)}
-        >
-          <div className={styles.playerName}>{player.name || player.id}</div>
-          <div className={styles.playerDetails}>
-            <span className={styles.playerPoints}>{Math.round(player.points || 0)} pts</span>
-            <span className={styles.playerTeam}>{player.team || 'Unknown'}</span>
-            <span className={`${styles.playerRole} ${styles[player.suggestedRole] || ''}`}>
-              {player.suggestedRole || 'unknown'}
-            </span>
-          </div>
-          <div className={styles.matchInfo}>
-            Last seen: {new Date(player.lastSeen).toLocaleDateString()}
-          </div>
-        </div>
-      ))}
-    </div>
+                  <div className={styles.pendingList}>
+                    {pendingMappings.map(player => (
+                      <div 
+                        key={player.id} 
+                        className={`${styles.playerItem} ${pendingToMap?.id === player.id ? styles.selected : ''}`}
+                        onClick={() => setPendingToMap(player)}
+                      >
+                        <div className={styles.playerName}>{player.name || player.id}</div>
+                        <div className={styles.playerDetails}>
+                          <span className={styles.playerPoints}>{Math.round(player.points || 0)} pts</span>
+                          <span className={styles.playerTeam}>{player.team || 'Unknown'}</span>
+                          <span className={`${styles.playerRole} ${styles[player.suggestedRole] || ''}`}>
+                            {player.suggestedRole || 'unknown'}
+                          </span>
+                        </div>
+                        <div className={styles.matchInfo}>
+                          Last seen: {new Date(player.lastSeen).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-    {pendingToMap && (
-      <div className={styles.mappingActions}>
-        <h3>Map "{pendingToMap.name}" to:</h3>
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            placeholder="Search master players..."
-            value={mappingSearchTerm}
-            onChange={e => setMappingSearchTerm(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
-        
-        <div className={styles.masterPlayersList}>
-          {filteredMasterPlayers.map(master => (
-            <div 
-              key={master.id}
-              className={styles.masterPlayerItem}
-              onClick={() => handleMapPendingPlayer(pendingToMap.id, master.id)}
-            >
-              <div className={styles.playerName}>{master.name}</div>
-              <div className={styles.playerDetails}>
-                <span className={styles.playerTeam}>{master.team || 'Unknown'}</span>
-                <span className={`${styles.playerRole} ${styles[master.role] || ''}`}>
-                  {master.role || 'unknown'}
-                </span>
-              </div>
-              <button 
-                className={styles.mapButton}
-                disabled={processingId === pendingToMap.id}
-              >
-                {processingId === pendingToMap.id ? 'Mapping...' : 'Map'}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-)}
+                  {pendingToMap && (
+                    <div className={styles.mappingActions}>
+                      <h3>Map "{pendingToMap.name}" to:</h3>
+                      <div className={styles.searchBox}>
+                        <input
+                          type="text"
+                          placeholder="Search master players..."
+                          value={mappingSearchTerm}
+                          onChange={e => setMappingSearchTerm(e.target.value)}
+                          className={styles.searchInput}
+                        />
+                      </div>
+                      
+                      <div className={styles.masterPlayersList}>
+                        {filteredMasterPlayers.map(master => (
+                          <div 
+                            key={master.id}
+                            className={styles.masterPlayerItem}
+                            onClick={() => handleMapPendingPlayer(pendingToMap.id, master.id)}
+                          >
+                            <div className={styles.playerName}>{master.name}</div>
+                            <div className={styles.playerDetails}>
+                              <span className={styles.playerTeam}>{master.team || 'Unknown'}</span>
+                              <span className={`${styles.playerRole} ${styles[master.role] || ''}`}>
+                                {master.role || 'unknown'}
+                              </span>
+                            </div>
+                            <button 
+                              className={styles.mapButton}
+                              disabled={processingId === pendingToMap.id}
+                            >
+                              {processingId === pendingToMap.id ? 'Mapping...' : 'Map'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               
               <div className={styles.mappingSection}>
                 <h4>Alternate IDs Management</h4>
