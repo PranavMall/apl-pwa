@@ -640,6 +640,135 @@ static async ensureWeeklyStatsForAllUsers(tournamentId) {
       throw error;
     }
   }
+
+static async updateWeeklyRankings(tournamentId, weekNumber) {
+  try {
+    console.log(`Updating rankings for tournament ${tournamentId}, week ${weekNumber}`);
+    
+    // Get all weekly stats for this tournament and week
+    const statsRef = collection(db, 'userWeeklyStats');
+    const q = query(
+      statsRef, 
+      where('tournamentId', '==', tournamentId),
+      where('weekNumber', '==', weekNumber)
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    // Sort users by points (highest first)
+    const userStats = [];
+    snapshot.forEach(doc => {
+      userStats.push({
+        id: doc.id,
+        userId: doc.data().userId,
+        points: doc.data().points || 0
+      });
+    });
+    
+    // Sort by points (descending)
+    userStats.sort((a, b) => b.points - a.points);
+    
+    // Update ranks
+    const updatePromises = [];
+    let currentRank = 1;
+    let previousPoints = null;
+    
+    userStats.forEach((stat, index) => {
+      // If points are the same as previous user, assign the same rank
+      // Otherwise, assign rank based on position
+      if (previousPoints !== null && stat.points !== previousPoints) {
+        currentRank = index + 1;
+      }
+      
+      previousPoints = stat.points;
+      
+      // Update the document with the rank
+      const statRef = doc(db, 'userWeeklyStats', stat.id);
+      updatePromises.push(
+        updateDoc(statRef, { rank: currentRank })
+      );
+    });
+    
+    await Promise.all(updatePromises);
+    console.log(`Updated ranks for ${updatePromises.length} users`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating weekly rankings:', error);
+    throw error;
+  }
+}
+
+static async updateOverallRankings(tournamentId) {
+  try {
+    // Get all users with teams in this tournament
+    const userTeamsRef = collection(db, 'userTeams');
+    const teamsQuery = query(userTeamsRef, where('tournamentId', '==', tournamentId));
+    const teamsSnapshot = await getDocs(teamsQuery);
+    
+    // Calculate total points for each user
+    const userStats = [];
+    
+    for (const teamDoc of teamsSnapshot.docs) {
+      const userId = teamDoc.data().userId;
+      
+      // Get all weekly stats for this user
+      const statsRef = collection(db, 'userWeeklyStats');
+      const statsQuery = query(
+        statsRef,
+        where('userId', '==', userId),
+        where('tournamentId', '==', tournamentId)
+      );
+      
+      const statsSnapshot = await getDocs(statsQuery);
+      
+      // Sum up points across all weeks
+      let totalPoints = 0;
+      statsSnapshot.forEach(doc => {
+        totalPoints += doc.data().points || 0;
+      });
+      
+      userStats.push({
+        userId,
+        totalPoints
+      });
+    }
+    
+    // Sort by total points (descending)
+    userStats.sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    // Update user ranks
+    const updatePromises = [];
+    let currentRank = 1;
+    let previousPoints = null;
+    
+    userStats.forEach((stat, index) => {
+      // If points are the same as previous user, assign the same rank
+      if (previousPoints !== null && stat.totalPoints !== previousPoints) {
+        currentRank = index + 1;
+      }
+      
+      previousPoints = stat.totalPoints;
+      
+      // Update the user document with overall rank and total points
+      const userRef = doc(db, 'users', stat.userId);
+      updatePromises.push(
+        updateDoc(userRef, { 
+          rank: currentRank,
+          totalPoints: stat.totalPoints
+        })
+      );
+    });
+    
+    await Promise.all(updatePromises);
+    console.log(`Updated overall ranks for ${updatePromises.length} users`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating overall rankings:', error);
+    throw error;
+  }
+}
   
   // Process referral
   static async processReferral(referredUserId, referrerCode) {
