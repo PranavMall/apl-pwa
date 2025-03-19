@@ -23,35 +23,146 @@
   color: #333;
 }
 
-/* Transfer Info Styles */
-.transferInfo {
+/* Message styles */
+.message {
+  padding: 12px 15px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.info {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+/* Team Summary Card */
+.teamSummaryCard {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 20px;
   margin-bottom: 20px;
+}
+
+.teamSummaryCard.editMode {
+  border: 2px solid #f9a825;
+}
+
+.teamSummary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .teamSummary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.captainInfo {
+  display: flex;
+  gap: 20px;
+}
+
+.summarySection {
+  flex: 1;
+}
+
+.summarySection h3 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #444;
+}
+
+.playerBadge {
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.badgeName {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.badgeTeam {
+  display: inline-block;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  color: white;
+  align-self: flex-start;
+}
+
+.multiplier {
+  font-weight: 700;
+  color: #f9a825;
+  align-self: flex-end;
+}
+
+.teamCount {
+  grid-column: 1 / -1;
+}
+
+.teamCount h3 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #444;
+}
+
+.countBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.countBadge {
+  background: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.totalCount {
+  background: #f9a825;
+  color: white;
+  font-weight: 600;
+}
+
+.transferInfo {
+  grid-column: 1 / -1;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 15px;
 }
 
 .transferInfo h3 {
   margin-bottom: 10px;
-  color: #333;
-}
-
-.transferStatus {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 15px;
+  font-size: 1.1rem;
+  color: #444;
 }
 
 .activeWindow {
   display: flex;
   align-items: center;
   gap: 15px;
+  margin-bottom: 10px;
 }
 
-.activeWindow span {
+.activeWindow span:first-child {
   background: #4caf50;
   color: white;
   padding: 6px 12px;
@@ -63,47 +174,44 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  margin-bottom: 10px;
 }
 
-.inactiveWindow span {
+.inactiveWindow span:first-child {
   background: #f44336;
   color: white;
   padding: 6px 12px;
   border-radius: 4px;
   font-weight: 500;
-}
-
-.inactiveWindow p {
-  font-size: 0.9rem;
-  color: #666;
-  margin-top: 5px;
+  display: inline-block;
+  width: fit-content;
 }
 
 .transfersRemaining {
   font-weight: 500;
   color: #333;
+  margin-top: 5px;
 }
 
 .editTeamButton {
   background: linear-gradient(45deg, #f9a825, #ff7043);
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 10px 20px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   transition: opacity 0.2s;
+  margin-top: 15px;
+  align-self: flex-start;
+  grid-column: 1 / -1;
 }
 
 .editTeamButton:hover {
   opacity: 0.9;
 }
 
-/* Team Display Styles */
-.teamDisplay {
-  margin-bottom: 30px;
-}
-
+/* Team Card */
 .teamCard {
   background: white;
   border-radius: 8px;
@@ -157,10 +265,10 @@
 }
 
 .teamBadge {
-  background: rgba(255, 255, 255, 0.2);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.8rem;
+  color: white;
 }
 
 .captainMultiplier {
@@ -208,11 +316,18 @@
   padding: 15px;
   position: relative;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
 }
 
 .playerCard:hover {
   transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.selectedPlayer {
+  background: #e8f5e9;
+  border: 2px solid #4caf50;
 }
 
 .playerName {
@@ -222,14 +337,23 @@
 }
 
 .playerTeam {
-  font-size: 0.85rem;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-bottom: 5px;
+  color: white;
+}
+
+.playerPoints {
+  font-size: 0.9rem;
   color: #666;
 }
 
 .captainBadge {
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: -8px;
+  right: -8px;
   background: #f9a825;
   color: white;
   width: 24px;
@@ -243,7 +367,149 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Stats Section Styles */
+.captainButtons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.captainButton,
+.viceCaptainButton {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.85rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.captainButton {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.viceCaptainButton {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.captainButton.selected {
+  background: #f9a825;
+  color: white;
+}
+
+.viceCaptainButton.selected {
+  background: #ff7043;
+  color: white;
+}
+
+/* Edit Card */
+.editCard {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.searchContainer {
+  margin-bottom: 20px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.searchInput:focus {
+  border-color: #f9a825;
+  outline: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.activeTab {
+  background: #f9a825;
+  color: white;
+}
+
+.tab:hover:not(.activeTab) {
+  background: #e0e0e0;
+}
+
+.editActions {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+  justify-content: flex-end;
+}
+
+.cancelButton {
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.cancelButton:hover {
+  background: #d0d0d0;
+}
+
+.saveTeamButton {
+  background: linear-gradient(45deg, #388e3c, #4caf50);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.saveTeamButton:hover {
+  opacity: 0.9;
+}
+
+.saveTeamButton:disabled,
+.cancelButton:disabled,
+.editTeamButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Stats Section */
 .statsSection {
   margin-bottom: 30px;
 }
@@ -300,12 +566,6 @@
   padding: 40px 20px;
 }
 
-.noTeamMessage h2 {
-  font-size: 1.5rem;
-  margin-bottom: 15px;
-  color: #333;
-}
-
 .noTeamMessage p {
   color: #666;
   margin-bottom: 20px;
@@ -327,13 +587,6 @@
   opacity: 0.9;
 }
 
-.waitMessage {
-  background: #f5f5f5;
-  padding: 15px;
-  border-radius: 8px;
-  margin-top: 20px;
-}
-
 /* Responsive Styles */
 @media (max-width: 768px) {
   .container {
@@ -341,22 +594,46 @@
     padding-bottom: 90px;
   }
   
-  .transferStatus {
+  .captainInfo {
     flex-direction: column;
-    align-items: flex-start;
+    gap: 15px;
   }
   
   .playersGrid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
-}
-
-@media (max-width: 480px) {
+  
+  .tab {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+  }
+  
   .specialPlayers {
     grid-template-columns: 1fr;
   }
-  
+}
+
+@media (max-width: 480px) {
   .playersGrid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .tabs {
+    gap: 5px;
+  }
+  
+  .tab {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .editActions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .saveTeamButton,
+  .cancelButton {
+    width: 100%;
   }
 }
