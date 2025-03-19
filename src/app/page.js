@@ -39,7 +39,7 @@ export default function Home() {
           </div>
           <div className={styles.heroImage}>
             <Image 
-              src="/hero-cricket.png" 
+              src="@/public/images/hero.jpg" 
               alt="Cricket Players" 
               width={500} 
               height={300}
