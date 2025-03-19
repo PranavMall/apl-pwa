@@ -98,6 +98,16 @@ const MyTeamPage = () => {
       setLoading(false);
     }
   };
+  const renderTransfersRemaining = (count) => {
+  const isNegative = count < 0;
+  return (
+    <div className={styles.transfersRemaining}>
+      <span className={isNegative ? styles.negative : ""}>
+        Transfers Remaining: {count}
+      </span>
+    </div>
+  );
+};
   
   const fetchAvailablePlayers = async () => {
     try {
@@ -567,23 +577,22 @@ const MyTeamPage = () => {
                 );
               })}
             </div>
-            
-            <div className={styles.editActions}>
-              <button 
-                className={styles.cancelButton}
-                onClick={handleCancelEdit}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button 
-                className={styles.saveTeamButton}
-                onClick={saveTeam}
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Team'}
-              </button>
-            </div>
+            <div className={styles.stickyControls}>
+  <button 
+    className={styles.cancelButton}
+    onClick={handleCancelEdit}
+    disabled={saving}
+  >
+    Cancel
+  </button>
+  <button 
+    className={styles.saveTeamButton}
+    onClick={saveTeam}
+    disabled={saving}
+  >
+    {saving ? 'Saving...' : 'Save Team'}
+  </button>
+</div>
           </CardContent>
         </Card>
       ) : (
@@ -639,15 +648,17 @@ const MyTeamPage = () => {
                 </div>
                 
                 {isTransferActive && !editMode && (
-                  <button 
-                    className={styles.editTeamButton}
-                    onClick={handleEnterEditMode}
-                  >
-                    Edit Team
-                  </button>
-                )}
+  <div className={styles.editTeamContainer}>
+    <button 
+      className={styles.editTeamButton}
+      onClick={handleEnterEditMode}
+    >
+      Edit Team
+    </button>
+  </div>
+)}
 
-                <div className={styles.specialPlayers}>
+                <div className={`${styles.specialPlayers} ${styles.captainSection}`}>
                   <div className={styles.playerRole}>
                     <h3>Captain</h3>
                     {captain ? (
