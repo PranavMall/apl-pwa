@@ -349,49 +349,49 @@ const MyTeamPage = () => {
       
       {/* Team summary at the top */}
       {userTeam && (
-        // <Card className={`${styles.teamSummaryCard} ${editMode ? styles.editMode : ''}`}>
-        //   <CardHeader>
-        //     <CardTitle>Team Summary</CardTitle>
-        //   </CardHeader>
-        //   <CardContent>
-        //     <div className={styles.teamSummary}>
-        //       <div className={styles.captainInfo}>
-        //         <div className={styles.summarySection}>
-        //           <h3>Captain</h3>
-        //           {captain ? (
-        //             <div className={styles.playerBadge}>
-        //               <span className={styles.badgeName}>{captain.name}</span>
-        //               <span 
-        //                 className={styles.badgeTeam}
-        //                 style={{ backgroundColor: getTeamColor(captain.team) }}
-        //               >
-        //                 {captain.team}
-        //               </span>
-        //               <span className={styles.multiplier}>2x</span>
-        //             </div>
-        //           ) : (
-        //             <span className={styles.notSelected}>Not selected</span>
-        //           )}
-        //         </div>
+        <Card className={`${styles.teamSummaryCard} ${editMode ? styles.editMode : ''}`}>
+          <CardHeader>
+            <CardTitle>Team Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={styles.teamSummary}>
+              <div className={styles.captainInfo}>
+                <div className={styles.summarySection}>
+                  <h3>Captain</h3>
+                  {captain ? (
+                    <div className={styles.playerBadge}>
+                      <span className={styles.badgeName}>{captain.name}</span>
+                      <span 
+                        className={styles.badgeTeam}
+                        style={{ backgroundColor: getTeamColor(captain.team) }}
+                      >
+                        {captain.team}
+                      </span>
+                      <span className={styles.multiplier}>2x</span>
+                    </div>
+                  ) : (
+                    <span className={styles.notSelected}>Not selected</span>
+                  )}
+                </div>
                 
-        //         <div className={styles.summarySection}>
-        //           <h3>Vice-Captain</h3>
-        //           {viceCaptain ? (
-        //             <div className={styles.playerBadge}>
-        //               <span className={styles.badgeName}>{viceCaptain.name}</span>
-        //               <span 
-        //                 className={styles.badgeTeam}
-        //                 style={{ backgroundColor: getTeamColor(viceCaptain.team) }}
-        //               >
-        //                 {viceCaptain.team}
-        //               </span>
-        //               <span className={styles.multiplier}>1.5x</span>
-        //             </div>
-        //           ) : (
-        //             <span className={styles.notSelected}>Not selected</span>
-        //           )}
-        //         </div>
-        //       </div>
+                <div className={styles.summarySection}>
+                  <h3>Vice-Captain</h3>
+                  {viceCaptain ? (
+                    <div className={styles.playerBadge}>
+                      <span className={styles.badgeName}>{viceCaptain.name}</span>
+                      <span 
+                        className={styles.badgeTeam}
+                        style={{ backgroundColor: getTeamColor(viceCaptain.team) }}
+                      >
+                        {viceCaptain.team}
+                      </span>
+                      <span className={styles.multiplier}>1.5x</span>
+                    </div>
+                  ) : (
+                    <span className={styles.notSelected}>Not selected</span>
+                  )}
+                </div>
+              </div>
               
               <div className={styles.teamCount}>
                 <h3>Team Composition</h3>
@@ -431,9 +431,9 @@ const MyTeamPage = () => {
                       }
                     </div>
                   )}
-                  // <div className={styles.transfersRemaining}>
-                  //   <span>Transfers Remaining: {userTeam?.transfersRemaining || 0}</span>
-                  // </div>
+                  <div className={styles.transfersRemaining}>
+                    <span>Transfers Remaining: {userTeam?.transfersRemaining || 0}</span>
+                  </div>
                 </div>
               )}
               
@@ -470,22 +470,6 @@ const MyTeamPage = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={styles.searchInput}
               />
-            </div>
-                            <div className={styles.editActions}>
-              <button 
-                className={styles.cancelButton}
-                onClick={handleCancelEdit}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button 
-                className={styles.saveTeamButton}
-                onClick={saveTeam}
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Team'}
-              </button>
             </div>
             
             <div className={styles.tabs}>
@@ -688,7 +672,22 @@ const MyTeamPage = () => {
               })}
             </div>
             
-
+            <div className={styles.editActions}>
+              <button 
+                className={styles.cancelButton}
+                onClick={handleCancelEdit}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.saveTeamButton}
+                onClick={saveTeam}
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : 'Save Team'}
+              </button>
+            </div>
           </CardContent>
         </Card>
       ) : (
