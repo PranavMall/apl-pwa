@@ -346,63 +346,6 @@ const MyTeamPage = () => {
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>My Team</h1>
-              
-              <div className={styles.teamCount}>
-                <h3>Team Composition</h3>
-                <div className={styles.countBadges}>
-                  <span className={styles.countBadge}>
-                    Batsmen: {selectedPlayers.batsmen.length}/4
-                  </span>
-                  <span className={styles.countBadge}>
-                    Bowlers: {selectedPlayers.bowlers.length}/4
-                  </span>
-                  <span className={styles.countBadge}>
-                    All-rounders: {selectedPlayers.allrounders.length}/2
-                  </span>
-                  <span className={styles.countBadge}>
-                    Wicket-keepers: {selectedPlayers.wicketkeepers.length}/1
-                  </span>
-                  <span className={`${styles.countBadge} ${styles.totalCount}`}>
-                    Total: {selectedPlayers.batsmen.length + selectedPlayers.bowlers.length + 
-                    selectedPlayers.allrounders.length + selectedPlayers.wicketkeepers.length}/11
-                  </span>
-                </div>
-              </div>
-              
-              {transferWindow && (
-                <div className={styles.transferInfo}>
-                  <h3>Transfer Window</h3>
-                  {isTransferActive ? (
-                    <div className={styles.activeWindow}>
-                      <span>Transfer Window Open!</span>
-                      <span>Closes on {new Date(transferWindow.endDate).toLocaleDateString()}</span>
-                    </div>
-                  ) : (
-                    <div className={styles.inactiveWindow}>
-                      <span>Transfer Window Closed</span>
-                      {transferWindow.startDate && 
-                        <span>Next window opens on {new Date(transferWindow.startDate).toLocaleDateString()}</span>
-                      }
-                    </div>
-                  )}
-                  <div className={styles.transfersRemaining}>
-                    <span>Transfers Remaining: {userTeam?.transfersRemaining || 0}</span>
-                  </div>
-                </div>
-              )}
-              
-              {isTransferActive && !editMode && (
-                <button 
-                  className={styles.editTeamButton}
-                  onClick={handleEnterEditMode}
-                >
-                  Edit Team
-                </button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
       
       {message.text && (
         <div className={`${styles.message} ${styles[message.type]}`}>
@@ -414,10 +357,17 @@ const MyTeamPage = () => {
         <Card className={styles.editCard}>
           <CardHeader>
             <CardTitle>Edit Your Team</CardTitle>
+            <div className={styles.searchContainer}>
+              <input
+                type="text"
+                placeholder="Search players by name or team..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.searchInput}
+              />
+            </div>
           </CardHeader>
           <CardContent>
-
-            
             <div className={styles.tabs}>
               {["batsmen", "bowlers", "allrounders", "wicketkeepers"].map((category) => (
                 <button
@@ -643,7 +593,60 @@ const MyTeamPage = () => {
           </CardHeader>
           <CardContent>
             {userTeam ? (
-              <>
+              <div>
+                {transferWindow && (
+                  <div className={styles.transferInfo}>
+                    <h3>Transfer Window</h3>
+                    {isTransferActive ? (
+                      <div className={styles.activeWindow}>
+                        <span>Transfer Window Open!</span>
+                        <span>Closes on {new Date(transferWindow.endDate).toLocaleDateString()}</span>
+                      </div>
+                    ) : (
+                      <div className={styles.inactiveWindow}>
+                        <span>Transfer Window Closed</span>
+                        {transferWindow.startDate && 
+                          <span>Next window opens on {new Date(transferWindow.startDate).toLocaleDateString()}</span>
+                        }
+                      </div>
+                    )}
+                    <div className={styles.transfersRemaining}>
+                      <span>Transfers Remaining: {userTeam.transfersRemaining || 0}</span>
+                    </div>
+                  </div>
+                )}
+                
+                <div className={styles.teamCount}>
+                  <h3>Team Composition</h3>
+                  <div className={styles.countBadges}>
+                    <span className={styles.countBadge}>
+                      Batsmen: {selectedPlayers.batsmen.length}/4
+                    </span>
+                    <span className={styles.countBadge}>
+                      Bowlers: {selectedPlayers.bowlers.length}/4
+                    </span>
+                    <span className={styles.countBadge}>
+                      All-rounders: {selectedPlayers.allrounders.length}/2
+                    </span>
+                    <span className={styles.countBadge}>
+                      Wicket-keepers: {selectedPlayers.wicketkeepers.length}/1
+                    </span>
+                    <span className={`${styles.countBadge} ${styles.totalCount}`}>
+                      Total: {selectedPlayers.batsmen.length + selectedPlayers.bowlers.length + 
+                      selectedPlayers.allrounders.length + selectedPlayers.wicketkeepers.length}/11
+                    </span>
+                  </div>
+                </div>
+                
+                {isTransferActive && !editMode && (
+                  <button 
+                    className={styles.editTeamButton}
+                    onClick={handleEnterEditMode}
+                  >
+                    Edit Team
+                  </button>
+                )}
+
                 <div className={styles.specialPlayers}>
                   <div className={styles.playerRole}>
                     <h3>Captain</h3>
@@ -721,7 +724,7 @@ const MyTeamPage = () => {
                     )
                   ))}
                 </div>
-              </>
+              </div>
             ) : (
               <div className={styles.noTeamMessage}>
                 <p>You don't have a team yet for the current tournament.</p>
