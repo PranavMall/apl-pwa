@@ -619,9 +619,7 @@ const MyTeamPage = () => {
                         }
                       </div>
                     )}
-                    // <div className={styles.transfersRemaining}>
-                    //   <span>Transfers Remaining: {userTeam.transfersRemaining || 0}</span>
-                    // </div>
+                    
                   </div>
                 )}
                 
