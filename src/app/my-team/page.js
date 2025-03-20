@@ -7,7 +7,7 @@ import { auth, db } from '@/firebase';
 import { useAuth } from '@/app/context/authContext';
 import withAuth from '@/app/components/withAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
-import {WhatsAppShareButton } from '@/app/components/WhatsAppShareButton"
+import WhatsAppShareButton from '@/app/components/WhatsAppShareButton"
 import { transferService } from '../services/transferService';
 import styles from './team.module.css';
 
