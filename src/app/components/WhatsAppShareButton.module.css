@@ -1,0 +1,31 @@
+/* components/WhatsAppShareButton.module.css */
+.whatsappButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #25D366;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.whatsappButton:hover {
+  background-color: #1da951;
+  transform: translateY(-2px);
+}
+
+.whatsappButton:active {
+  transform: translateY(0);
+}
+
+.whatsappIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
