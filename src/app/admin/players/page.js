@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../../firebase';
 import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc } from 'firebase/firestore';
 import { PlayerMasterService } from '@/app/services/PlayerMasterService';
+import { parseTeamHtml, savePlayersToFirebase } from '@/app/admin/scripts/parseIplTeamData';
 import styles from './players.module.css';
 
 export default function PlayerAdmin() {
@@ -120,6 +121,49 @@ export default function PlayerAdmin() {
     }
   };
 
+  const handleImportTeamData = async () => {
+  try {
+    setMessage({ type: 'info', text: 'Processing team data...' });
+    
+    // Get inputs
+    const teamCode = document.getElementById('team-code-input').value;
+    const htmlContent = document.getElementById('team-html-input').value;
+    
+    if (!teamCode || !htmlContent) {
+      setMessage({ type: 'error', text: 'Please provide both team code and HTML content' });
+      return;
+    }
+    
+    // Parse HTML to extract players
+    const players = parseTeamHtml(htmlContent, teamCode);
+    
+    if (!players || players.length === 0) {
+      setMessage({ 
+        type: 'error', 
+        text: 'No players found in the HTML. Make sure you copied the correct section.' 
+      });
+      return;
+    }
+    
+    // Save players to Firebase
+    const result = await savePlayersToFirebase(players);
+    
+    if (result.success) {
+      setMessage({ 
+        type: 'success', 
+        text: `Successfully imported ${result.count} players for team ${teamCode}` 
+      });
+      
+      // Refresh the player list
+      loadPlayers();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to import players' });
+    }
+  } catch (error) {
+    console.error('Error importing team data:', error);
+    setMessage({ type: 'error', text: `Error: ${error.message}` });
+  }
+};
   
   const handleAddMapping = async () => {
     if (!selectedPlayer || !newAltId.trim()) return;
@@ -560,19 +604,12 @@ export default function PlayerAdmin() {
             ></textarea>
           </div>
           
-          <button
-            onClick={() => {
-              // Keep your existing import team players functionality
-              if (window.handleImportTeamData) {
-                window.handleImportTeamData();
-              } else {
-                alert('Import function not available');
-              }
-            }}
-            className={styles.importButton}
-          >
-            Import Team Players
-          </button>
+<button
+  onClick={handleImportTeamData}
+  className={styles.importButton}
+>
+  Import Team Players
+</button>
         </div>
       </div>
     </div>
