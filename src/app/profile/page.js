@@ -477,7 +477,7 @@ const UserProfilePage = () => {
               />
             </div>
 
-            <div className={styles.referralSection}>
+<div className={styles.referralSection}>
               <h3>Your Referral Code</h3>
               <div className={styles.referralCode}>
                 <span>{referralCode}</span>
@@ -488,9 +488,16 @@ const UserProfilePage = () => {
                   Copy
                 </button>
               </div>
-              <p className={styles.referralInfo}>
-                Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
-              </p>
+              <div className={styles.shareOptions}>
+                <p className={styles.referralInfo}>
+                  Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
+                </p>
+                <WhatsAppShareButton 
+                  referralCode={referralCode} 
+                  userName={userProfile?.name || user?.displayName || ''} 
+                  teamName={teamName}
+                />
+              </div>
             </div>
 
             {/* Only show referrer code input if user hasn't used one yet */}
