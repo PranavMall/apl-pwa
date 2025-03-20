@@ -9,7 +9,7 @@ export default function Home() {
       <header className={styles.header}>
         <div className={styles.logoContainer}>
           <Image
-            src="/cricket-logo.png"
+            src="/images/APL.png"
             alt="APL Logo"
             width={80}
             height={80}
