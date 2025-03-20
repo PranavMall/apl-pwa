@@ -112,14 +112,14 @@ const LeaderboardPage = () => {
         .sort((a, b) => b.totalPoints - a.totalPoints);
       
       // Assign ranks
-      leaderboardArray.forEach((user, index) => {
-        user.rank = index + 1;
-        
-        // If this is the current user, save their rank
-        if (user.id === (user?.id)) {
-          setUserRank(user.rank);
-        }
-      });
+      leaderboardArray.forEach((teamUser, index) => {
+  teamUser.rank = index + 1;
+  
+  // If this is the current user, save their rank
+  if (teamUser.id === user?.uid) { // Compare with the auth user's uid
+    setUserRank(teamUser.rank);
+  }
+});
       
       setLeaderboardData(leaderboardArray);
       setLoading(false);
