@@ -420,40 +420,7 @@ const UserProfilePage = () => {
           <CardTitle>My Profile</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={styles.photoSection}>
-            <div className={styles.photoContainer}>
-              {photoURL ? (
-                <Image 
-                  src={photoURL} 
-                  alt="Profile" 
-                  width={120} 
-                  height={120}
-                  className={styles.profilePhoto}
-                  onError={(e) => {
-                    // If image fails to load, use initials avatar
-                    e.target.src = getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid);
-                  }}
-                />
-              ) : (
-                <Image 
-                  src={getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid)}
-                  alt="Profile" 
-                  width={120} 
-                  height={120}
-                  className={styles.profilePhoto}
-                />
-              )}
-            </div>
-            <label className={styles.uploadButton}>
-              Change Photo
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handlePhotoChange} 
-                className={styles.fileInput}
-              />
-            </label>
-          </div>
+
 
           <div className={styles.formGroup}>
             <label className={styles.label}>Team Name *</label>
