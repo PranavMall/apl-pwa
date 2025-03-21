@@ -1,10 +1,11 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { pageview } from '@/lib/analytics';
 
-export default function AnalyticsWrapper({ children }) {
+// Component that uses searchParams
+function PageViewTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -14,5 +15,16 @@ export default function AnalyticsWrapper({ children }) {
     pageview(url);
   }, [pathname, searchParams]);
 
-  return children;
+  return null;
+}
+
+export default function AnalyticsWrapper({ children }) {
+  return (
+    <>
+      <Suspense fallback={null}>
+        <PageViewTracker />
+      </Suspense>
+      {children}
+    </>
+  );
 }
