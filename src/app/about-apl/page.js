@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import styles from './about.module.css';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../../../firebase'; // Adjust path as needed
+import { db } from '../../firebase'; // Adjust path as needed
 import { useAuth } from '@/app/context/authContext'; // To get user info if logged in
 
 export default function AboutAPLPage() {
