@@ -7,7 +7,7 @@ const categories = [
   {
     title: "Batsman",
     icon: "🏏",
-    image: "https://png.pngtree.com/png-vector/20240827/ourmid/pngtree-cricket-player-shot-icon-png-image_13633784.png",
+    image: "https://png.pngtree.com/png-vector/20240824/ourlarge/pngtree-colorful-cricket-batsman-hitting-with-bat-free-download-png-image_13604289.png",
     points: [
       { action: "Each Run", value: "1 point" },
       { action: "Boundary (4 Runs)", value: "1 point" },
@@ -22,7 +22,7 @@ const categories = [
   {
     title: "Bowler",
     icon: "🎯",
-    image: "https://image.shutterstock.com/image-vector/bowler-illustration-cricket-right-handed-260nw-2066571398.jpg",
+    image: "https://img.freepik.com/premium-vector/dynamic-vector-illustration-cricket-bowler-motion_968957-4874.jpg",
     points: [
       { action: "1 or 2 Wickets", value: "25 points" },
       { action: "3 Wickets", value: "50 points" },
@@ -36,7 +36,7 @@ const categories = [
   {
     title: "Fielder",
     icon: "🧤",
-    image: "https://i.pinimg.com/736x/d0/1d/f0/d01df0cff7c62e9c323c269e45ea8716.jpg",
+    image: "https://media.istockphoto.com/id/2190361909/vector/cricket-player-wicket-keeper-catching-ball-isolated-low-poly-vector-ilustration.jpg?s=612x612&w=0&k=20&c=1SzeZCyebQ1St-5gdvZu_Io8l5G4rT-aAyAnBWJA5jA=",
     points: [
       { action: "Catch", value: "8 points" },
       { action: "Stumping", value: "12 points" },
