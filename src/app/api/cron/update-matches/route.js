@@ -20,6 +20,9 @@ import { db } from '../../../../firebase';
 const TIMEOUT_MARGIN = 9000; // 9 seconds
 
 export async function GET(request) {
+  if (global.gc) {
+  global.gc();
+}
   // Reset timer at the start of each function invocation
   const startTime = Date.now();
   
@@ -64,7 +67,7 @@ export async function GET(request) {
       matchesToProcess = envMatchIds.split(',').map(id => id.trim());
     } else {
       // Fallback to a default list if no other source is available
-      matchesToProcess = ['112469', '112455'];
+      matchesToProcess = [];
     }
     
     console.log(`Will process ${matchesToProcess.length} match(es): ${matchesToProcess.join(', ')}`);
