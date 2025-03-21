@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './about.module.css';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../../firebase'; // Adjust path as needed
+import { useAuth } from '@/app/context/authContext'; // To get user info if logged in
 
 export default function AboutAPLPage() {
   const [formData, setFormData] = useState({
@@ -15,6 +18,7 @@ export default function AboutAPLPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -30,22 +34,25 @@ export default function AboutAPLPage() {
     setError(null);
 
     try {
-      // Here you would normally send the data to your backend
-      // For now, we'll simulate a successful submission
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSubmitted(true);
-      
-      // Optional: Send to a service like EmailJS or your own API endpoint
-      // await fetch('/api/support-request', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-    } catch (err) {
-      setError('Failed to submit form. Please try again later.');
-    } finally {
-      setIsSubmitting(false);
-    }
+ // Create a reference to the 'supportRequests' collection
+    const supportRequestsRef = collection(db, 'supportRequests');
+    
+    // Add a new document with auto-generated ID
+    await addDoc(supportRequestsRef, {
+      ...formData,
+      timestamp: new Date(),
+      status: 'new', // You can use this to track which ones you've responded to
+      userId: user?.uid || null // Add user ID if they're logged in
+    });
+    
+    setSubmitted(true);
+  } catch (err) {
+    console.error('Error submitting form:', err);
+    setError('Failed to submit form. Please try again later.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   };
 
   return (
@@ -178,7 +185,7 @@ export default function AboutAPLPage() {
               <div className={styles.timelineContent}>
                 <h3>Initial Concept</h3>
                 <p>A basic form-based approach to fantasy cricket scoring.</p>
-                <span className={styles.timelineDate}>2023</span>
+                <span className={styles.timelineDate}>2024 - Week before IPL</span>
               </div>
             </div>
             
@@ -187,16 +194,16 @@ export default function AboutAPLPage() {
               <div className={styles.timelineContent}>
                 <h3>First Prototype</h3>
                 <p>Development of core functionality and basic UI.</p>
-                <span className={styles.timelineDate}>Early 2024</span>
+                <span className={styles.timelineDate}>2024 - Two days before IPL</span>
               </div>
             </div>
-            
-            <div className={styles.timelineItem}>
+
+                            <div className={styles.timelineItem}>
               <div className={styles.timelineDot}></div>
               <div className={styles.timelineContent}>
-                <h3>Testing Phase</h3>
-                <p>Live testing during Big Bash League and New Zealand Tour.</p>
-                <span className={styles.timelineDate}>Q1 2024</span>
+                <h3>Version 1 Release</h3>
+                <p>MVP of IPL.</p>
+                <span className={styles.timelineDate}>Mar 2024</span>
               </div>
             </div>
             
@@ -205,7 +212,16 @@ export default function AboutAPLPage() {
               <div className={styles.timelineContent}>
                 <h3>Progressive Web App</h3>
                 <p>Transformation into a full-featured PWA with enhanced capabilities.</p>
-                <span className={styles.timelineDate}>Q2 2024</span>
+                <span className={styles.timelineDate}>Jan 2025</span>
+              </div>
+            </div>
+
+                <div className={styles.timelineItem}>
+              <div className={styles.timelineDot}></div>
+              <div className={styles.timelineContent}>
+                <h3>Testing Phase</h3>
+                <p>Live testing during Big Bash League and ICC Champions Trophy.</p>
+                <span className={styles.timelineDate}>Feb/Mar 2024</span>
               </div>
             </div>
             
