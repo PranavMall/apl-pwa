@@ -185,18 +185,27 @@ const UserProfilePage = () => {
     }
   };
 
-  const handlePhotoChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setPhotoFile(file);
-      // Show preview
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPhotoURL(event.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+const handlePhotoChange = (e) => {
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+    
+    console.log('Photo selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
+    setPhotoFile(file);
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      console.log('File reader loaded');
+      setPhotoURL(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+};
   
   const shareOnWhatsApp = () => {
     const message = encodeURIComponent(
@@ -211,11 +220,6 @@ const uploadPhoto = async () => {
   
   try {
     // Validate storage and user
-    console.log('Storage object:', storage);
-    console.log('User object:', user);
-    console.log('Photo file:', photoFile);
-
-    // Additional validation
     if (!storage) {
       throw new Error('Firebase Storage is not initialized');
     }
@@ -233,11 +237,8 @@ const uploadPhoto = async () => {
       throw new Error('File is too large. Maximum size is 5MB.');
     }
 
-    // Create a unique filename to prevent overwriting
-    const filename = `profile_${user.uid}_${Date.now()}.${photoFile.name.split('.').pop()}`;
-    
     // Create a reference to the storage location
-    const storageRef = ref(storage, `profile-images/${filename}`);
+    const storageRef = ref(storage, `profile-images/${user.uid}_${Date.now()}.${photoFile.name.split('.').pop()}`);
     
     // Upload the file
     const snapshot = await uploadBytes(storageRef, photoFile);
@@ -251,12 +252,20 @@ const uploadPhoto = async () => {
       message: error.message,
       name: error.name,
       code: error.code,
+      stack: error.stack,
       storage: !!storage,
       userExists: !!user,
       fileType: photoFile?.type,
-      fileSize: photoFile?.size
+      fileSize: photoFile?.size,
+      storageURL: storage?.app?.options?.storageBucket
     });
     
+    // More informative error message
+    setSaveMessage({ 
+      text: `Photo upload failed: ${error.message}. Please try again.`, 
+      type: 'error' 
+    });
+
     // Rethrow the error to be caught in the calling function
     throw error;
   }
@@ -276,10 +285,25 @@ const saveProfile = async () => {
     let profilePhotoURL = photoURL;
     if (photoFile) {
       try {
+        console.log('Attempting to upload photo:', {
+          fileName: photoFile.name,
+          fileType: photoFile.type,
+          fileSize: photoFile.size,
+          user: user?.uid
+        });
+
         profilePhotoURL = await uploadPhoto();
+        
+        console.log('Photo upload successful:', profilePhotoURL);
       } catch (uploadError) {
+        console.error('Photo upload failed:', {
+          message: uploadError.message,
+          name: uploadError.name,
+          stack: uploadError.stack
+        });
+
         setSaveMessage({ 
-          text: uploadError.message || 'Failed to upload photo', 
+          text: `Failed to upload photo: ${uploadError.message}`, 
           type: 'error' 
         });
         setSaving(false);
@@ -303,9 +327,16 @@ const saveProfile = async () => {
       updateData.teamName = teamName.trim();
     }
     
+    console.log('Attempting to update user profile:', {
+      userId: user.uid,
+      updateData
+    });
+
     // Update user profile
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, updateData);
+    
+    console.log('User profile update successful');
     
     setReferralCode(code);
     setSaveMessage({ text: 'Profile saved successfully', type: 'success' });
@@ -318,7 +349,13 @@ const saveProfile = async () => {
     
     setSaving(false);
   } catch (error) {
-    console.error('Error saving profile:', error);
+    console.error('Full error during profile save:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      code: error.code
+    });
+
     setSaveMessage({ 
       text: error.message || 'Error saving profile. Please try again.', 
       type: 'error' 
