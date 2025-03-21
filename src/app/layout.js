@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Apna Premier League",
   description: "Fantasy cricket league platform",
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/images/APL.png'  // This could be your PNG
+  },
+  other: {
+  'apple-touch-icon': '/images/APL.png'
+}
 };
 
 export default function RootLayout({ children }) {
