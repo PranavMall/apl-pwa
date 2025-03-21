@@ -1,6 +1,7 @@
 // src/lib/analytics.js
 export const GA_MEASUREMENT_ID = 'G-K1Y8TK928E'; // Replace with your actual measurement ID
 
+
 // Log page views
 export const pageview = (url) => {
   if (typeof window !== 'undefined' && window.gtag) {
