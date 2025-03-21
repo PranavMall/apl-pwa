@@ -1,3 +1,5 @@
+'use client'; // Add this at the top to mark as a client component
+
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -5,8 +7,19 @@ import styles from './page.module.css';
 import { trackAppInstall } from './pwa-install';
 
 export default function Home() {
-  // Track PWA install events
-  trackAppInstall();
+  // Use useEffect to run client-side only code
+  useEffect(() => {
+    // This will only run in the browser
+    const handleAppInstalled = (event) => {
+      logAppInstall();
+    };
+    
+    window.addEventListener('appinstalled', handleAppInstalled);
+    
+    return () => {
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
   return (
     <div className={styles.page}>
       <header className={styles.header}>
