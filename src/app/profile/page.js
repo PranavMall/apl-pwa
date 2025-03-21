@@ -477,7 +477,6 @@ const UserProfilePage = () => {
             >
               {saving ? 'Saving...' : 'Save Profile'}
             </button>
-          </div>
         </CardContent>
       </Card>
 
