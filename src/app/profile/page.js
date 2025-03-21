@@ -442,6 +442,15 @@ const UserProfilePage = () => {
       />
     )}
   </div>
+  <label className={styles.uploadButton}>
+    Change Photo
+    <input 
+      type="file" 
+      accept="image/*" 
+      onChange={handlePhotoChange} 
+      className={styles.fileInput}
+    />
+  </label>
 </div>
 
             <div className={styles.formGroup}>
