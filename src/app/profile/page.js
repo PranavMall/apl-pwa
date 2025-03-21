@@ -64,13 +64,15 @@ const UserProfilePage = () => {
       const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
       
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setUserProfile(userData);
-        setTeamName(userData.teamName || '');
-        setBio(userData.bio || '');
-        setPhotoURL(userData.photoURL || '');
-        setReferralCode(userData.referralCode || generateReferralCode(user.uid));
+       if (userDoc.exists()) {
+      const userData = userDoc.data();
+      console.log("User profile loaded:", userData); // Add this line
+      console.log("referredBy value:", userData.referredBy); // Add this line
+      setUserProfile(userData);
+      setTeamName(userData.teamName || '');
+      setBio(userData.bio || '');
+      setPhotoURL(userData.photoURL || '');
+      setReferralCode(userData.referralCode || generateReferralCode(user.uid));
       }
       
       // Fetch weekly stats
@@ -154,6 +156,13 @@ const UserProfilePage = () => {
       reader.readAsDataURL(file);
     }
   };
+  const shareOnWhatsApp = () => {
+  const message = encodeURIComponent(
+    `Join me on Apna Premier League Fantasy Cricket! Use my referral code: ${referralCode} to sign up and earn bonus points. Download the app now!`
+  );
+  const whatsappUrl = `https://wa.me/?text=${message}`;
+  window.open(whatsappUrl, '_blank');
+};
 
   const uploadPhoto = async () => {
     if (!photoFile) return photoURL;
@@ -425,21 +434,27 @@ const UserProfilePage = () => {
               />
             </div>
 
-            <div className={styles.referralSection}>
-              <h3>Your Referral Code</h3>
-              <div className={styles.referralCode}>
-                <span>{referralCode}</span>
-                <button 
-                  className={styles.copyButton}
-                  onClick={copyReferralCode}
-                >
-                  Copy
-                </button>
-              </div>
-              <p className={styles.referralInfo}>
-                Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
-              </p>
-            </div>
+           <div className={styles.referralSection}>
+  <h3>Your Referral Code</h3>
+  <div className={styles.referralCode}>
+    <span>{referralCode}</span>
+    <button 
+      className={styles.copyButton}
+      onClick={copyReferralCode}
+    >
+      Copy
+    </button>
+    <button 
+      className={styles.whatsappButton}
+      onClick={shareOnWhatsApp}
+    >
+      Share on WhatsApp
+    </button>
+  </div>
+  <p className={styles.referralInfo}>
+    Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
+  </p>
+</div>
 
             {saveMessage.text && (
               <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
