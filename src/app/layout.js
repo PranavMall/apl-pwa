@@ -2,6 +2,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNavigation from "./components/Navigation/BottomNavigation"; // Adjusted path
 import { AuthProvider } from "@/app/context/authContext"; // Adjusted path
+import { GoogleAnalytics } from '@next/third-parties/google'
+import AnalyticsWrapper from '@/app/components/AnalyticsWrapper';
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +33,11 @@ export default function RootLayout({ children }) {
     <AuthProvider>
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
-          <BottomNavigation />
-          {children}
+          <AnalyticsWrapper>
+            <BottomNavigation />
+            {children}
+          </AnalyticsWrapper>
+          <GoogleAnalytics gaId='G-XXXXXXXXXX' />
         </body>
       </html>
     </AuthProvider>
