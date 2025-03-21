@@ -19,6 +19,7 @@ const [referrerCode, setReferrerCode] = useState('');
 const [referralMessage, setReferralMessage] = useState({ text: '', type: '' });
 const [processingReferral, setProcessingReferral] = useState(false);
 import { isValidReferralFormat } from '@/app/utils/referralUtils';
+import Link from 'next/link';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
