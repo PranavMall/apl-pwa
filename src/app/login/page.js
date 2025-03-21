@@ -15,6 +15,11 @@ import styles from "./page.module.css";
 import { FantasyService } from "../services/fantasyService";
 import { transferService } from "../services/transferService";
 import { generateReferralCode, isValidReferralFormat } from "../utils/referralUtils";
+import { 
+  verifyPasswordResetCode, 
+  confirmPasswordReset 
+} from 'firebase/auth';
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,6 +34,9 @@ export default function LoginPage() {
   const [googleReferralCode, setGoogleReferralCode] = useState("");
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [showResetConfirmForm, setShowResetConfirmForm] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   // Toggle between Login and Sign-Up forms
   const toggleForm = () => {
@@ -76,6 +84,57 @@ export default function LoginPage() {
     setReferralError("");
     return true;
   };
+
+  useEffect(() => {
+  // Check if this is a password reset redirect
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get('mode');
+  const actionCode = urlParams.get('oobCode');
+  
+  if (mode === 'resetPassword' && actionCode) {
+    setShowResetConfirmForm(true); // You'll need to add this state
+    
+    // Verify the password reset code is valid
+    verifyPasswordResetCode(auth, actionCode)
+      .then((email) => {
+        // Save the email and action code for when the user submits the new password
+        setResetEmail(email);
+        setResetCode(actionCode); // Add this state
+      })
+      .catch((error) => {
+        console.error("Error verifying reset code:", error);
+        setError("Invalid or expired password reset link. Please request a new one.");
+      });
+  }
+}, []);
+
+// Add a new function to handle password reset completion
+const completePasswordReset = async (e) => {
+  e.preventDefault();
+  
+  if (!newPassword) {
+    setError("Please enter a new password");
+    return;
+  }
+  
+  try {
+    // Complete the password reset process
+    await confirmPasswordReset(auth, resetCode, newPassword);
+    
+    // Show success message
+    setSuccessMessage("Password has been reset successfully! You can now log in with your new password.");
+    
+    // Switch back to login form
+    setShowResetConfirmForm(false);
+    setShowResetForm(false);
+    
+    // Pre-fill the email for easier login
+    setEmail(resetEmail);
+  } catch (error) {
+    console.error("Error completing password reset:", error);
+    setError("Failed to reset password: " + error.message);
+  }
+};
 
   // Handle Email/Password Sign-Up
   const handleSignUp = async (e) => {
@@ -266,6 +325,36 @@ export default function LoginPage() {
           </div>
         </div>
       )}
+        {/* Add the new reset confirmation form right here */}
+{showResetConfirmForm && (
+  <div className={styles.resetPasswordContainer}>
+    <div className={styles.resetPasswordForm}>
+      <div className={styles.title}>Set New Password</div>
+      <form onSubmit={completePasswordReset}>
+        <p>Enter a new password for {resetEmail}</p>
+        <div className={styles.inputGroup}>
+          <input
+            className={styles["flip-card__input"]}
+            name="newPassword"
+            placeholder="New Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        </div>
+        
+        {error && <p className={styles["error-message"]}>{error}</p>}
+        {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+        
+        <div className={styles.resetButtonGroup}>
+          <button type="submit" className={styles["flip-card__btn"]}>
+            Reset Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       <div className={styles["card-switch"]}>
         <label className={styles.switch}>
