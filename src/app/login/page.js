@@ -252,7 +252,7 @@ export default function LoginPage() {
               
               <div className={styles.resetButtonGroup}>
                 <button type="submit" className={styles["flip-card__btn"]}>
-                  Send Reset Link
+                  Send Link
                 </button>
                 <button 
                   type="button" 
