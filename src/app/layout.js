@@ -37,7 +37,7 @@ export default function RootLayout({ children }) {
             <BottomNavigation />
             {children}
           </AnalyticsWrapper>
-          <GoogleAnalytics gaId='G-XXXXXXXXXX' />
+          <GoogleAnalytics gaId='G-K1Y8TK928E' />
         </body>
       </html>
     </AuthProvider>
