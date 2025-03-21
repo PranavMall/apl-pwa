@@ -2,8 +2,11 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './page.module.css';
+import { trackAppInstall } from './pwa-install';
 
 export default function Home() {
+  // Track PWA install events
+  trackAppInstall();
   return (
     <div className={styles.page}>
       <header className={styles.header}>
