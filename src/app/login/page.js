@@ -11,6 +11,7 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { auth, db } from "../../firebase"; 
+import { event } from '@/lib/analytics';
 import styles from "./page.module.css";
 import { FantasyService } from "../services/fantasyService";
 import { transferService } from "../services/transferService";
@@ -148,6 +149,12 @@ const completePasswordReset = async (e) => {
     
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
+      // Track user registration
+    event({
+      action: 'user_signup',
+      category: 'authentication',
+      label: 'email_signup'
+    });
 
       // Generate a referral code for this user
       const userReferralCode = generateReferralCode(result.user.uid);
@@ -227,6 +234,12 @@ const completePasswordReset = async (e) => {
 
       // Initialize user's tournament stats if there's an active tournament and this is a new user
       if (isNewUser) {
+        // Track Google sign-up
+      event({
+        action: 'user_signup',
+        category: 'authentication',
+        label: 'google_signup'
+      });
         await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
         
         // Process referral if provided
