@@ -206,10 +206,23 @@ const UserProfilePage = () => {
     window.open(whatsappUrl, '_blank');
   };
 
- const uploadPhoto = async () => {
+const uploadPhoto = async () => {
   if (!photoFile) return photoURL;
   
   try {
+    // Validate storage and user
+    console.log('Storage object:', storage);
+    console.log('User object:', user);
+    console.log('Photo file:', photoFile);
+
+    // Additional validation
+    if (!storage) {
+      throw new Error('Firebase Storage is not initialized');
+    }
+    if (!user || !user.uid) {
+      throw new Error('User authentication is required');
+    }
+
     // Validate file type and size
     if (!['image/jpeg', 'image/png', 'image/gif'].includes(photoFile.type)) {
       throw new Error('Invalid file type. Please upload a JPEG, PNG, or GIF.');
@@ -220,8 +233,11 @@ const UserProfilePage = () => {
       throw new Error('File is too large. Maximum size is 5MB.');
     }
 
+    // Create a unique filename to prevent overwriting
+    const filename = `profile_${user.uid}_${Date.now()}.${photoFile.name.split('.').pop()}`;
+    
     // Create a reference to the storage location
-    const storageRef = ref(storage, `profile-images/${user.uid}`);
+    const storageRef = ref(storage, `profile-images/${filename}`);
     
     // Upload the file
     const snapshot = await uploadBytes(storageRef, photoFile);
@@ -231,7 +247,16 @@ const UserProfilePage = () => {
     
     return downloadURL;
   } catch (error) {
-    console.error('Error uploading photo:', error);
+    console.error('Detailed upload error:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      storage: !!storage,
+      userExists: !!user,
+      fileType: photoFile?.type,
+      fileSize: photoFile?.size
+    });
+    
     // Rethrow the error to be caught in the calling function
     throw error;
   }
