@@ -16,6 +16,16 @@
   font-size: 1.2rem;
   color: #666;
 }
+.referralLink {
+  color: #f9a825;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.referralLink:hover {
+  color: #ff7043;
+}
 
 /* Profile card styles */
 .profileCard {
