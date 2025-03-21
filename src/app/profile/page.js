@@ -15,10 +15,6 @@ import styles from './profile.module.css';
 import { transferService } from '../services/transferService';
 import { generateReferralCode } from '../utils/referralUtils';
 import { getUserAvatar } from '@/app/utils/userUtils';
-const [referrerCode, setReferrerCode] = useState('');
-const [referralMessage, setReferralMessage] = useState({ text: '', type: '' });
-const [processingReferral, setProcessingReferral] = useState(false);
-import { isValidReferralFormat } from '@/app/utils/referralUtils';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -118,41 +114,6 @@ const UserProfilePage = () => {
       setLoading(false);
     }
   };
-
-  const handleReferralSubmit = async () => {
-  if (!referrerCode.trim()) {
-    setReferralMessage({ text: 'Please enter a referral code', type: 'error' });
-    return;
-  }
-  
-  try {
-    setProcessingReferral(true);
-    setReferralMessage({ text: '', type: '' });
-    
-    // Validate referral code format
-    if (!isValidReferralFormat(referrerCode)) {
-      setReferralMessage({ text: 'Invalid referral code format (must start with APL-)', type: 'error' });
-      setProcessingReferral(false);
-      return;
-    }
-    
-    // Process the referral
-    const result = await transferService.processReferral(user.uid, referrerCode);
-    
-    if (result.success) {
-      setReferralMessage({ text: 'Referral code applied successfully!', type: 'success' });
-      // Refresh user data to reflect changes
-      fetchUserData();
-    } else {
-      setReferralMessage({ text: result.error || 'Failed to apply referral code', type: 'error' });
-    }
-  } catch (error) {
-    console.error('Error applying referral code:', error);
-    setReferralMessage({ text: 'Error applying referral code. Please try again.', type: 'error' });
-  } finally {
-    setProcessingReferral(false);
-  }
-};
 
   const fetchWeeklyStats = async () => {
     try {
@@ -499,43 +460,9 @@ const UserProfilePage = () => {
     </button>
   </div>
   <p className={styles.referralInfo}>
-   Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
-    Friends can <a href="/login" className={styles.referralLink}>sign up here</a> using your code.
+    Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
   </p>
 </div>
-{/* Only show referrer code input if user hasn't used one yet */}
-{!userProfile?.referredBy && (
-  <div className={styles.referralSection}>
-    <h3>Enter Referrer's Code</h3>
-    <p className={styles.referralInfo}>
-      If someone referred you, enter their code to earn them bonus points!
-    </p>
-    <div className={styles.formGroup}>
-      <input
-        type="text"
-        value={referrerCode}
-        onChange={(e) => setReferrerCode(e.target.value)}
-        className={styles.input}
-        placeholder="Enter referrer's code (e.g., APL-ABC123)"
-      />
-    </div>
-    
-    {referralMessage && referralMessage.text && (
-      <div className={`${styles.statusMessage} ${styles[referralMessage.type]}`}>
-        {referralMessage.text}
-      </div>
-    )}
-    
-    <button 
-      className={styles.saveButton}
-      onClick={handleReferralSubmit}
-      disabled={processingReferral}
-      style={{ marginTop: '10px' }}
-    >
-      {processingReferral ? 'Processing...' : 'Apply Referral Code'}
-    </button>
-  </div>
-)}
 
             {saveMessage.text && (
               <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
