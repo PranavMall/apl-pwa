@@ -1,6 +1,6 @@
 'use client'; // Add this at the top to mark as a client component
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './page.module.css';
