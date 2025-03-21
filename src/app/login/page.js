@@ -27,11 +27,15 @@ export default function LoginPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [referralError, setReferralError] = useState("");
   const [googleReferralCode, setGoogleReferralCode] = useState("");
-  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
 
   // Toggle between Login and Sign-Up forms
-  const toggleForm = () => setIsSignUp(!isSignUp);
+  const toggleForm = () => {
+    if (!showResetForm) {
+      setIsSignUp(!isSignUp);
+    }
+  };
 
   // Handle Email/Password Login
   const handleLogin = async (e) => {
@@ -197,11 +201,12 @@ export default function LoginPage() {
       setSuccessMessage("Password reset email sent! Check your inbox.");
       
       // Reset form after successful submission
-      setResetEmail("");
-      // Return to login form after 3 seconds
       setTimeout(() => {
-        setIsResetPassword(false);
-        setSuccessMessage("");
+        if (successMessage) {
+          setShowResetForm(false);
+          setResetEmail("");
+          setSuccessMessage("");
+        }
       }, 3000);
     } catch (error) {
       console.error("Password reset error:", error);
@@ -210,154 +215,171 @@ export default function LoginPage() {
   };
 
   // Toggle to reset password form
-  const toggleResetPassword = () => {
-    setIsResetPassword(!isResetPassword);
+  const showPasswordReset = () => {
+    setShowResetForm(true);
+    setResetEmail(email); // Pre-fill with login email if available
     setError("");
     setSuccessMessage("");
-    setResetEmail(email); // Pre-fill with login email if available
+  };
+
+  // Go back to login from reset form
+  const hidePasswordReset = () => {
+    setShowResetForm(false);
+    setError("");
+    setSuccessMessage("");
   };
 
   return (
     <div className={styles.wrapper}>
+      {showResetForm && (
+        <div className={styles.resetPasswordContainer}>
+          <div className={styles.resetPasswordForm}>
+            <div className={styles.title}>Reset Password</div>
+            <form onSubmit={handlePasswordReset}>
+              <div className={styles.inputGroup}>
+                <input
+                  className={styles["flip-card__input"]}
+                  name="resetEmail"
+                  placeholder="Your Email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                />
+              </div>
+              
+              {error && <p className={styles["error-message"]}>{error}</p>}
+              {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+              
+              <div className={styles.resetButtonGroup}>
+                <button type="submit" className={styles["flip-card__btn"]}>
+                  Send Reset Link
+                </button>
+                <button 
+                  type="button" 
+                  className={styles.secondaryBtn}
+                  onClick={hidePasswordReset}
+                >
+                  Back to Login
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className={styles["card-switch"]}>
         <label className={styles.switch}>
-          <input type="checkbox" className={styles.toggle} onChange={toggleForm} checked={isSignUp} />
+          <input 
+            type="checkbox" 
+            className={styles.toggle} 
+            onChange={toggleForm} 
+            checked={isSignUp}
+          />
           <span className={styles["card-side"]}></span>
           <div className={styles["flip-card__inner"]}>
-            {/* Password Reset Form */}
-            {isResetPassword && (
-              <div className={styles["reset-password-form"]}>
-                <div className={styles.title}>Reset Password</div>
-                <form className={styles["flip-card__form"]} onSubmit={handlePasswordReset}>
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="resetEmail"
-                    placeholder="Your Email"
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                  />
-                  {error && <p className={styles["error-message"]}>{error}</p>}
-                  {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
-                  <button type="submit" className={styles["flip-card__btn"]}>Send Reset Link</button>
+            {/* Login Form */}
+            <div className={styles["flip-card__front"]}>
+              <div className={styles.title}>Log in</div>
+              <form className={styles["flip-card__form"]} onSubmit={handleLogin}>
+                <input
+                  className={styles["flip-card__input"]}
+                  name="email"
+                  placeholder="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <input
+                  className={styles["flip-card__input"]}
+                  name="password"
+                  placeholder="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <div className={styles.forgotPassword}>
                   <button 
                     type="button" 
-                    className={styles["secondary-btn"]}
-                    onClick={toggleResetPassword}
+                    onClick={showPasswordReset}
+                    className={styles.forgotPasswordLink}
                   >
-                    Back to Login
+                    Forgot Password?
                   </button>
-                </form>
-              </div>
-            )}
+                </div>
+                {error && <p className={styles["error-message"]}>{error}</p>}
+                {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+                <button type="submit" className={styles["flip-card__btn"]}>Log In</button>
+              </form>
+              <button
+                className={styles["google-btn"]}
+                onClick={handleGoogleSignIn}
+              >
+                Login with Google
+              </button>
+            </div>
 
-            {/* Login Form */}
-            {!isResetPassword && !isSignUp && (
-              <div className={styles["flip-card__front"]}>
-                <div className={styles.title}>Log in</div>
-                <form className={styles["flip-card__form"]} onSubmit={handleLogin}>
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="email"
-                    placeholder="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="password"
-                    placeholder="Password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <div className={styles["forgot-password"]}>
-                    <button 
-                      type="button" 
-                      onClick={toggleResetPassword}
-                      className={styles["forgot-password-link"]}
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
-                  {error && <p className={styles["error-message"]}>{error}</p>}
-                  {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
-                  <button type="submit" className={styles["flip-card__btn"]}>Log In</button>
-                </form>
+            {/* Sign-Up Form */}
+            <div className={styles["flip-card__back"]}>
+              <div className={styles.title}>Sign up</div>
+              <form className={styles["flip-card__form"]} onSubmit={handleSignUp}>
+                <input
+                  className={styles["flip-card__input"]}
+                  placeholder="Name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <input
+                  className={styles["flip-card__input"]}
+                  name="email"
+                  placeholder="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <input
+                  className={styles["flip-card__input"]}
+                  name="password"
+                  placeholder="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <input
+                  className={styles["flip-card__input"]}
+                  name="referralCode"
+                  placeholder="Referral Code (Optional)"
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => {
+                    setReferralCode(e.target.value);
+                    validateReferralCode(e.target.value);
+                  }}
+                />
+                {referralError && <p className={styles["error-message"]}>{referralError}</p>}
+                {error && <p className={styles["error-message"]}>{error}</p>}
+                {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+                <button type="submit" className={styles["flip-card__btn"]}>Sign Up</button>
+              </form>
+              <div>
+                <input
+                  className={styles["flip-card__input"]}
+                  name="googleReferralCode"
+                  placeholder="Referral Code (Optional)"
+                  type="text"
+                  value={googleReferralCode}
+                  onChange={(e) => setGoogleReferralCode(e.target.value)}
+                />
+                {referralError && <p className={styles["error-message"]}>{referralError}</p>}
                 <button
+                  type="button"
                   className={styles["google-btn"]}
                   onClick={handleGoogleSignIn}
                 >
-                  Login with Google
+                  Sign up with Google
                 </button>
               </div>
-            )}
-
-            {/* Sign-Up Form */}
-            {!isResetPassword && isSignUp && (
-              <div className={styles["flip-card__back"]}>
-                <div className={styles.title}>Sign up</div>
-                <form className={styles["flip-card__form"]} onSubmit={handleSignUp}>
-                  <input
-                    className={styles["flip-card__input"]}
-                    placeholder="Name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="email"
-                    placeholder="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="password"
-                    placeholder="Password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="referralCode"
-                    placeholder="Referral Code (Optional)"
-                    type="text"
-                    value={referralCode}
-                    onChange={(e) => {
-                      setReferralCode(e.target.value);
-                      validateReferralCode(e.target.value);
-                    }}
-                  />
-                  {referralError && <p className={styles["error-message"]}>{referralError}</p>}
-                  {error && <p className={styles["error-message"]}>{error}</p>}
-                  {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
-                  <button type="submit" className={styles["flip-card__btn"]}>Sign Up</button>
-                </form>
-                <div>
-                  <input
-                    className={styles["flip-card__input"]}
-                    name="googleReferralCode"
-                    placeholder="Referral Code (Optional)"
-                    type="text"
-                    value={googleReferralCode}
-                    onChange={(e) => setGoogleReferralCode(e.target.value)}
-                  />
-                  {referralError && <p className={styles["error-message"]}>{referralError}</p>}
-                  <button
-                    type="button"
-                    className={styles["google-btn"]}
-                    onClick={handleGoogleSignIn}
-                  >
-                    Sign up with Google
-                  </button>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </label>
       </div>
