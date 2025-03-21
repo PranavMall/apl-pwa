@@ -5,7 +5,6 @@ import { AuthProvider } from "@/app/context/authContext"; // Adjusted path
 import { GoogleAnalytics } from '@next/third-parties/google'
 import AnalyticsWrapper from '@/app/components/AnalyticsWrapper';
 
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
