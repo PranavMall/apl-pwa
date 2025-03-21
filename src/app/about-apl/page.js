@@ -53,8 +53,7 @@ export default function AboutAPLPage() {
     setIsSubmitting(false);
   }
 };
-  };
-
+  
   return (
     <div className={styles.container}>
       <header className={styles.header}>
