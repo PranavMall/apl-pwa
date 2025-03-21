@@ -523,10 +523,12 @@ const UserProfilePage = () => {
         </CardContent>
       </Card>
 
-      <Card className={styles.teamCard}>
-        <CardHeader>
-          <CardTitle>My Team</CardTitle>
-          {transferWindow && (
+          <Card className={styles.teamCard}>
+  <CardHeader>
+    <CardTitle>Team Management</CardTitle>
+  </CardHeader>
+  <CardContent>
+            {transferWindow && (
             <div className={isTransferActive ? styles.activeWindow : styles.inactiveWindow}>
               {isTransferActive ? (
                 <>Transfer Window Open! Closes on {new Date(transferWindow.endDate).toLocaleDateString()}</>
@@ -535,257 +537,16 @@ const UserProfilePage = () => {
               )}
             </div>
           )}
-        </CardHeader>
-        <CardContent>
-          {isTransferActive ? (
-            <div className={styles.transferSection}>
-              <Tabs defaultValue="batsmen">
-                <TabsList>
-                  <TabsTrigger value="batsmen">Batsmen (4)</TabsTrigger>
-                  <TabsTrigger value="bowlers">Bowlers (4)</TabsTrigger>
-                  <TabsTrigger value="allrounders">All-rounders (2)</TabsTrigger>
-                  <TabsTrigger value="wicketkeepers">Wicket-keepers (1)</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="batsmen" className={styles.playersGrid}>
-                  {availablePlayers.batsmen.map(player => {
-                    const isSelected = selectedPlayers.batsmen.some(p => p.id === player.id);
-                    const isCaptain = captain?.id === player.id;
-                    const isViceCaptain = viceCaptain?.id === player.id;
-                    
-                    return (
-                      <div 
-                        key={player.id}
-                        className={`${styles.playerCard} ${isSelected ? styles.selectedPlayer : ''}`}
-                        onClick={() => handlePlayerSelection(player, 'batsmen', isSelected)}
-                      >
-                        <div className={styles.playerName}>{player.name}</div>
-                        <div className={styles.playerTeam}>{player.team}</div>
-                        <div className={styles.playerPoints}>{Math.round(player.stats?.points || 0)} pts</div>
-                        
-                        {isSelected && (
-                          <div className={styles.captainButtons}>
-                            <button 
-                              className={`${styles.captainButton} ${isCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCaptainSelection(player);
-                              }}
-                            >
-                              C
-                            </button>
-                            <button 
-                              className={`${styles.viceCaptainButton} ${isViceCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViceCaptainSelection(player);
-                              }}
-                            >
-                              VC
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </TabsContent>
-
-                <TabsContent value="bowlers" className={styles.playersGrid}>
-                  {availablePlayers.bowlers.map(player => {
-                    const isSelected = selectedPlayers.bowlers.some(p => p.id === player.id);
-                    const isCaptain = captain?.id === player.id;
-                    const isViceCaptain = viceCaptain?.id === player.id;
-                    
-                    return (
-                      <div 
-                        key={player.id}
-                        className={`${styles.playerCard} ${isSelected ? styles.selectedPlayer : ''}`}
-                        onClick={() => handlePlayerSelection(player, 'bowlers', isSelected)}
-                      >
-                        <div className={styles.playerName}>{player.name}</div>
-                        <div className={styles.playerTeam}>{player.team}</div>
-                        <div className={styles.playerPoints}>{Math.round(player.stats?.points || 0)} pts</div>
-                        
-                        {isSelected && (
-                          <div className={styles.captainButtons}>
-                            <button 
-                              className={`${styles.captainButton} ${isCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCaptainSelection(player);
-                              }}
-                            >
-                              C
-                            </button>
-                            <button 
-                              className={`${styles.viceCaptainButton} ${isViceCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViceCaptainSelection(player);
-                              }}
-                            >
-                              VC
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </TabsContent>
-
-                <TabsContent value="allrounders" className={styles.playersGrid}>
-                  {availablePlayers.allrounders.map(player => {
-                    const isSelected = selectedPlayers.allrounders.some(p => p.id === player.id);
-                    const isCaptain = captain?.id === player.id;
-                    const isViceCaptain = viceCaptain?.id === player.id;
-                    
-                    return (
-                      <div 
-                        key={player.id}
-                        className={`${styles.playerCard} ${isSelected ? styles.selectedPlayer : ''}`}
-                        onClick={() => handlePlayerSelection(player, 'allrounders', isSelected)}
-                      >
-                        <div className={styles.playerName}>{player.name}</div>
-                        <div className={styles.playerTeam}>{player.team}</div>
-                        <div className={styles.playerPoints}>{Math.round(player.stats?.points || 0)} pts</div>
-                        
-                        {isSelected && (
-                          <div className={styles.captainButtons}>
-                            <button 
-                              className={`${styles.captainButton} ${isCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCaptainSelection(player);
-                              }}
-                            >
-                              C
-                            </button>
-                            <button 
-                              className={`${styles.viceCaptainButton} ${isViceCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViceCaptainSelection(player);
-                              }}
-                            >
-                              VC
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </TabsContent>
-
-                <TabsContent value="wicketkeepers" className={styles.playersGrid}>
-                  {availablePlayers.wicketkeepers.map(player => {
-                    const isSelected = selectedPlayers.wicketkeepers.some(p => p.id === player.id);
-                    const isCaptain = captain?.id === player.id;
-                    const isViceCaptain = viceCaptain?.id === player.id;
-                    
-                    return (
-                      <div 
-                        key={player.id}
-                        className={`${styles.playerCard} ${isSelected ? styles.selectedPlayer : ''}`}
-                        onClick={() => handlePlayerSelection(player, 'wicketkeepers', isSelected)}
-                      >
-                        <div className={styles.playerName}>{player.name}</div>
-                        <div className={styles.playerTeam}>{player.team}</div>
-                        <div className={styles.playerPoints}>{Math.round(player.stats?.points || 0)} pts</div>
-                        
-                        {isSelected && (
-                          <div className={styles.captainButtons}>
-                            <button 
-                              className={`${styles.captainButton} ${isCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCaptainSelection(player);
-                              }}
-                            >
-                              C
-                            </button>
-                            <button 
-                              className={`${styles.viceCaptainButton} ${isViceCaptain ? styles.selected : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViceCaptainSelection(player);
-                              }}
-                            >
-                              VC
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </TabsContent>
-              </Tabs>
-
-              <div className={styles.teamSummary}>
-                <div className={styles.teamCount}>
-                  <span>Selected Players: {
-                    selectedPlayers.batsmen.length + 
-                    selectedPlayers.bowlers.length + 
-                    selectedPlayers.allrounders.length + 
-                    selectedPlayers.wicketkeepers.length
-                  }/11</span>
-                  <div className={styles.captainSummary}>
-                    <span>Captain: {captain?.name || 'Not selected'}</span>
-                    <span>Vice-Captain: {viceCaptain?.name || 'Not selected'}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {teamMessage.text && (
-                <div className={`${styles.statusMessage} ${styles[teamMessage.type]}`}>
-                  {teamMessage.text}
-                </div>
-              )}
-
-              <button 
-                className={styles.saveTeamButton}
-                onClick={saveTeam}
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Team'}
-              </button>
-            </div>
-          ) : (
-            <div className={styles.lockedTransferSection}>
-              <div className={styles.lockedMessage}>
-                {transferWindow ? (
-                  <>
-                    <h3>Transfer Window Closed</h3>
-                    <p>Next transfer window opens on {new Date(transferWindow.startDate).toLocaleDateString()}</p>
-                  </>
-                ) : (
-                  <>
-                    <h3>No Active Transfer Window</h3>
-                    <p>Please check back later for the next transfer window</p>
-                  </>
-                )}
-              </div>
-
-              {userTeam && (
-                <div className={styles.currentTeam}>
-                  <h3>Your Current Team</h3>
-                  <div className={styles.currentTeamGrid}>
-                    {userTeam.players.map(player => (
-                      <div key={player.id} className={styles.currentPlayerCard}>
-                        <div className={styles.playerName}>{player.name}</div>
-                        <div className={styles.playerRole}>{player.role}</div>
-                        {(player.isCaptain || player.isViceCaptain) && (
-                          <div className={styles.playerRole}>
-                            {player.isCaptain ? 'Captain' : 'Vice-Captain'}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
+    <p className={styles.teamInfoText}>
+      Create and manage your fantasy cricket team in the dedicated Team section.
+    </p>
+    <Link href="/my-team">
+      <button className={styles.teamManagementButton}>
+        Manage My Team
+      </button>
+    </Link>
+  </CardContent>
+</Card>
       </Card>
 
       <Card className={styles.statsCard}>
