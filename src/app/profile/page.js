@@ -524,10 +524,10 @@ const UserProfilePage = () => {
       </Card>
 
           <Card className={styles.teamCard}>
-  <CardHeader>
-    <CardTitle>Team Management</CardTitle>
-  </CardHeader>
-  <CardContent>
+            <CardHeader>
+            <CardTitle>Team Management</CardTitle>
+            </CardHeader>
+            <CardContent>
             {transferWindow && (
             <div className={isTransferActive ? styles.activeWindow : styles.inactiveWindow}>
               {isTransferActive ? (
@@ -537,17 +537,15 @@ const UserProfilePage = () => {
               )}
             </div>
           )}
-    <p className={styles.teamInfoText}>
+<p className={styles.teamInfoText}>
       Create and manage your fantasy cricket team in the dedicated Team section.
     </p>
     <Link href="/my-team">
       <button className={styles.teamManagementButton}>
         Manage My Team
       </button>
-    </Link>
-  </CardContent>
-</Card>
-      </Card>
+    </Link>  </CardContent>
+  </Card>
 
       <Card className={styles.statsCard}>
         <CardHeader>
