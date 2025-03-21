@@ -200,7 +200,7 @@ const UserProfilePage = () => {
   
   const shareOnWhatsApp = () => {
     const message = encodeURIComponent(
-       `Join me on Apna Premier League Fantasy Cricket! Use my referral code: ${referralCode} when you sign up. I'll earn bonus points for referring you. Let's compete together!`
+       `Join me on Apna Premier League Fantasy Cricket! Use my referral code: ${referralCode} when you sign up at https://apl-pwa-2025.vercel.app/. I'll earn bonus points for referring you. Let's compete together!`
     );
     const whatsappUrl = `https://wa.me/?text=${message}`;
     window.open(whatsappUrl, '_blank');
