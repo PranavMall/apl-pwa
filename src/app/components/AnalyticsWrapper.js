@@ -22,6 +22,7 @@ export default function AnalyticsWrapper({ children }) {
   return (
     <>
       <Suspense fallback={null}>
+    
         <PageViewTracker />
       </Suspense>
       {children}
