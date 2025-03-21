@@ -355,6 +355,7 @@
 }
 
 .playerCard {
+  color: #333; /* Dark text for light mode */
   background: #f9f9f9;
   border-radius: 8px;
   padding: 15px;
@@ -367,6 +368,34 @@
 .playerCard:hover {
   transform: translateY(-2px);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Add these styles for dark mode compatibility */
+@media (prefers-color-scheme: dark) {
+  .playerCard {
+    background: #2a2a2a; /* Darker background for dark mode */
+    color: #f0f0f0; /* Light text for dark mode */
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
+  }
+  .playerName {
+    color: #f0f0f0; /* Ensure player names are visible in dark mode */
+  }
+  
+  .playerPoints {
+    color: #ccc; /* Lighter color for points in dark mode */
+  }
+  
+  /* Adjust other elements like team badges for better visibility */
+  .playerTeam {
+    /* Increase opacity or adjust colors as needed */
+    opacity: 0.9;
+  }
+}
+
+/* Make sure all text elements inside player cards have appropriate contrast */
+.playerName, .playerPoints, .playerRole {
+  /* These should have good contrast in both light and dark modes */
+  font-weight: 600; /* Making text slightly bolder also helps with visibility */
 }
 
 .selectedPlayer {
