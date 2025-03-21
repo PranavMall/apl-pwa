@@ -206,71 +206,101 @@ const UserProfilePage = () => {
     window.open(whatsappUrl, '_blank');
   };
 
-  const uploadPhoto = async () => {
-    if (!photoFile) return photoURL;
-    
-    try {
-      const storageRef = ref(storage, `profile-images/${user.uid}`);
-      await uploadBytes(storageRef, photoFile);
-      return await getDownloadURL(storageRef);
-    } catch (error) {
-      console.error('Error uploading photo:', error);
-      throw error;
+ const uploadPhoto = async () => {
+  if (!photoFile) return photoURL;
+  
+  try {
+    // Validate file type and size
+    if (!['image/jpeg', 'image/png', 'image/gif'].includes(photoFile.type)) {
+      throw new Error('Invalid file type. Please upload a JPEG, PNG, or GIF.');
     }
-  };
 
-  const saveProfile = async () => {
-    if (!teamName.trim()) {
-      setSaveMessage({ text: 'Team name is required', type: 'error' });
-      return;
+    // Max file size 5MB
+    if (photoFile.size > 5 * 1024 * 1024) {
+      throw new Error('File is too large. Maximum size is 5MB.');
+    }
+
+    // Create a reference to the storage location
+    const storageRef = ref(storage, `profile-images/${user.uid}`);
+    
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, photoFile);
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    return downloadURL;
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    // Rethrow the error to be caught in the calling function
+    throw error;
+  }
+};
+
+const saveProfile = async () => {
+  if (!teamName.trim()) {
+    setSaveMessage({ text: 'Team name is required', type: 'error' });
+    return;
+  }
+  
+  try {
+    setSaving(true);
+    setSaveMessage({ text: '', type: '' });
+    
+    // Upload photo if changed
+    let profilePhotoURL = photoURL;
+    if (photoFile) {
+      try {
+        profilePhotoURL = await uploadPhoto();
+      } catch (uploadError) {
+        setSaveMessage({ 
+          text: uploadError.message || 'Failed to upload photo', 
+          type: 'error' 
+        });
+        setSaving(false);
+        return;
+      }
     }
     
-    try {
-      setSaving(true);
-      setSaveMessage({ text: '', type: '' });
-      
-      // Upload photo if changed
-      let profilePhotoURL = photoURL;
-      if (photoFile) {
-        profilePhotoURL = await uploadPhoto();
-      }
-      
-      // Generate referral code if not exists
-      const code = referralCode || generateReferralCode(user.uid);
-      
-      // Only allow updating teamName if it hasn't been set before
-      const updateData = {
-        bio: bio.trim(),
-        photoURL: profilePhotoURL,
-        referralCode: code,
-        updatedAt: new Date()
-      };
-      
-      // Only update team name if it's not already set
-      if (!userProfile?.teamName && teamName.trim()) {
-        updateData.teamName = teamName.trim();
-      }
-      
-      // Update user profile
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, updateData);
-      
-      setReferralCode(code);
-      setSaveMessage({ text: 'Profile saved successfully', type: 'success' });
-      
-      // Update local user profile data
-      setUserProfile(prev => ({
-        ...prev,
-        ...updateData
-      }));
-      
-      setSaving(false);
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      setSaveMessage({ text: 'Error saving profile. Please try again.', type: 'error' });
-      setSaving(false);
+    // Generate referral code if not exists
+    const code = referralCode || generateReferralCode(user.uid);
+    
+    // Only allow updating teamName if it hasn't been set before
+    const updateData = {
+      bio: bio.trim(),
+      photoURL: profilePhotoURL,
+      referralCode: code,
+      updatedAt: new Date()
+    };
+    
+    // Only update team name if it's not already set
+    if (!userProfile?.teamName && teamName.trim()) {
+      updateData.teamName = teamName.trim();
     }
-  };
+    
+    // Update user profile
+    const userRef = doc(db, 'users', user.uid);
+    await updateDoc(userRef, updateData);
+    
+    setReferralCode(code);
+    setSaveMessage({ text: 'Profile saved successfully', type: 'success' });
+    
+    // Update local user profile data
+    setUserProfile(prev => ({
+      ...prev,
+      ...updateData
+    }));
+    
+    setSaving(false);
+  } catch (error) {
+    console.error('Error saving profile:', error);
+    setSaveMessage({ 
+      text: error.message || 'Error saving profile. Please try again.', 
+      type: 'error' 
+    });
+    setSaving(false);
+  }
+};
 
   const handlePlayerSelection = (player, role, isSelected) => {
     if (isSelected) {
