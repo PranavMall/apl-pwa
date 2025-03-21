@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/ta
 import styles from './profile.module.css';
 import { transferService } from '../services/transferService';
 import { generateReferralCode } from '../utils/referralUtils';
+import { getUserAvatar } from '@/app/utils/userUtils';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -378,33 +379,40 @@ const UserProfilePage = () => {
           <CardTitle>My Profile</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={styles.profileForm}>
-            <div className={styles.photoSection}>
-              <div className={styles.photoContainer}>
-                {photoURL ? (
-                  <Image 
-                    src={photoURL} 
-                    alt="Profile" 
-                    width={120} 
-                    height={120}
-                    className={styles.profilePhoto}
-                  />
-                ) : (
-                  <div className={styles.photoPlaceholder}>
-                    {user?.displayName?.charAt(0) || user?.email?.charAt(0) || '?'}
-                  </div>
-                )}
-              </div>
-              <label className={styles.uploadButton}>
-                Change Photo
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handlePhotoChange} 
-                  className={styles.fileInput}
-                />
-              </label>
-            </div>
+<div className={styles.photoSection}>
+  <div className={styles.photoContainer}>
+    {photoURL ? (
+      <Image 
+        src={photoURL} 
+        alt="Profile" 
+        width={120} 
+        height={120}
+        className={styles.profilePhoto}
+        onError={(e) => {
+          // If image fails to load, use initials avatar
+          e.target.src = getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid);
+        }}
+      />
+    ) : (
+      <Image 
+        src={getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid)}
+        alt="Profile" 
+        width={120} 
+        height={120}
+        className={styles.profilePhoto}
+      />
+    )}
+  </div>
+  <label className={styles.uploadButton}>
+    Change Photo
+    <input 
+      type="file" 
+      accept="image/*" 
+      onChange={handlePhotoChange} 
+      className={styles.fileInput}
+    />
+  </label>
+</div>
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Team Name *</label>
