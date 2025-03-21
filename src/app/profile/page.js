@@ -273,9 +273,16 @@ const saveProfile = async () => {
       updateData.teamName = teamName.trim();
     }
     
+    console.log('Attempting to update user profile:', {
+      userId: user.uid,
+      updateData
+    });
+
     // Update user profile
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, updateData);
+    
+    console.log('User profile update successful');
     
     setReferralCode(code);
     setSaveMessage({ text: 'Profile saved successfully', type: 'success' });
@@ -288,7 +295,13 @@ const saveProfile = async () => {
     
     setSaving(false);
   } catch (error) {
-    console.error('Error saving profile:', error);
+    console.error('Full error during profile save:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      code: error.code
+    });
+
     setSaveMessage({ 
       text: error.message || 'Error saving profile. Please try again.', 
       type: 'error' 
