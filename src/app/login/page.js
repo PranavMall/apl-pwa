@@ -6,6 +6,7 @@ import {
   signInWithPopup,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -23,9 +24,11 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [referralError, setReferralError] = useState("");
   const [googleReferralCode, setGoogleReferralCode] = useState("");
-
+  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   // Toggle between Login and Sign-Up forms
   const toggleForm = () => setIsSignUp(!isSignUp);
@@ -33,6 +36,8 @@ export default function LoginPage() {
   // Handle Email/Password Login
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccessMessage("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Login successful!");
@@ -42,17 +47,18 @@ export default function LoginPage() {
       setError(error.message);
     }
   };
+
   const validateGoogleReferralCode = (code) => {
-  if (!code) return true; // Optional field
-  
-  if (!isValidReferralFormat(code)) {
-    setReferralError("Invalid referral code format (must start with APL-)");
-    return false;
-  }
-  
-  setReferralError("");
-  return true;
-};
+    if (!code) return true; // Optional field
+    
+    if (!isValidReferralFormat(code)) {
+      setReferralError("Invalid referral code format (must start with APL-)");
+      return false;
+    }
+    
+    setReferralError("");
+    return true;
+  };
 
   // Validate referral code
   const validateReferralCode = (code) => {
@@ -70,6 +76,8 @@ export default function LoginPage() {
   // Handle Email/Password Sign-Up
   const handleSignUp = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccessMessage("");
     
     if (referralCode && !validateReferralCode(referralCode)) {
       return; // Stop if referral code is invalid
@@ -114,168 +122,242 @@ export default function LoginPage() {
   };
 
   // Modified Google Sign-In handler
-const handleGoogleSignIn = async () => {
-  if (googleReferralCode && !validateGoogleReferralCode(googleReferralCode)) {
-    return; // Stop if referral code is invalid
-  }
-  const provider = new GoogleAuthProvider();
-  provider.addScope("profile");
-  provider.addScope("email");
-  provider.setCustomParameters({
-    prompt: "select_account"
-  });
-
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-
-    // Check if user already exists
-    const userDocRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userDocRef);
-    const isNewUser = !userDoc.exists();
-
-    // Generate a referral code for this user
-    const userReferralCode = generateReferralCode(user.uid);
-
-    // Create/update user document
-    await setDoc(userDocRef, {
-      name: user.displayName,
-      email: user.email,
-      photoURL: user.photoURL,
-      createdAt: new Date(),
-      // Fantasy cricket specific fields
-      registrationDate: new Date(),
-      referralCode: userReferralCode,
-      referrals: userDoc.exists() ? userDoc.data().referrals || [] : [],
-      referralPoints: userDoc.exists() ? userDoc.data().referralPoints || 0 : 0,
-      totalPoints: userDoc.exists() ? userDoc.data().totalPoints || 0 : 0,
-      rank: 0
-    }, { merge: true });
-
-    // Initialize user's tournament stats if there's an active tournament and this is a new user
-    if (isNewUser) {
-      await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
-      
-      // Process referral if provided
-      if (googleReferralCode) {
-        await transferService.processReferral(user.uid, googleReferralCode);
-      }
-      
-      router.push("/profile"); // New users go to profile setup
-    } else {
-      router.push("/profile"); // Existing users go to profile
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setSuccessMessage("");
+    if (googleReferralCode && !validateGoogleReferralCode(googleReferralCode)) {
+      return; // Stop if referral code is invalid
     }
-  } catch (error) {
-    console.error("Google Sign-In error:", error);
-    setError(error.message);
-  }
-};
+    const provider = new GoogleAuthProvider();
+    provider.addScope("profile");
+    provider.addScope("email");
+    provider.setCustomParameters({
+      prompt: "select_account"
+    });
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user already exists
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+      const isNewUser = !userDoc.exists();
+
+      // Generate a referral code for this user
+      const userReferralCode = generateReferralCode(user.uid);
+
+      // Create/update user document
+      await setDoc(userDocRef, {
+        name: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+        // Fantasy cricket specific fields
+        registrationDate: new Date(),
+        referralCode: userReferralCode,
+        referrals: userDoc.exists() ? userDoc.data().referrals || [] : [],
+        referralPoints: userDoc.exists() ? userDoc.data().referralPoints || 0 : 0,
+        totalPoints: userDoc.exists() ? userDoc.data().totalPoints || 0 : 0,
+        rank: 0
+      }, { merge: true });
+
+      // Initialize user's tournament stats if there's an active tournament and this is a new user
+      if (isNewUser) {
+        await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
+        
+        // Process referral if provided
+        if (googleReferralCode) {
+          await transferService.processReferral(user.uid, googleReferralCode);
+        }
+        
+        router.push("/profile"); // New users go to profile setup
+      } else {
+        router.push("/profile"); // Existing users go to profile
+      }
+    } catch (error) {
+      console.error("Google Sign-In error:", error);
+      setError(error.message);
+    }
+  };
+
+  // Handle Password Reset
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMessage("");
+    
+    if (!resetEmail) {
+      setError("Please enter your email address");
+      return;
+    }
+    
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setSuccessMessage("Password reset email sent! Check your inbox.");
+      
+      // Reset form after successful submission
+      setResetEmail("");
+      // Return to login form after 3 seconds
+      setTimeout(() => {
+        setIsResetPassword(false);
+        setSuccessMessage("");
+      }, 3000);
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setError(error.message);
+    }
+  };
+
+  // Toggle to reset password form
+  const toggleResetPassword = () => {
+    setIsResetPassword(!isResetPassword);
+    setError("");
+    setSuccessMessage("");
+    setResetEmail(email); // Pre-fill with login email if available
+  };
 
   return (
     <div className={styles.wrapper}>
       <div className={styles["card-switch"]}>
         <label className={styles.switch}>
-          <input type="checkbox" className={styles.toggle} onChange={toggleForm} />
+          <input type="checkbox" className={styles.toggle} onChange={toggleForm} checked={isSignUp} />
           <span className={styles["card-side"]}></span>
           <div className={styles["flip-card__inner"]}>
+            {/* Password Reset Form */}
+            {isResetPassword && (
+              <div className={styles["reset-password-form"]}>
+                <div className={styles.title}>Reset Password</div>
+                <form className={styles["flip-card__form"]} onSubmit={handlePasswordReset}>
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="resetEmail"
+                    placeholder="Your Email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                  />
+                  {error && <p className={styles["error-message"]}>{error}</p>}
+                  {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+                  <button type="submit" className={styles["flip-card__btn"]}>Send Reset Link</button>
+                  <button 
+                    type="button" 
+                    className={styles["secondary-btn"]}
+                    onClick={toggleResetPassword}
+                  >
+                    Back to Login
+                  </button>
+                </form>
+              </div>
+            )}
+
             {/* Login Form */}
-            <div className={styles["flip-card__front"]}>
-              <div className={styles.title}>Log in</div>
-              <form className={styles["flip-card__form"]} onSubmit={handleLogin}>
-                <input
-                  className={styles["flip-card__input"]}
-                  name="email"
-                  placeholder="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="password"
-                  placeholder="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                {error && <p className={styles["error-message"]}>{error}</p>}
-                <button className={styles["flip-card__btn"]}>Log In</button>
-              </form>
-              <button
-                className={styles["google-btn"]}
-                onClick={handleGoogleSignIn}
-              >
-                Login with Google
-              </button>
-            </div>
+            {!isResetPassword && !isSignUp && (
+              <div className={styles["flip-card__front"]}>
+                <div className={styles.title}>Log in</div>
+                <form className={styles["flip-card__form"]} onSubmit={handleLogin}>
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="email"
+                    placeholder="Email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="password"
+                    placeholder="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <div className={styles["forgot-password"]}>
+                    <button 
+                      type="button" 
+                      onClick={toggleResetPassword}
+                      className={styles["forgot-password-link"]}
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                  {error && <p className={styles["error-message"]}>{error}</p>}
+                  {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+                  <button type="submit" className={styles["flip-card__btn"]}>Log In</button>
+                </form>
+                <button
+                  className={styles["google-btn"]}
+                  onClick={handleGoogleSignIn}
+                >
+                  Login with Google
+                </button>
+              </div>
+            )}
 
             {/* Sign-Up Form */}
-            <div className={styles["flip-card__back"]}>
-              <div className={styles.title}>Sign up</div>
-              <form className={styles["flip-card__form"]} onSubmit={handleSignUp}>
-                <input
-                  className={styles["flip-card__input"]}
-                  placeholder="Name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="email"
-                  placeholder="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="password"
-                  placeholder="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <input
-                  className={styles["flip-card__input"]}
-                  name="referralCode"
-                  placeholder="Referral Code (Optional)"
-                  type="text"
-                  value={referralCode}
-                  onChange={(e) => {
-                    setReferralCode(e.target.value);
-                    validateReferralCode(e.target.value);
-                  }}
-                />
-                {referralError && <p className={styles["error-message"]}>{referralError}</p>}
-                {error && <p className={styles["error-message"]}>{error}</p>}
-                <button className={styles["flip-card__btn"]}>Sign Up</button>
-              </form>
-              <button
-                className={styles["google-btn"]}
-                onClick={handleGoogleSignIn}
-              >
-                Sign up with Google
-              </button>
-                  {/* Add this below the existing Google button */}
-<div>
-  <input
-    className={styles["flip-card__input"]}
-    name="googleReferralCode"
-    placeholder="Referral Code (Optional)"
-    type="text"
-    value={googleReferralCode}
-    onChange={(e) => setGoogleReferralCode(e.target.value)}
-  />
-  {referralError && <p className={styles["error-message"]}>{referralError}</p>}
-  <button
-    className={styles["google-btn"]}
-    onClick={handleGoogleSignIn}
-  >
-    Login with Google
-  </button>
-</div>
-            </div>
+            {!isResetPassword && isSignUp && (
+              <div className={styles["flip-card__back"]}>
+                <div className={styles.title}>Sign up</div>
+                <form className={styles["flip-card__form"]} onSubmit={handleSignUp}>
+                  <input
+                    className={styles["flip-card__input"]}
+                    placeholder="Name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="email"
+                    placeholder="Email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="password"
+                    placeholder="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="referralCode"
+                    placeholder="Referral Code (Optional)"
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => {
+                      setReferralCode(e.target.value);
+                      validateReferralCode(e.target.value);
+                    }}
+                  />
+                  {referralError && <p className={styles["error-message"]}>{referralError}</p>}
+                  {error && <p className={styles["error-message"]}>{error}</p>}
+                  {successMessage && <p className={styles["success-message"]}>{successMessage}</p>}
+                  <button type="submit" className={styles["flip-card__btn"]}>Sign Up</button>
+                </form>
+                <div>
+                  <input
+                    className={styles["flip-card__input"]}
+                    name="googleReferralCode"
+                    placeholder="Referral Code (Optional)"
+                    type="text"
+                    value={googleReferralCode}
+                    onChange={(e) => setGoogleReferralCode(e.target.value)}
+                  />
+                  {referralError && <p className={styles["error-message"]}>{referralError}</p>}
+                  <button
+                    type="button"
+                    className={styles["google-btn"]}
+                    onClick={handleGoogleSignIn}
+                  >
+                    Sign up with Google
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </label>
       </div>
