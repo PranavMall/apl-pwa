@@ -9,6 +9,7 @@ import withAuth from '@/app/components/withAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import { transferService } from '../services/transferService';
 import styles from './team.module.css';
+import { logTeamRegistration } from '@/lib/analytics';
 
 const MyTeamPage = () => {
   const { user } = useAuth();
@@ -270,6 +271,8 @@ const MyTeamPage = () => {
       const result = await transferService.saveUserTeam(user.uid, allPlayers);
       if (result.success) {
         setMessage({ text: 'Team saved successfully!', type: 'success' });
+        // Track team registration
+      logTeamRegistration(userProfile?.teamName || 'Unknown Team');
         // Refresh team data
         setEditMode(false);
         fetchTeamData();
