@@ -27,8 +27,6 @@ const UserProfilePage = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [teamName, setTeamName] = useState('');
   const [bio, setBio] = useState('');
-  const [photoURL, setPhotoURL] = useState('');
-  const [photoFile, setPhotoFile] = useState(null);
   const [referralCode, setReferralCode] = useState('');
   const [transferWindow, setTransferWindow] = useState(null);
   const [isTransferActive, setIsTransferActive] = useState(false);
@@ -185,27 +183,7 @@ const UserProfilePage = () => {
     }
   };
 
-const handlePhotoChange = (e) => {
-  if (e.target.files && e.target.files[0]) {
-    const file = e.target.files[0];
-    
-    console.log('Photo selected:', {
-      name: file.name,
-      type: file.type,
-      size: file.size
-    });
 
-    setPhotoFile(file);
-    
-    // Show preview
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      console.log('File reader loaded');
-      setPhotoURL(event.target.result);
-    };
-    reader.readAsDataURL(file);
-  }
-};
   
   const shareOnWhatsApp = () => {
     const message = encodeURIComponent(
@@ -219,6 +197,13 @@ const uploadPhoto = async () => {
   if (!photoFile) return photoURL;
   
   try {
+    // Instead of uploading, just use the current preview
+    // This is the data URL created by the FileReader in handlePhotoChange
+    console.log('Upload bypassed, using preview image');
+    return photoURL;
+    
+    // Original upload code is commented out until storage is configured
+    /*
     // Validate storage and user
     if (!storage) {
       throw new Error('Firebase Storage is not initialized');
@@ -247,27 +232,18 @@ const uploadPhoto = async () => {
     const downloadURL = await getDownloadURL(snapshot.ref);
     
     return downloadURL;
+    */
   } catch (error) {
-    console.error('Detailed upload error:', {
-      message: error.message,
-      name: error.name,
-      code: error.code,
-      stack: error.stack,
-      storage: !!storage,
-      userExists: !!user,
-      fileType: photoFile?.type,
-      fileSize: photoFile?.size,
-      storageURL: storage?.app?.options?.storageBucket
-    });
+    console.error('Photo upload skipped:', error);
     
-    // More informative error message
+    // More informative message
     setSaveMessage({ 
-      text: `Photo upload failed: ${error.message}. Please try again.`, 
-      type: 'error' 
+      text: 'Photo preview only - uploads temporarily disabled', 
+      type: 'info' 
     });
 
-    // Rethrow the error to be caught in the calling function
-    throw error;
+    // Return existing URL
+    return photoURL;
   }
 };
 
@@ -281,43 +257,13 @@ const saveProfile = async () => {
     setSaving(true);
     setSaveMessage({ text: '', type: '' });
     
-    // Upload photo if changed
-    let profilePhotoURL = photoURL;
-    if (photoFile) {
-      try {
-        console.log('Attempting to upload photo:', {
-          fileName: photoFile.name,
-          fileType: photoFile.type,
-          fileSize: photoFile.size,
-          user: user?.uid
-        });
-
-        profilePhotoURL = await uploadPhoto();
-        
-        console.log('Photo upload successful:', profilePhotoURL);
-      } catch (uploadError) {
-        console.error('Photo upload failed:', {
-          message: uploadError.message,
-          name: uploadError.name,
-          stack: uploadError.stack
-        });
-
-        setSaveMessage({ 
-          text: `Failed to upload photo: ${uploadError.message}`, 
-          type: 'error' 
-        });
-        setSaving(false);
-        return;
-      }
-    }
-    
     // Generate referral code if not exists
     const code = referralCode || generateReferralCode(user.uid);
     
     // Only allow updating teamName if it hasn't been set before
     const updateData = {
       bio: bio.trim(),
-      photoURL: profilePhotoURL,
+      // Remove photoURL from here
       referralCode: code,
       updatedAt: new Date()
     };
@@ -327,16 +273,9 @@ const saveProfile = async () => {
       updateData.teamName = teamName.trim();
     }
     
-    console.log('Attempting to update user profile:', {
-      userId: user.uid,
-      updateData
-    });
-
     // Update user profile
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, updateData);
-    
-    console.log('User profile update successful');
     
     setReferralCode(code);
     setSaveMessage({ text: 'Profile saved successfully', type: 'success' });
@@ -349,13 +288,7 @@ const saveProfile = async () => {
     
     setSaving(false);
   } catch (error) {
-    console.error('Full error during profile save:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      code: error.code
-    });
-
+    console.error('Error saving profile:', error);
     setSaveMessage({ 
       text: error.message || 'Error saving profile. Please try again.', 
       type: 'error' 
@@ -513,39 +446,17 @@ const saveProfile = async () => {
         </CardHeader>
         <CardContent>
           <div className={styles.photoSection}>
-            <div className={styles.photoContainer}>
-              {photoURL ? (
-                <Image 
-                  src={photoURL} 
-                  alt="Profile" 
-                  width={120} 
-                  height={120}
-                  className={styles.profilePhoto}
-                  onError={(e) => {
-                    // If image fails to load, use initials avatar
-                    e.target.src = getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid);
-                  }}
-                />
-              ) : (
-                <Image 
-                  src={getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid)}
-                  alt="Profile" 
-                  width={120} 
-                  height={120}
-                  className={styles.profilePhoto}
-                />
-              )}
-            </div>
-            <label className={styles.uploadButton}>
-              Change Photo
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handlePhotoChange} 
-                className={styles.fileInput}
-              />
-            </label>
-          </div>
+  <div className={styles.photoContainer}>
+    <Image 
+      src={getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid)}
+      alt="Profile" 
+      width={120} 
+      height={120}
+      className={styles.profilePhoto}
+    />
+  </div>
+  <p className={styles.photoInfo}>User avatars are generated automatically</p>
+</div>
 
           <div className={styles.formGroup}>
             <label className={styles.label}>Team Name *</label>
