@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/authContext";
 import HamburgerMenu from "./HamburgerMenu";
 import styles from "./BottomNavigation.module.css";
+import { getUserAvatar } from '@/app/utils/userUtils';
+
 
 const BottomNavigation = () => {
   const { user, loading } = useAuth();
@@ -13,37 +15,39 @@ const BottomNavigation = () => {
 
   if (loading) return null;
 
-  const getProfileIcon = () => {
-    if (user?.photoURL) {
-      return (
-        <div className={styles.profileImageContainer}>
-          <Image
-            src={user.photoURL}
-            alt="Profile"
-            width={24}
-            height={24}
-            className={styles.profileImage}
-            onError={(e) => {
-              // If image fails to load, replace with placeholder
-              e.currentTarget.src = "/images/placeholder-profile.png";
-            }}
-          />
-        </div>
-      );
-    }
-    // Placeholder image when no photoURL exists
+const getProfileIcon = () => {
+  if (user?.photoURL) {
     return (
       <div className={styles.profileImageContainer}>
         <Image
-          src="public/images/placeholder-profile.png"
+          src={user.photoURL}
           alt="Profile"
           width={24}
           height={24}
           className={styles.profileImage}
+          onError={(e) => {
+            // If image fails to load, use an initials avatar
+            e.currentTarget.src = getUserAvatar(user.displayName || user.email || 'User', user.uid);
+          }}
         />
       </div>
     );
-  };
+  }
+  
+  // Generate an avatar based on user name/email or use default placeholder
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'User';
+  return (
+    <div className={styles.profileImageContainer}>
+      <Image
+        src={getUserAvatar(userName, user?.uid)}
+        alt="Profile"
+        width={24}
+        height={24}
+        className={styles.profileImage}
+      />
+    </div>
+  );
+};
 
   const loggedInLinks = [
     { label: "Dashboard", href: "/profile", 
