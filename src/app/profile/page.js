@@ -13,8 +13,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/ca
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
 import styles from './profile.module.css';
 import { transferService } from '../services/transferService';
-import { generateReferralCode } from '../utils/referralUtils';
+import { generateReferralCode, isValidReferralFormat } from '../utils/referralUtils';
 import { getUserAvatar } from '@/app/utils/userUtils';
+import Link from 'next/link';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -32,6 +33,10 @@ const UserProfilePage = () => {
   const [transferWindow, setTransferWindow] = useState(null);
   const [isTransferActive, setIsTransferActive] = useState(false);
   const [userTeam, setUserTeam] = useState(null);
+  // Added the previously external state variables inside the component
+  const [referrerCode, setReferrerCode] = useState('');
+  const [referralMessage, setReferralMessage] = useState({ text: '', type: '' });
+  const [processingReferral, setProcessingReferral] = useState(false);
   const [availablePlayers, setAvailablePlayers] = useState({
     batsmen: [],
     bowlers: [],
@@ -66,14 +71,14 @@ const UserProfilePage = () => {
       const userDoc = await getDoc(userRef);
       
        if (userDoc.exists()) {
-      const userData = userDoc.data();
-      console.log("User profile loaded:", userData); // Add this line
-      console.log("referredBy value:", userData.referredBy); // Add this line
-      setUserProfile(userData);
-      setTeamName(userData.teamName || '');
-      setBio(userData.bio || '');
-      setPhotoURL(userData.photoURL || '');
-      setReferralCode(userData.referralCode || generateReferralCode(user.uid));
+        const userData = userDoc.data();
+        console.log("User profile loaded:", userData);
+        console.log("referredBy value:", userData.referredBy);
+        setUserProfile(userData);
+        setTeamName(userData.teamName || '');
+        setBio(userData.bio || '');
+        setPhotoURL(userData.photoURL || '');
+        setReferralCode(userData.referralCode || generateReferralCode(user.uid));
       }
       
       // Fetch weekly stats
@@ -112,6 +117,41 @@ const UserProfilePage = () => {
     } catch (error) {
       console.error('Error fetching user data:', error);
       setLoading(false);
+    }
+  };
+
+  const handleReferralSubmit = async () => {
+    if (!referrerCode.trim()) {
+      setReferralMessage({ text: 'Please enter a referral code', type: 'error' });
+      return;
+    }
+    
+    try {
+      setProcessingReferral(true);
+      setReferralMessage({ text: '', type: '' });
+      
+      // Validate referral code format
+      if (!isValidReferralFormat(referrerCode)) {
+        setReferralMessage({ text: 'Invalid referral code format (must start with APL-)', type: 'error' });
+        setProcessingReferral(false);
+        return;
+      }
+      
+      // Process the referral
+      const result = await transferService.processReferral(user.uid, referrerCode);
+      
+      if (result.success) {
+        setReferralMessage({ text: 'Referral code applied successfully!', type: 'success' });
+        // Refresh user data to reflect changes
+        fetchUserData();
+      } else {
+        setReferralMessage({ text: result.error || 'Failed to apply referral code', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error applying referral code:', error);
+      setReferralMessage({ text: 'Error applying referral code. Please try again.', type: 'error' });
+    } finally {
+      setProcessingReferral(false);
     }
   };
 
@@ -157,13 +197,14 @@ const UserProfilePage = () => {
       reader.readAsDataURL(file);
     }
   };
+  
   const shareOnWhatsApp = () => {
-  const message = encodeURIComponent(
-     `Join me on Apna Premier League Fantasy Cricket! Use my referral code: ${referralCode} when you sign up. I'll earn bonus points for referring you. Let's compete together!`
-  );
-  const whatsappUrl = `https://wa.me/?text=${message}`;
-  window.open(whatsappUrl, '_blank');
-};
+    const message = encodeURIComponent(
+       `Join me on Apna Premier League Fantasy Cricket! Use my referral code: ${referralCode} when you sign up. I'll earn bonus points for referring you. Let's compete together!`
+    );
+    const whatsappUrl = `https://wa.me/?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   const uploadPhoto = async () => {
     if (!photoFile) return photoURL;
@@ -379,104 +420,139 @@ const UserProfilePage = () => {
           <CardTitle>My Profile</CardTitle>
         </CardHeader>
         <CardContent>
-<div className={styles.photoSection}>
-  <div className={styles.photoContainer}>
-    {photoURL ? (
-      <Image 
-        src={photoURL} 
-        alt="Profile" 
-        width={120} 
-        height={120}
-        className={styles.profilePhoto}
-        onError={(e) => {
-          // If image fails to load, use initials avatar
-          e.target.src = getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid);
-        }}
-      />
-    ) : (
-      <Image 
-        src={getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid)}
-        alt="Profile" 
-        width={120} 
-        height={120}
-        className={styles.profilePhoto}
-      />
-    )}
-  </div>
-  <label className={styles.uploadButton}>
-    Change Photo
-    <input 
-      type="file" 
-      accept="image/*" 
-      onChange={handlePhotoChange} 
-      className={styles.fileInput}
-    />
-  </label>
-</div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Team Name *</label>
-              <input
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className={styles.input}
-                placeholder="Your Fantasy Team Name"
-                disabled={userProfile?.teamName}
-                title={userProfile?.teamName ? "Team name cannot be changed after saving" : ""}
-                required
-              />
-              {userProfile?.teamName && (
-                <p className={styles.fieldHint}>Team name cannot be changed after first save</p>
+          <div className={styles.photoSection}>
+            <div className={styles.photoContainer}>
+              {photoURL ? (
+                <Image 
+                  src={photoURL} 
+                  alt="Profile" 
+                  width={120} 
+                  height={120}
+                  className={styles.profilePhoto}
+                  onError={(e) => {
+                    // If image fails to load, use initials avatar
+                    e.target.src = getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid);
+                  }}
+                />
+              ) : (
+                <Image 
+                  src={getUserAvatar(userProfile?.teamName || user?.displayName || 'User', user?.uid)}
+                  alt="Profile" 
+                  width={120} 
+                  height={120}
+                  className={styles.profilePhoto}
+                />
               )}
             </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>About Me</label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className={styles.textarea}
-                placeholder="Tell us about yourself..."
-                rows={3}
+            <label className={styles.uploadButton}>
+              Change Photo
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handlePhotoChange} 
+                className={styles.fileInput}
               />
-            </div>
+            </label>
+          </div>
 
-           <div className={styles.referralSection}>
-  <h3>Your Referral Code</h3>
-  <div className={styles.referralCode}>
-    <span>{referralCode}</span>
-    <button 
-      className={styles.copyButton}
-      onClick={copyReferralCode}
-    >
-      Copy
-    </button>
-    <button 
-      className={styles.whatsappButton}
-      onClick={shareOnWhatsApp}
-    >
-      Share on WhatsApp
-    </button>
-  </div>
-  <p className={styles.referralInfo}>
-    Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
-  </p>
-</div>
-
-            {saveMessage.text && (
-              <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
-                {saveMessage.text}
-              </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Team Name *</label>
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              className={styles.input}
+              placeholder="Your Fantasy Team Name"
+              disabled={userProfile?.teamName}
+              title={userProfile?.teamName ? "Team name cannot be changed after saving" : ""}
+              required
+            />
+            {userProfile?.teamName && (
+              <p className={styles.fieldHint}>Team name cannot be changed after first save</p>
             )}
-            
-            <button 
-              className={styles.saveButton}
-              onClick={saveProfile}
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Profile'}
-            </button>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>About Me</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className={styles.textarea}
+              placeholder="Tell us about yourself..."
+              rows={3}
+            />
+          </div>
+
+          <div className={styles.referralSection}>
+            <h3>Your Referral Code</h3>
+            <div className={styles.referralCode}>
+              <span>{referralCode}</span>
+              <button 
+                className={styles.copyButton}
+                onClick={copyReferralCode}
+              >
+                Copy
+              </button>
+              <button 
+                className={styles.whatsappButton}
+                onClick={shareOnWhatsApp}
+              >
+                Share on WhatsApp
+              </button>
+            </div>
+            <p className={styles.referralInfo}>
+              Share your code with friends. You'll earn 25 points for each friend who joins (up to 3 friends).
+              Friends can <a href="/login" className={styles.referralLink}>sign up here</a> using your code.
+            </p>
+          </div>
+          
+          {/* Only show referrer code input if user hasn't used one yet */}
+          {!userProfile?.referredBy && (
+            <div className={styles.referralSection}>
+              <h3>Enter Referrer's Code</h3>
+              <p className={styles.referralInfo}>
+                If someone referred you, enter their code to earn them bonus points!
+              </p>
+              <div className={styles.formGroup}>
+                <input
+                  type="text"
+                  value={referrerCode}
+                  onChange={(e) => setReferrerCode(e.target.value)}
+                  className={styles.input}
+                  placeholder="Enter referrer's code (e.g., APL-ABC123)"
+                />
+              </div>
+              
+              {referralMessage && referralMessage.text && (
+                <div className={`${styles.statusMessage} ${styles[referralMessage.type]}`}>
+                  {referralMessage.text}
+                </div>
+              )}
+              
+              <button 
+                className={styles.saveButton}
+                onClick={handleReferralSubmit}
+                disabled={processingReferral}
+                style={{ marginTop: '10px' }}
+              >
+                {processingReferral ? 'Processing...' : 'Apply Referral Code'}
+              </button>
+            </div>
+          )}
+
+          {saveMessage.text && (
+            <div className={`${styles.statusMessage} ${styles[saveMessage.type]}`}>
+              {saveMessage.text}
+            </div>
+          )}
+          
+          <button 
+            className={styles.saveButton}
+            onClick={saveProfile}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Profile'}
+          </button>
         </CardContent>
       </Card>
 
