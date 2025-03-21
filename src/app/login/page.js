@@ -24,6 +24,8 @@ export default function LoginPage() {
   const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState("");
   const [referralError, setReferralError] = useState("");
+  const [googleReferralCode, setGoogleReferralCode] = useState("");
+
 
   // Toggle between Login and Sign-Up forms
   const toggleForm = () => setIsSignUp(!isSignUp);
@@ -34,12 +36,23 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Login successful!");
-      router.push("/dashboard"); // Redirect to the dashboard
+      router.push("/profile"); // Redirect to the profile
     } catch (error) {
       console.error("Login error:", error);
       setError(error.message);
     }
   };
+  const validateGoogleReferralCode = (code) => {
+  if (!code) return true; // Optional field
+  
+  if (!isValidReferralFormat(code)) {
+    setReferralError("Invalid referral code format (must start with APL-)");
+    return false;
+  }
+  
+  setReferralError("");
+  return true;
+};
 
   // Validate referral code
   const validateReferralCode = (code) => {
@@ -101,59 +114,62 @@ export default function LoginPage() {
   };
 
   // Modified Google Sign-In handler
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.addScope("profile");
-    provider.addScope("email");
-    provider.setCustomParameters({
-      prompt: "select_account"
-    });
+const handleGoogleSignIn = async () => {
+  if (googleReferralCode && !validateGoogleReferralCode(googleReferralCode)) {
+    return; // Stop if referral code is invalid
+  }
+  const provider = new GoogleAuthProvider();
+  provider.addScope("profile");
+  provider.addScope("email");
+  provider.setCustomParameters({
+    prompt: "select_account"
+  });
 
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
 
-      // Check if user already exists
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-      const isNewUser = !userDoc.exists();
+    // Check if user already exists
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+    const isNewUser = !userDoc.exists();
 
-      // Generate a referral code for this user
-      const userReferralCode = generateReferralCode(user.uid);
+    // Generate a referral code for this user
+    const userReferralCode = generateReferralCode(user.uid);
 
-      // Create/update user document
-      await setDoc(userDocRef, {
-        name: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        createdAt: new Date(),
-        // Fantasy cricket specific fields
-        registrationDate: new Date(),
-        referralCode: userReferralCode,
-        referrals: userDoc.exists() ? userDoc.data().referrals || [] : [],
-        referralPoints: userDoc.exists() ? userDoc.data().referralPoints || 0 : 0,
-        totalPoints: userDoc.exists() ? userDoc.data().totalPoints || 0 : 0,
-        rank: 0
-      }, { merge: true });
+    // Create/update user document
+    await setDoc(userDocRef, {
+      name: user.displayName,
+      email: user.email,
+      photoURL: user.photoURL,
+      createdAt: new Date(),
+      // Fantasy cricket specific fields
+      registrationDate: new Date(),
+      referralCode: userReferralCode,
+      referrals: userDoc.exists() ? userDoc.data().referrals || [] : [],
+      referralPoints: userDoc.exists() ? userDoc.data().referralPoints || 0 : 0,
+      totalPoints: userDoc.exists() ? userDoc.data().totalPoints || 0 : 0,
+      rank: 0
+    }, { merge: true });
 
-      // Initialize user's tournament stats if there's an active tournament and this is a new user
-      if (isNewUser) {
-        await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
-        
-        // Process referral if provided
-        if (referralCode) {
-          await transferService.processReferral(user.uid, referralCode);
-        }
-        
-        router.push("/profile"); // New users go to profile setup
-      } else {
-        router.push("/dashboard"); // Existing users go to dashboard
+    // Initialize user's tournament stats if there's an active tournament and this is a new user
+    if (isNewUser) {
+      await FantasyService.initializeUserTournamentStats(user.uid, "bbl-2024");
+      
+      // Process referral if provided
+      if (googleReferralCode) {
+        await transferService.processReferral(user.uid, googleReferralCode);
       }
-    } catch (error) {
-      console.error("Google Sign-In error:", error);
-      setError(error.message);
+      
+      router.push("/profile"); // New users go to profile setup
+    } else {
+      router.push("/profile"); // Existing users go to profile
     }
-  };
+  } catch (error) {
+    console.error("Google Sign-In error:", error);
+    setError(error.message);
+  }
+};
 
   return (
     <div className={styles.wrapper}>
@@ -241,6 +257,24 @@ export default function LoginPage() {
               >
                 Sign up with Google
               </button>
+                  {/* Add this below the existing Google button */}
+<div>
+  <input
+    className={styles["flip-card__input"]}
+    name="googleReferralCode"
+    placeholder="Referral Code (Optional)"
+    type="text"
+    value={googleReferralCode}
+    onChange={(e) => setGoogleReferralCode(e.target.value)}
+  />
+  {referralError && <p className={styles["error-message"]}>{referralError}</p>}
+  <button
+    className={styles["google-btn"]}
+    onClick={handleGoogleSignIn}
+  >
+    Login with Google
+  </button>
+</div>
             </div>
           </div>
         </label>
