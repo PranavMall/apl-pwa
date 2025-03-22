@@ -189,7 +189,7 @@ static async updateUserWeeklyStats(matchId) {
     if (matchWeekDoc.exists()) {
       weekNumber = matchWeekDoc.data().weekNumber;
       tournamentId = matchWeekDoc.data().tournamentId;
-      console.log(`Found explicit mapping: Match ${matchId} belongs to Week ${weekNumber}`);
+      console.log(`Found explicit mapping: Match ${matchId} belongs to Week ${weekNumber} of tournament ${tournamentId}`);
     } else {
       // Otherwise, fall back to calculating based on date
       // Get match data
@@ -220,7 +220,22 @@ static async updateUserWeeklyStats(matchId) {
         return { success: false, error: 'Could not determine week' };
       }
       
-      console.log(`Calculated match ${matchId} belongs to Week ${weekNumber}`);
+      console.log(`Calculated match ${matchId} belongs to Week ${weekNumber} of tournament ${tournamentId}`);
+      
+      // IMPORTANT: Store this mapping for future use
+      try {
+        await setDoc(matchWeekRef, {
+          matchId,
+          tournamentId,
+          weekNumber,
+          autoAssigned: true,
+          assignedAt: new Date()
+        });
+        console.log(`Created match week mapping for match ${matchId}`);
+      } catch (mappingError) {
+        console.error('Error creating match week mapping:', mappingError);
+        // Continue anyway - this is not critical
+      }
     }
     
     // Get all user teams for this tournament
@@ -245,12 +260,25 @@ static async updateUserWeeklyStats(matchId) {
     await Promise.all(updatePromises);
     console.log(`Successfully updated weekly stats for ${updatePromises.length} users`);
     
+    // IMPORTANT: Update weekly rankings after processing all users
+    try {
+      await this.updateWeeklyRankings(tournamentId, weekNumber);
+      console.log(`Updated weekly rankings for tournament ${tournamentId}, week ${weekNumber}`);
+      
+      // Also update overall rankings
+      await this.updateOverallRankings(tournamentId);
+      console.log(`Updated overall rankings for tournament ${tournamentId}`);
+    } catch (rankingError) {
+      console.error('Error updating rankings:', rankingError);
+    }
+    
     return { success: true };
   } catch (error) {
     console.error('Error updating user weekly stats:', error);
     throw error;
   }
 }
+
 
 static findMatchWeek(matchDate, transferWindows) {
   if (!matchDate || !transferWindows || transferWindows.length === 0) {
@@ -298,12 +326,17 @@ static findMatchWeek(matchDate, transferWindows) {
 
 static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber) {
   try {
+    console.log(`Calculating points for user ${userId}, match ${matchId}, week ${weekNumber}`);
+    
     // Initialize total points for this match
     let totalPoints = 0;
+    let captainPoints = 0;
+    let viceCaptainPoints = 0;
+    let pointsBreakdown = [];
     
     // Get match points for each player
     for (const player of players) {
-      // Create player doc ID from name or use existing ID
+      // Create player doc ID from id
       const playerId = player.id;
       
       // Check if player has points for this match
@@ -312,29 +345,73 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
       
       if (pointsDoc.exists()) {
         const playerPoints = pointsDoc.data().points || 0;
+        const playerName = player.name || 'Unknown Player';
         
         // Apply captain/vice-captain multipliers
         let multipliedPoints = playerPoints;
+        let multiplier = 1;
+        
         if (player.isCaptain) {
-          multipliedPoints *= 2;
+          multiplier = 2;
+          multipliedPoints = playerPoints * multiplier;
+          captainPoints = multipliedPoints;
+          console.log(`Captain ${playerName} earned ${playerPoints} x ${multiplier} = ${multipliedPoints} points`);
         } else if (player.isViceCaptain) {
-          multipliedPoints *= 1.5;
+          multiplier = 1.5;
+          multipliedPoints = playerPoints * multiplier;
+          viceCaptainPoints = multipliedPoints;
+          console.log(`Vice-Captain ${playerName} earned ${playerPoints} x ${multiplier} = ${multipliedPoints} points`);
+        } else {
+          console.log(`Player ${playerName} earned ${playerPoints} points`);
         }
+        
+        // Add to the points breakdown
+        pointsBreakdown.push({
+          playerId,
+          playerName,
+          basePoints: playerPoints,
+          multiplier,
+          finalPoints: multipliedPoints,
+          isCaptain: player.isCaptain || false,
+          isViceCaptain: player.isViceCaptain || false
+        });
         
         totalPoints += multipliedPoints;
       }
     }
     
+    console.log(`Total points for user ${userId} in match ${matchId}: ${totalPoints}`);
+    
     // Update user's weekly stats
     const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournamentId}_${weekNumber}`);
     const weeklyStatsDoc = await getDoc(weeklyStatsRef);
     
+    const now = new Date();
+    
     if (weeklyStatsDoc.exists()) {
       // Update existing stats
-      const currentPoints = weeklyStatsDoc.data().points || 0;
+      const currentData = weeklyStatsDoc.data();
+      const currentPoints = currentData.points || 0;
+      const currentMatches = currentData.matches || [];
+      
+      // Check if this match has already been processed
+      if (currentMatches.includes(matchId)) {
+        console.log(`Match ${matchId} already processed for user ${userId}, week ${weekNumber}`);
+        return { success: true, alreadyProcessed: true };
+      }
+      
+      // Add this match to the processed list
+      const updatedMatches = [...currentMatches, matchId];
+      
+      // Update with new points
       await updateDoc(weeklyStatsRef, {
         points: currentPoints + totalPoints,
-        updatedAt: new Date()
+        matches: updatedMatches,
+        lastMatchId: matchId,
+        captainPoints: (currentData.captainPoints || 0) + captainPoints,
+        viceCaptainPoints: (currentData.viceCaptainPoints || 0) + viceCaptainPoints,
+        pointsBreakdown: [...(currentData.pointsBreakdown || []), ...pointsBreakdown],
+        updatedAt: now
       });
     } else {
       // Create new stats entry
@@ -343,13 +420,35 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         tournamentId,
         weekNumber,
         points: totalPoints,
-        rank: 0,
-        transferWindowId: `${weekNumber}`,
-        createdAt: new Date()
+        matches: [matchId],
+        lastMatchId: matchId,
+        captainPoints,
+        viceCaptainPoints,
+        pointsBreakdown,
+        rank: 0, // Will be updated by updateWeeklyRankings
+        transferWindowId: weekNumber.toString(),
+        createdAt: now,
+        updatedAt: now
       });
     }
     
-    return { success: true };
+    // Also update the user's total points in the users collection
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const currentTotalPoints = userData.totalPoints || 0;
+      
+      await updateDoc(userRef, {
+        totalPoints: currentTotalPoints + totalPoints,
+        lastUpdated: now
+      });
+      
+      console.log(`Updated total points for user ${userId}: ${currentTotalPoints} + ${totalPoints} = ${currentTotalPoints + totalPoints}`);
+    }
+    
+    return { success: true, points: totalPoints };
   } catch (error) {
     console.error(`Error calculating points for user ${userId}:`, error);
     return { success: false, error: error.message };
