@@ -213,86 +213,87 @@ const MyTeamPage = () => {
     setViceCaptain(player.id === viceCaptain?.id ? null : player);
   };
   
-  const saveTeam = async () => {
-    try {
-      setMessage({ text: '', type: '' });
-      
-      // Validate team selection
-      const totalPlayers = 
-        selectedPlayers.batsmen.length + 
-        selectedPlayers.bowlers.length + 
-        selectedPlayers.allrounders.length + 
-        selectedPlayers.wicketkeepers.length;
-      
-      if (totalPlayers !== 11) {
-        setMessage({ 
-          text: `You must select exactly 11 players. Current: ${totalPlayers}`, 
-          type: 'error' 
-        });
-        return;
-      }
-      
-      if (!captain) {
-        setMessage({ text: 'You must select a captain', type: 'error' });
-        return;
-      }
-      
-      if (!viceCaptain) {
-        setMessage({ text: 'You must select a vice-captain', type: 'error' });
-        return;
-      }
-      
-      setSaving(true);
-      
-      // Flatten players array and mark captain/vice-captain
-      const allPlayers = [
-        ...selectedPlayers.batsmen.map(p => ({
-          ...p,
-          isCaptain: captain.id === p.id,
-          isViceCaptain: viceCaptain.id === p.id
-        })),
-        ...selectedPlayers.bowlers.map(p => ({
-          ...p,
-          isCaptain: captain.id === p.id,
-          isViceCaptain: viceCaptain.id === p.id
-        })),
-        ...selectedPlayers.allrounders.map(p => ({
-          ...p,
-          isCaptain: captain.id === p.id,
-          isViceCaptain: viceCaptain.id === p.id
-        })),
-        ...selectedPlayers.wicketkeepers.map(p => ({
-          ...p,
-          isCaptain: captain.id === p.id,
-          isViceCaptain: viceCaptain.id === p.id
-        }))
-      ];
-      
-      const result = await transferService.saveUserTeam(user.uid, allPlayers);
-      if (result.success) {
-        setMessage({ text: 'Team saved successfully!', type: 'success' });
-        // Track team registration
-      logTeamRegistration(userProfile?.teamName || 'Unknown Team');
-        // Refresh team data
-        setEditMode(false);
-        fetchTeamData();
-      } else {
-        setMessage({ 
-          text: `Error saving team: ${result.error || 'Unknown error'}`, 
-          type: 'error' 
-        });
-      }
-      
-      setSaving(false);
-    } catch (error) {
-      console.error('Error saving team:', error);
-      setMessage({ 
-        text: 'Error saving team. Please try again.', 
+// Replace the saveTeam function in src/app/my-team/page.js with this fixed version
+const saveTeam = async () => {
+  try {
+    setTeamMessage({ text: '', type: '' });
+    
+    // Validate team selection
+    const totalPlayers = 
+      selectedPlayers.batsmen.length + 
+      selectedPlayers.bowlers.length + 
+      selectedPlayers.allrounders.length + 
+      selectedPlayers.wicketkeepers.length;
+    
+    if (totalPlayers !== 11) {
+      setTeamMessage({ 
+        text: `You must select exactly 11 players. Current: ${totalPlayers}`, 
         type: 'error' 
       });
-      setSaving(false);
+      return;
     }
-  };
+    
+    if (!captain) {
+      setTeamMessage({ text: 'You must select a captain', type: 'error' });
+      return;
+    }
+    
+    if (!viceCaptain) {
+      setTeamMessage({ text: 'You must select a vice-captain', type: 'error' });
+      return;
+    }
+    
+    setSaving(true);
+    
+    // Flatten players array and mark captain/vice-captain
+    const allPlayers = [
+      ...selectedPlayers.batsmen.map(p => ({
+        ...p,
+        isCaptain: captain.id === p.id,
+        isViceCaptain: viceCaptain.id === p.id
+      })),
+      ...selectedPlayers.bowlers.map(p => ({
+        ...p,
+        isCaptain: captain.id === p.id,
+        isViceCaptain: viceCaptain.id === p.id
+      })),
+      ...selectedPlayers.allrounders.map(p => ({
+        ...p,
+        isCaptain: captain.id === p.id,
+        isViceCaptain: viceCaptain.id === p.id
+      })),
+      ...selectedPlayers.wicketkeepers.map(p => ({
+        ...p,
+        isCaptain: captain.id === p.id,
+        isViceCaptain: viceCaptain.id === p.id
+      }))
+    ];
+    
+    const result = await transferService.saveUserTeam(user.uid, allPlayers);
+    if (result.success) {
+      setTeamMessage({ text: 'Team saved successfully!', type: 'success' });
+      // Track team registration - FIX: Use a default value instead of userProfile
+      logTeamRegistration('Fantasy Team'); // Using a generic name since we don't have userProfile here
+      // Refresh team data
+      setEditMode(false);
+      fetchTeamData();
+    } else {
+      setTeamMessage({ 
+        text: `Error saving team: ${result.error || 'Unknown error'}`, 
+        type: 'error' 
+      });
+    }
+    
+    setSaving(false);
+  } catch (error) {
+    console.error('Error saving team:', error);
+    setTeamMessage({ 
+      text: 'Error saving team. Please try again.', 
+      type: 'error' 
+    });
+    setSaving(false);
+  }
+};
   
   // Group players by role for display
   const groupPlayersByRole = (players) => {
