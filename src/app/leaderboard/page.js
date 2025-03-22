@@ -7,6 +7,7 @@ import { useAuth } from "@/app/context/authContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/components/ui/card";
 import styles from "./leaderboard.module.css";
 import { transferService } from "../services/transferService";
+import { LeagueService } from "../services/leagueService";
 
 const LeaderboardPage = () => {
   const { user } = useAuth();
@@ -16,10 +17,53 @@ const LeaderboardPage = () => {
   const [weekNumbers, setWeekNumbers] = useState([]);
   const [activeTournament, setActiveTournament] = useState(null);
   const [userRank, setUserRank] = useState(null);
+  
+  // League-related state
+  const [userLeagues, setUserLeagues] = useState([]);
+  const [selectedLeague, setSelectedLeague] = useState(null);
+  const [leagueLeaderboardData, setLeagueLeaderboardData] = useState([]);
+  const [loadingLeagueData, setLoadingLeagueData] = useState(false);
 
   useEffect(() => {
     fetchLeaderboardData();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserLeagues();
+    }
+  }, [user]);
+
+  const fetchUserLeagues = async () => {
+    try {
+      const leagues = await LeagueService.getUserLeagues(user.uid);
+      setUserLeagues(leagues);
+    } catch (error) {
+      console.error('Error fetching user leagues:', error);
+    }
+  };
+
+  const handleLeagueSelection = async (leagueId) => {
+    if (!leagueId) {
+      setSelectedLeague(null);
+      return;
+    }
+    
+    try {
+      setLoadingLeagueData(true);
+      const selectedLeagueObj = userLeagues.find(league => league.id === leagueId);
+      setSelectedLeague(selectedLeagueObj);
+      
+      // Fetch league leaderboard data
+      const leaderboardData = await LeagueService.getLeagueLeaderboard(leagueId);
+      setLeagueLeaderboardData(leaderboardData);
+    } catch (error) {
+      console.error('Error loading league leaderboard:', error);
+      setError('Failed to load league leaderboard. Please try again.');
+    } finally {
+      setLoadingLeagueData(false);
+    }
+  };
 
   const fetchLeaderboardData = async () => {
     try {
@@ -113,13 +157,13 @@ const LeaderboardPage = () => {
       
       // Assign ranks
       leaderboardArray.forEach((teamUser, index) => {
-  teamUser.rank = index + 1;
-  
-  // If this is the current user, save their rank
-  if (teamUser.id === user?.uid) { // Compare with the auth user's uid
-    setUserRank(teamUser.rank);
-  }
-});
+        teamUser.rank = index + 1;
+        
+        // If this is the current user, save their rank
+        if (teamUser.id === user?.uid) {
+          setUserRank(teamUser.rank);
+        }
+      });
       
       setLeaderboardData(leaderboardArray);
       setLoading(false);
@@ -142,75 +186,156 @@ const LeaderboardPage = () => {
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Leaderboard</h1>
       
+      <div className={styles.leaderboardFilter}>
+        <label htmlFor="league-filter">Filter by League:</label>
+        <select
+          id="league-filter"
+          value={selectedLeague?.id || ''}
+          onChange={(e) => handleLeagueSelection(e.target.value)}
+          className={styles.leagueSelect}
+        >
+          <option value="">Global Leaderboard</option>
+          {userLeagues.map(league => (
+            <option key={league.id} value={league.id}>
+              {league.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      
       <Card className={styles.leaderboardCard}>
         <CardHeader>
-          <CardTitle>{activeTournament?.name || "Tournament"} Leaderboard</CardTitle>
+          <CardTitle>
+            {selectedLeague ? `${selectedLeague.name} Leaderboard` : `${activeTournament?.name || "Tournament"} Leaderboard`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {leaderboardData.length > 0 || true ? (
-            <div className={styles.tableWrapper}>
-              <table className={styles.leaderboardTable}>
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th>Team</th>
-                    {weekNumbers.map(weekNum => (
-                      <th key={weekNum}>Week {weekNum}</th>
-                    ))}
-                    <th>Bonus Points</th>
-                    <th>Total Points</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboardData.map((team) => (
-                    <tr key={team.id} className={team.id === user?.uid ? styles.currentUser : ""}>
-                      <td className={styles.rankColumn}>
-                        {team.rank <= 3 ? (
-                          <span className={`${styles.topRank} ${styles[`rank${team.rank}`]}`}>
-                            {team.rank}
-                          </span>
-                        ) : (
-                          team.rank
-                        )}
-                      </td>
-                      <td className={styles.teamColumn}>
-                        <div className={styles.teamInfo}>
-                          {team.photoURL ? (
-                            <img 
-                              src={team.photoURL} 
-                              alt="User" 
-                              className={styles.userPhoto} 
-                            />
-                          ) : (
-                            <div className={styles.userPhotoPlaceholder}>
-                              {team.teamName.charAt(0)}
-                            </div>
-                          )}
-                          <span>{team.teamName}</span>
-                          {team.id === user?.uid && <span className={styles.youBadge}>You</span>}
-                        </div>
-                      </td>
-                      {weekNumbers.map(weekNum => (
-                        <td key={weekNum} className={styles.pointsColumn}>
-                          {team.weeks[weekNum] || '-'}
-                        </td>
-                      ))}
-                      <td className={styles.bonusColumn}>
-                        {team.referralPoints || 0}
-                      </td>
-                      <td className={styles.totalColumn}>
-                        {team.totalPoints || 0}
-                      </td>
+          {selectedLeague ? (
+            loadingLeagueData ? (
+              <div className={styles.loading}>Loading league data...</div>
+            ) : leagueLeaderboardData.length > 0 ? (
+              <div className={styles.tableWrapper}>
+                <table className={styles.leaderboardTable}>
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Team</th>
+                      <th>Points</th>
+                      <th>Overall Rank</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {leagueLeaderboardData.map((team) => (
+                      <tr key={team.id} className={team.id === user?.uid ? styles.currentUser : ""}>
+                        <td className={styles.rankColumn}>
+                          {team.leagueRank <= 3 ? (
+                            <span className={`${styles.topRank} ${styles[`rank${team.leagueRank}`]}`}>
+                              {team.leagueRank}
+                            </span>
+                          ) : (
+                            team.leagueRank
+                          )}
+                        </td>
+                        <td className={styles.teamColumn}>
+                          <div className={styles.teamInfo}>
+                            {team.photoURL ? (
+                              <img 
+                                src={team.photoURL} 
+                                alt="User" 
+                                className={styles.userPhoto} 
+                              />
+                            ) : (
+                              <div className={styles.userPhotoPlaceholder}>
+                                {team.teamName.charAt(0)}
+                              </div>
+                            )}
+                            <span>{team.teamName}</span>
+                            {team.id === user?.uid && <span className={styles.youBadge}>You</span>}
+                          </div>
+                        </td>
+                        <td className={styles.totalColumn}>
+                          {team.totalPoints || 0}
+                        </td>
+                        <td>
+                          {team.rank || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={styles.noData}>
+                <p>No leaderboard data available for this league yet.</p>
+              </div>
+            )
           ) : (
-            <div className={styles.noData}>
-              <p>No leaderboard data available yet.</p>
-              <p>Teams will appear here once points are scored.</p>
-            </div>
+            // Original global leaderboard content
+            leaderboardData.length > 0 ? (
+              <div className={styles.tableWrapper}>
+                <table className={styles.leaderboardTable}>
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Team</th>
+                      {weekNumbers.map(weekNum => (
+                        <th key={weekNum}>Week {weekNum}</th>
+                      ))}
+                      <th>Bonus Points</th>
+                      <th>Total Points</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.map((team) => (
+                      <tr key={team.id} className={team.id === user?.uid ? styles.currentUser : ""}>
+                        <td className={styles.rankColumn}>
+                          {team.rank <= 3 ? (
+                            <span className={`${styles.topRank} ${styles[`rank${team.rank}`]}`}>
+                              {team.rank}
+                            </span>
+                          ) : (
+                            team.rank
+                          )}
+                        </td>
+                        <td className={styles.teamColumn}>
+                          <div className={styles.teamInfo}>
+                            {team.photoURL ? (
+                              <img 
+                                src={team.photoURL} 
+                                alt="User" 
+                                className={styles.userPhoto} 
+                              />
+                            ) : (
+                              <div className={styles.userPhotoPlaceholder}>
+                                {team.teamName.charAt(0)}
+                              </div>
+                            )}
+                            <span>{team.teamName}</span>
+                            {team.id === user?.uid && <span className={styles.youBadge}>You</span>}
+                          </div>
+                        </td>
+                        {weekNumbers.map(weekNum => (
+                          <td key={weekNum} className={styles.pointsColumn}>
+                            {team.weeks[weekNum] || '-'}
+                          </td>
+                        ))}
+                        <td className={styles.bonusColumn}>
+                          {team.referralPoints || 0}
+                        </td>
+                        <td className={styles.totalColumn}>
+                          {team.totalPoints || 0}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={styles.noData}>
+                <p>No leaderboard data available yet.</p>
+                <p>Teams will appear here once points are scored.</p>
+              </div>
+            )
           )}
         </CardContent>
       </Card>
