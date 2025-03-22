@@ -32,6 +32,37 @@ export default function RootLayout({ children }) {
   return (
     <AuthProvider>
       <html lang="en">
+    <head>
+          <script dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // On page load, check for dark mode preference
+                function setInitialTheme() {
+                  if (
+                    localStorage.theme === 'dark' || 
+                    (!localStorage.theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+                  ) {
+                    document.documentElement.classList.add('dark-mode');
+                  } else {
+                    document.documentElement.classList.remove('dark-mode');
+                  }
+                }
+                setInitialTheme();
+                
+                // Expose function to toggle dark mode
+                window.toggleDarkMode = function() {
+                  if (document.documentElement.classList.contains('dark-mode')) {
+                    document.documentElement.classList.remove('dark-mode');
+                    localStorage.theme = 'light';
+                  } else {
+                    document.documentElement.classList.add('dark-mode');
+                    localStorage.theme = 'dark';
+                  }
+                }
+              })();
+            `
+          }} />
+        </head>
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
           <AnalyticsWrapper>
             <BottomNavigation />
