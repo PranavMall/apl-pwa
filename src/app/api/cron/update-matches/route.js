@@ -380,6 +380,12 @@ if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
   try {
     // Get the active tournament
     const tournament = await transferService.getActiveTournament();
+    try {
+  await transferService.updateUserTeamPoints(tournament.id);
+  console.log('User teams synchronized with latest player data');
+} catch (error) {
+  console.error('Error synchronizing user teams:', error);
+}
     if (tournament) {
       // Update rankings for all affected weeks
       const affectedWeeks = new Set();
@@ -404,6 +410,7 @@ if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
       
       console.log('Rankings updated successfully');
     }
+    
   } catch (error) {
     console.error('Error updating rankings:', error);
   }
