@@ -31,7 +31,9 @@
   }
 }
 
-/* Dark Theme Variables - Applied when .dark-mode class is added to html */
+/* Add this to your src/app/globals.css file */
+
+/* Enhanced Dark Mode Variables */
 html.dark-mode {
   --background: #121212;
   --foreground: #f8f8f8;
@@ -57,51 +59,312 @@ html.dark-mode {
   --table-border: #333;
 }
 
-/* Add this section to force dark mode styles */
+/* UNIVERSAL DARK MODE OVERRIDES - WILL AFFECT ALL PAGES */
+/* Basic text and background colors */
 html.dark-mode body {
   background-color: #121212 !important;
   color: #f0f0f0 !important;
 }
 
+/* All text elements for better readability */
 html.dark-mode h1, 
 html.dark-mode h2, 
 html.dark-mode h3, 
 html.dark-mode h4, 
 html.dark-mode h5, 
-html.dark-mode h6 {
-  color: #f0f0f0 !important;
-}
-
-html.dark-mode input, 
-html.dark-mode textarea, 
-html.dark-mode select {
-  background-color: #2d2d2d !important;
-  color: #f0f0f0 !important;
-  border-color: #444 !important;
-}
-
-html.dark-mode button {
-  color: var(--neutral-color) !important;
-}
-
-/* Additional overrides for text-heavy elements */
+html.dark-mode h6,
 html.dark-mode p,
 html.dark-mode span,
 html.dark-mode div,
 html.dark-mode td,
 html.dark-mode th,
-html.dark-mode li {
+html.dark-mode li,
+html.dark-mode label {
   color: #f0f0f0 !important;
 }
 
-/* Card and container backgrounds */
+/* Links and anchors */
+html.dark-mode a {
+  color: #4fc3f7 !important;
+}
+
+/* All input fields and form controls */
+html.dark-mode input, 
+html.dark-mode textarea, 
+html.dark-mode select,
+html.dark-mode button {
+  background-color: #2d2d2d !important;
+  color: #f0f0f0 !important;
+  border-color: #444 !important;
+}
+
+html.dark-mode input::placeholder, 
+html.dark-mode textarea::placeholder {
+  color: #aaa !important;
+}
+
+/* All card-like containers */
 html.dark-mode .card,
 html.dark-mode [class*="card"],
+html.dark-mode [class*="Card"],
 html.dark-mode [class*="container"],
-html.dark-mode [class*="section"] {
+html.dark-mode [class*="Container"],
+html.dark-mode [class*="section"],
+html.dark-mode [class*="Section"] {
+  background-color: #1e1e1e !important;
+  border-color: #333 !important;
+  color: #f0f0f0 !important;
+}
+
+/* Tables */
+html.dark-mode table {
+  background-color: #1e1e1e !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode tbody tr:nth-child(even) {
+  background-color: #252525 !important;
+}
+
+html.dark-mode tbody tr:hover {
+  background-color: #333 !important;
+}
+
+/* Bottom navigation bar */
+html.dark-mode .bottomNav {
+  background: linear-gradient(45deg, #d17d00, #cc5800) !important;
+}
+
+html.dark-mode .navItem {
+  color: #ffffff !important;
+}
+
+html.dark-mode .icon, 
+html.dark-mode .label {
+  color: #ffffff !important;
+}
+
+/* Form elements */
+html.dark-mode .formGroup label {
+  color: #e0e0e0 !important;
+}
+
+/* PAGE-SPECIFIC DARK MODE FIXES */
+
+/* Point System Page */
+html.dark-mode .categoryCard {
+  background-color: #1e1e1e !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .pointAction,
+html.dark-mode .pointValue,
+html.dark-mode .categoryTitle,
+html.dark-mode .infoBox p,
+html.dark-mode .infoBox h3 {
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .pointItem {
+  border-bottom-color: #333 !important;
+}
+
+/* Player Performance Page */
+html.dark-mode .tab {
+  background-color: #2d2d2d !important;
+  color: #e0e0e0 !important;
+}
+
+html.dark-mode .activeTab {
+  background-color: #f9a825 !important;
+  color: #fff !important;
+}
+
+html.dark-mode .tableWrapper {
+  background-color: #1e1e1e !important;
+}
+
+html.dark-mode .tableHeader {
+  background: linear-gradient(45deg, #ff9a00, #ff6a00) !important;
+  color: white !important;
+}
+
+html.dark-mode .tableCell {
+  color: #f0f0f0 !important;
+  border-bottom-color: #333 !important;
+}
+
+html.dark-mode .tableRow:nth-child(even) {
+  background-color: #252525 !important;
+}
+
+html.dark-mode .tableRow:hover {
+  background-color: #333 !important;
+}
+
+/* League Page */
+html.dark-mode .leagueCard,
+html.dark-mode .createForm,
+html.dark-mode .searchResults,
+html.dark-mode .inviteCard {
   background-color: #1e1e1e !important;
   border-color: #333 !important;
 }
+
+html.dark-mode .searchResultItem:hover {
+  background-color: #333 !important;
+}
+
+html.dark-mode .userChip {
+  background-color: #333 !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .removeButton {
+  color: #aaa !important;
+}
+
+html.dark-mode .removeButton:hover {
+  color: #ff5252 !important;
+}
+
+html.dark-mode .leagueName,
+html.dark-mode .leagueStats,
+html.dark-mode .userName,
+html.dark-mode .teamName {
+  color: #f0f0f0 !important;
+}
+
+/* Profile Page */
+html.dark-mode .photoSection {
+  background-color: #1e1e1e !important;
+}
+
+html.dark-mode .referralSection {
+  background-color: #252525 !important;
+}
+
+html.dark-mode .referralCode {
+  background-color: #333 !important;
+  border-color: #444 !important;
+}
+
+html.dark-mode .referralInfo {
+  color: #ccc !important;
+}
+
+/* Teams Page */
+html.dark-mode .teamCard {
+  background-color: #1e1e1e !important;
+}
+
+html.dark-mode .playerCard {
+  background-color: #2a2a2a !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .playerName,
+html.dark-mode .playerPoints {
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .selectedPlayer {
+  background-color: #2e3b2e !important;
+  border-color: #4caf50 !important;
+}
+
+html.dark-mode .captainButton,
+html.dark-mode .viceCaptainButton {
+  background-color: #444 !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .captainButton.selected {
+  background-color: #f9a825 !important;
+  color: white !important;
+}
+
+html.dark-mode .viceCaptainButton.selected {
+  background-color: #ff7043 !important;
+  color: white !important;
+}
+
+/* Dashboard Page */
+html.dark-mode .featureCard {
+  background-color: #1e1e1e !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .noTeamMessage,
+html.dark-mode .noStats {
+  color: #ccc !important;
+}
+
+/* SPECIFIC FIXES FOR DASHBOARD CARDS FROM SCREENSHOT 6 */
+html.dark-mode .card h2,
+html.dark-mode .card h3,
+html.dark-mode .card p {
+  color: #f0f0f0 !important;
+}
+
+/* Override for text that should always be dark on light backgrounds */
+.userPhotoPlaceholder,
+.captainBadge,
+.ownerBadge,
+.youBadge,
+.activeTab,
+.tableHeader,
+.topRank,
+.activeWindow span:first-child,
+.whatsappButton,
+.submitButton,
+.createTeamButton,
+.saveTeamButton,
+.saveButton,
+.createButton,
+.viewButton,
+.acceptButton,
+.declineButton {
+  color: white !important; 
+}
+
+/* Preserve gradients for headers and buttons */
+html.dark-mode [class*="gradient"],
+html.dark-mode [style*="linear-gradient"] {
+  /* Leave these alone as they're usually colored properly */
+}
+
+/* Fix inputs that have dark backgrounds in dark mode */
+html.dark-mode input,
+html.dark-mode textarea {
+  background-color: #333 !important;
+  color: white !important;
+}
+
+/* Ensure buttons remain styled correctly */
+html.dark-mode button {
+  background-color: inherit; /* This allows the button's own styling to work */
+}
+
+/* For green or primary action buttons */
+html.dark-mode .createTeamButton,
+html.dark-mode .saveTeamButton,
+html.dark-mode .submitButton,
+html.dark-mode .createButton,
+html.dark-mode .acceptButton {
+  background: #4caf50 !important;
+  color: white !important;
+}
+
+/* For orange/amber buttons */
+html.dark-mode .saveButton,
+html.dark-mode .copyButton {
+  background: #f9a825 !important;
+  color: white !important;
+}
+
+/* Improve dark theme toggle script in head section */
+/* (Add this script in layout.js) */
 
 /* Global Reset */
 html,
