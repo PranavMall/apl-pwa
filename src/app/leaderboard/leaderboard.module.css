@@ -277,3 +277,108 @@
     width: 100%;
   }
 }
+/* Add these specific dark mode fixes to src/app/leaderboard/leaderboard.module.css */
+
+/* Dark mode specific styles for leaderboard */
+@media (prefers-color-scheme: dark) {
+  .tableHeader {
+    /* Keep the gradient for headers */
+    background: linear-gradient(45deg, #ff9a00, #ff6a00);
+    color: white;
+  }
+  
+  .leaderboardTable th {
+    color: white;
+  }
+  
+  .leaderboardTable td {
+    color: white;
+    border-bottom: 1px solid #444;
+  }
+  
+  .leaderboardTable tr:hover {
+    background-color: #2a2a2a;
+  }
+  
+  .leaderboardTable .currentUser {
+    background-color: #3a3000;
+  }
+  
+  .teamName, .userInfo span {
+    color: white;
+  }
+  
+  .card, .leaderboardCard, .infoCard {
+    background: #1e1e1e;
+    color: white;
+    border: 1px solid #333;
+  }
+  
+  .pageTitle, .infoCard h3 {
+    color: white;
+  }
+  
+  .infoCard p {
+    color: #ddd;
+  }
+  
+  .userRankCard {
+    background: linear-gradient(45deg, #f9a825, #ff7043);
+    /* No need to change text color as it's already white */
+  }
+  
+  .totalColumn {
+    color: #ff9a3c;
+  }
+  
+  .bonusColumn {
+    color: #4caf50;
+  }
+  
+  .selectContainer, .leagueSelect {
+    background-color: #333;
+    color: white;
+    border-color: #555;
+  }
+  
+  .leagueSelect:focus {
+    border-color: var(--primary-color, #f9a825);
+  }
+  
+  /* Fix dark text in dropdown options */
+  .leagueSelect option {
+    background-color: #333;
+    color: white;
+  }
+}
+
+/* Add this separately to fix the league select dropdown in both light and dark mode */
+.leaderboardFilter label {
+  font-weight: 500;
+  color: inherit; /* This will inherit the text color from parent */
+}
+
+/* Add an !important to ensure these override any other styles */
+html.dark-mode .leaderboardTable td,
+html.dark-mode .leaderboardTable th,
+html.dark-mode .pageTitle,
+html.dark-mode .infoCard h3,
+html.dark-mode .infoCard p,
+html.dark-mode .teamName, 
+html.dark-mode .userInfo span {
+  color: white !important;
+}
+
+html.dark-mode .leaderboardCard,
+html.dark-mode .infoCard {
+  background: #1e1e1e !important;
+  border-color: #333 !important;
+}
+
+html.dark-mode .leaderboardTable tr:hover {
+  background-color: #2a2a2a !important;
+}
+
+html.dark-mode .leaderboardTable .currentUser {
+  background-color: #3a3000 !important;
+}
