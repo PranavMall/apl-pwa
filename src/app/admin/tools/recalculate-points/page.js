@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../firebase';
 import { transferService } from '../../../services/transferService';
+import styles from '../../tournaments/admin.module.css';
 
 export default function RecalculatePointsPage() {
   const [message, setMessage] = useState({ text: '', type: '' });
