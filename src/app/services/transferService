@@ -379,93 +379,85 @@ static findMatchWeek(matchDate, transferWindows) {
 
 static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber) {
   try {
-    console.log(`Calculating points for user ${userId}, match ${matchId}, week ${weekNumber}`);
-    
     // Initialize total points for this match
     let totalPoints = 0;
-    let captainPoints = 0;
-    let viceCaptainPoints = 0;
     let pointsBreakdown = [];
     
-    // Get match points for each player
-    for (const player of players) {
-      // Create player doc ID from id
+    // Process every player in the team, not just those with match points
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
       const playerId = player.id;
+      let playerPoints = 0;
+      let isCaptain = player.isCaptain || false;
+      let isViceCaptain = player.isViceCaptain || false;
+      let basePoints = 0;
+      let finalPoints = 0;
       
-      // Check if player has points for this match
-      const pointsRef = doc(db, 'playerPoints', `${playerId}_${matchId}`);
-      const pointsDoc = await getDoc(pointsRef);
-      
-      if (pointsDoc.exists()) {
-        const playerPoints = pointsDoc.data().points || 0;
-        const playerName = player.name || 'Unknown Player';
+      // Try to get match points for this player
+      try {
+        const pointsRef = doc(db, 'playerPoints', `${playerId}_${matchId}`);
+        const pointsDoc = await getDoc(pointsRef);
         
-        // Apply captain/vice-captain multipliers
-        let multipliedPoints = playerPoints;
-        let multiplier = 1;
-        
-        if (player.isCaptain) {
-          multiplier = 2;
-          multipliedPoints = playerPoints * multiplier;
-          captainPoints = multipliedPoints;
-          console.log(`Captain ${playerName} earned ${playerPoints} x ${multiplier} = ${multipliedPoints} points`);
-        } else if (player.isViceCaptain) {
-          multiplier = 1.5;
-          multipliedPoints = playerPoints * multiplier;
-          viceCaptainPoints = multipliedPoints;
-          console.log(`Vice-Captain ${playerName} earned ${playerPoints} x ${multiplier} = ${multipliedPoints} points`);
+        if (pointsDoc.exists()) {
+          // Player has points for this match
+          basePoints = pointsDoc.data().points || 0;
+          
+          // Apply captain/vice-captain multipliers
+          if (isCaptain) {
+            finalPoints = basePoints * this.POINTS.MULTIPLIERS.CAPTAIN;
+          } else if (isViceCaptain) {
+            finalPoints = basePoints * this.POINTS.MULTIPLIERS.VICE_CAPTAIN;
+          } else {
+            finalPoints = basePoints;
+          }
+          
+          playerPoints = finalPoints;
         } else {
-          console.log(`Player ${playerName} earned ${playerPoints} points`);
+          // Player doesn't have points for this match
+          basePoints = 0;
+          finalPoints = 0;
         }
-        
-        // Add to the points breakdown
-        pointsBreakdown.push({
-          playerId,
-          playerName,
-          basePoints: playerPoints,
-          multiplier,
-          finalPoints: multipliedPoints,
-          isCaptain: player.isCaptain || false,
-          isViceCaptain: player.isViceCaptain || false
-        });
-        
-        totalPoints += multipliedPoints;
+      } catch (error) {
+        console.error(`Error getting points for player ${playerId}:`, error);
+        basePoints = 0;
+        finalPoints = 0;
       }
+      
+      // Add to total team points
+      totalPoints += playerPoints;
+      
+      // Add to points breakdown array
+      pointsBreakdown.push({
+        playerId: playerId,
+        playerName: player.name || 'Unknown',
+        basePoints: basePoints,
+        finalPoints: finalPoints,
+        isCaptain: isCaptain,
+        isViceCaptain: isViceCaptain,
+        multiplier: isCaptain ? this.POINTS.MULTIPLIERS.CAPTAIN : 
+                   isViceCaptain ? this.POINTS.MULTIPLIERS.VICE_CAPTAIN : 1
+      });
     }
-    
-    console.log(`Total points for user ${userId} in match ${matchId}: ${totalPoints}`);
     
     // Update user's weekly stats
     const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournamentId}_${weekNumber}`);
     const weeklyStatsDoc = await getDoc(weeklyStatsRef);
     
-    const now = new Date();
-    
     if (weeklyStatsDoc.exists()) {
       // Update existing stats
       const currentData = weeklyStatsDoc.data();
       const currentPoints = currentData.points || 0;
-      const currentMatches = currentData.matches || [];
+      const existingMatches = currentData.processedMatches || [];
       
-      // Check if this match has already been processed
-      if (currentMatches.includes(matchId)) {
-        console.log(`Match ${matchId} already processed for user ${userId}, week ${weekNumber}`);
-        return { success: true, alreadyProcessed: true };
+      // Only add points if this match hasn't been processed yet
+      if (!existingMatches.includes(matchId)) {
+        await updateDoc(weeklyStatsRef, {
+          points: currentPoints + totalPoints,
+          pointsBreakdown: pointsBreakdown, // Store the complete breakdown
+          processedMatches: [...existingMatches, matchId],
+          updatedAt: new Date()
+        });
       }
-      
-      // Add this match to the processed list
-      const updatedMatches = [...currentMatches, matchId];
-      
-      // Update with new points
-      await updateDoc(weeklyStatsRef, {
-        points: currentPoints + totalPoints,
-        matches: updatedMatches,
-        lastMatchId: matchId,
-        captainPoints: (currentData.captainPoints || 0) + captainPoints,
-        viceCaptainPoints: (currentData.viceCaptainPoints || 0) + viceCaptainPoints,
-        pointsBreakdown: [...(currentData.pointsBreakdown || []), ...pointsBreakdown],
-        updatedAt: now
-      });
     } else {
       // Create new stats entry
       await setDoc(weeklyStatsRef, {
@@ -473,32 +465,12 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         tournamentId,
         weekNumber,
         points: totalPoints,
-        matches: [matchId],
-        lastMatchId: matchId,
-        captainPoints,
-        viceCaptainPoints,
-        pointsBreakdown,
-        rank: 0, // Will be updated by updateWeeklyRankings
-        transferWindowId: weekNumber.toString(),
-        createdAt: now,
-        updatedAt: now
+        pointsBreakdown: pointsBreakdown, // Store the complete breakdown
+        processedMatches: [matchId],
+        rank: 0,
+        transferWindowId: `${weekNumber}`,
+        createdAt: new Date()
       });
-    }
-    
-    // Also update the user's total points in the users collection
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      const currentTotalPoints = userData.totalPoints || 0;
-      
-      await updateDoc(userRef, {
-        totalPoints: currentTotalPoints + totalPoints,
-        lastUpdated: now
-      });
-      
-      console.log(`Updated total points for user ${userId}: ${currentTotalPoints} + ${totalPoints} = ${currentTotalPoints + totalPoints}`);
     }
     
     return { success: true, points: totalPoints };
