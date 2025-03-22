@@ -549,8 +549,6 @@ const UserProfilePage = () => {
   </Card>
 
       <Card className={styles.statsCard}>
-// Add the Leagues Card right before it:
-
 <Card className={styles.leaguesCard}>
   <CardHeader>
     <CardTitle>My Leagues</CardTitle>
