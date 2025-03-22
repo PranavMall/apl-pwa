@@ -237,3 +237,43 @@
     width: 70px;
   }
 }
+.leaderboardFilter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.leaderboardFilter label {
+  font-weight: 500;
+  color: #333;
+}
+
+.leagueSelect {
+  padding: 8px 15px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background-color: white;
+  min-width: 200px;
+  font-size: 0.95rem;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.leagueSelect:focus {
+  border-color: var(--primary-color, #f9a825);
+  outline: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .leaderboardFilter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .leagueSelect {
+    width: 100%;
+  }
+}
