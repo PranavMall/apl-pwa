@@ -115,42 +115,43 @@ const LeagueManager = ({ userId, userName }) => {
       console.error('Error creating league:', error);
     }
   };
+
   const handleAddMembers = async (e, leagueId, leagueName) => {
-  e.preventDefault();
-  
-  if (selectedUsers.length === 0) {
-    setMessage({ text: 'Please select at least one user to invite', type: 'error' });
-    return;
-  }
-  
-  try {
-    setMessage({ text: 'Sending invitations...', type: 'info' });
+    e.preventDefault();
     
-    const invitedUserIds = selectedUsers.map(user => user.id);
-    const result = await LeagueService.addMembersToLeague(leagueId, leagueName, userId, invitedUserIds);
-    
-    if (result.success) {
-      setMessage({ 
-        text: `Successfully invited ${result.invitedCount} new member(s) to the league!`, 
-        type: 'success' 
-      });
-      
-      // Reset form
-      setSelectedUsers([]);
-      setSearchTerm('');
-      setSearchResults([]);
-      setAddMembersToLeagueId(null);
-      
-      // Refresh leagues
-      fetchUserLeagues();
-    } else {
-      setMessage({ text: result.error || 'Failed to invite members', type: 'error' });
+    if (selectedUsers.length === 0) {
+      setMessage({ text: 'Please select at least one user to invite', type: 'error' });
+      return;
     }
-  } catch (error) {
-    setMessage({ text: 'Error inviting members. Please try again.', type: 'error' });
-    console.error('Error inviting members:', error);
-  }
-};
+    
+    try {
+      setMessage({ text: 'Sending invitations...', type: 'info' });
+      
+      const invitedUserIds = selectedUsers.map(user => user.id);
+      const result = await LeagueService.addMembersToLeague(leagueId, leagueName, userId, invitedUserIds);
+      
+      if (result.success) {
+        setMessage({ 
+          text: `Successfully invited ${result.invitedCount} new member(s) to the league!`, 
+          type: 'success' 
+        });
+        
+        // Reset form
+        setSelectedUsers([]);
+        setSearchTerm('');
+        setSearchResults([]);
+        setAddMembersToLeagueId(null);
+        
+        // Refresh leagues
+        fetchUserLeagues();
+      } else {
+        setMessage({ text: result.error || 'Failed to invite members', type: 'error' });
+      }
+    } catch (error) {
+      setMessage({ text: 'Error inviting members. Please try again.', type: 'error' });
+      console.error('Error inviting members:', error);
+    }
+  };
 
   const handleAcceptInvite = async (invite) => {
     try {
@@ -366,122 +367,124 @@ const LeagueManager = ({ userId, userName }) => {
             </div>
           ) : (
             <div className={styles.leaguesList}>
-  {leagues.map(league => (
-    <div key={league.id} className={styles.leagueCard}>
-      <div className={styles.leagueInfo}>
-        <h3 className={styles.leagueName}>{league.name}</h3>
-        <div className={styles.leagueStats}>
-          <span>{league.members.length} Members</span>
-          {league.creatorId === userId && (
-            <span className={styles.ownerBadge}>Owner</span>
-          )}
-        </div>
-      </div>
-      <div className={styles.leagueActions}>
-        <button 
-          className={styles.viewButton}
-          onClick={() => handleViewLeaderboard(league)}
-        >
-          View Leaderboard
-        </button>
-        {league.creatorId === userId && (
-          <>
-            <button 
-              className={styles.addMembersButton}
-              onClick={() => setAddMembersToLeagueId(league.id)}
-            >
-              Add Members
-            </button>
-            <button 
-              className={styles.deleteButton}
-              onClick={() => handleDeleteLeague(league.id)}
-            >
-              Delete
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  ))}
-  // Add this after the leagues.map in the myLeagues tab
-{addMembersToLeagueId && (
-  <div className={styles.createForm}>
-    <h3>Add Members to League</h3>
-    <form onSubmit={(e) => {
-      const league = leagues.find(l => l.id === addMembersToLeagueId);
-      handleAddMembers(e, addMembersToLeagueId, league.name);
-    }}>
-      <div className={styles.formGroup}>
-        <label>Invite Users</label>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by name or team name (min 3 characters)"
-          className={styles.input}
-        />
-        
-        {searching && <div className={styles.searchingMessage}>Searching users...</div>}
-        
-        {searchResults.length > 0 && (
-          <div className={styles.searchResults}>
-            {searchResults.map(user => (
-              <div 
-                key={user.id} 
-                className={styles.searchResultItem}
-                onClick={() => addUser(user)}
-              >
-                <div className={styles.userInfo}>
-                  <div className={styles.userName}>{user.name}</div>
-                  <div className={styles.teamName}>{user.teamName}</div>
-                </div>
-                <button type="button" className={styles.addButton}>+</button>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {selectedUsers.length > 0 && (
-          <div className={styles.selectedUsers}>
-            <label>Selected Users:</label>
-            <div className={styles.userChips}>
-              {selectedUsers.map(user => (
-                <div key={user.id} className={styles.userChip}>
-                  <span>{user.name} ({user.teamName})</span>
-                  <button 
-                    type="button" 
-                    className={styles.removeButton}
-                    onClick={() => removeUser(user.id)}
-                  >
-                    ×
-                  </button>
+              {leagues.map(league => (
+                <div key={league.id} className={styles.leagueCard}>
+                  <div className={styles.leagueInfo}>
+                    <h3 className={styles.leagueName}>{league.name}</h3>
+                    <div className={styles.leagueStats}>
+                      <span>{league.members.length} Members</span>
+                      {league.creatorId === userId && (
+                        <span className={styles.ownerBadge}>Owner</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.leagueActions}>
+                    <button 
+                      className={styles.viewButton}
+                      onClick={() => handleViewLeaderboard(league)}
+                    >
+                      View Leaderboard
+                    </button>
+                    {league.creatorId === userId && (
+                      <>
+                        <button 
+                          className={styles.addMembersButton}
+                          onClick={() => setAddMembersToLeagueId(league.id)}
+                        >
+                          Add Members
+                        </button>
+                        <button 
+                          className={styles.deleteButton}
+                          onClick={() => handleDeleteLeague(league.id)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
+              
+              {addMembersToLeagueId && (
+                <div className={styles.createForm}>
+                  <h3>Add Members to League</h3>
+                  <form onSubmit={(e) => {
+                    const league = leagues.find(l => l.id === addMembersToLeagueId);
+                    handleAddMembers(e, addMembersToLeagueId, league.name);
+                  }}>
+                    <div className={styles.formGroup}>
+                      <label>Invite Users</label>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search by name or team name (min 3 characters)"
+                        className={styles.input}
+                      />
+                      
+                      {searching && <div className={styles.searchingMessage}>Searching users...</div>}
+                      
+                      {searchResults.length > 0 && (
+                        <div className={styles.searchResults}>
+                          {searchResults.map(user => (
+                            <div 
+                              key={user.id} 
+                              className={styles.searchResultItem}
+                              onClick={() => addUser(user)}
+                            >
+                              <div className={styles.userInfo}>
+                                <div className={styles.userName}>{user.name}</div>
+                                <div className={styles.teamName}>{user.teamName}</div>
+                              </div>
+                              <button type="button" className={styles.addButton}>+</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {selectedUsers.length > 0 && (
+                        <div className={styles.selectedUsers}>
+                          <label>Selected Users:</label>
+                          <div className={styles.userChips}>
+                            {selectedUsers.map(user => (
+                              <div key={user.id} className={styles.userChip}>
+                                <span>{user.name} ({user.teamName})</span>
+                                <button 
+                                  type="button" 
+                                  className={styles.removeButton}
+                                  onClick={() => removeUser(user.id)}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className={styles.formButtons}>
+                      <button 
+                        type="button" 
+                        className={styles.cancelButton}
+                        onClick={() => {
+                          setAddMembersToLeagueId(null);
+                          setSelectedUsers([]);
+                          setSearchTerm('');
+                          setSearchResults([]);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button type="submit" className={styles.submitButton}>
+                        Add Members
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
-      
-      <div className={styles.formButtons}>
-        <button 
-          type="button" 
-          className={styles.cancelButton}
-          onClick={() => {
-            setAddMembersToLeagueId(null);
-            setSelectedUsers([]);
-            setSearchTerm('');
-            setSearchResults([]);
-          }}
-        >
-          Cancel
-        </button>
-        <button type="submit" className={styles.submitButton}>
-          Add Members
-        </button>
-      </div>
-    </form>
-  </div>
-)}
+          )}
         </div>
       )}
       
@@ -599,7 +602,7 @@ const LeagueManager = ({ userId, userName }) => {
         </div>
       )}
     </div>
-  )
+  );
 };
 
 export default LeagueManager;
