@@ -16,6 +16,7 @@ import { transferService } from '../services/transferService';
 import { generateReferralCode, isValidReferralFormat } from '../utils/referralUtils';
 import { getUserAvatar } from '@/app/utils/userUtils';
 import Link from 'next/link';
+import LeagueManager from '@/app/components/Leagues/LeagueManager';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
@@ -548,6 +549,17 @@ const UserProfilePage = () => {
   </Card>
 
       <Card className={styles.statsCard}>
+// Add the Leagues Card right before it:
+
+<Card className={styles.leaguesCard}>
+  <CardHeader>
+    <CardTitle>My Leagues</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <LeagueManager userId={user.uid} userName={userProfile?.name || user.email} />
+  </CardContent>
+</Card>
+  
         <CardHeader>
           <CardTitle>My Weekly Performance</CardTitle>
         </CardHeader>
