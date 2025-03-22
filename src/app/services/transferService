@@ -14,7 +14,6 @@ import {
   increment,
   arrayUnion
 } from 'firebase/firestore';
-import { PointService } from './pointService';
 
 export class transferService {
   static ROLES = {
@@ -31,8 +30,6 @@ export class transferService {
     [this.ROLES.WICKETKEEPER]: 1
   };
 
-const CAPTAIN_MULTIPLIER = PointService.POINTS.MULTIPLIERS.CAPTAIN;
-const VICE_CAPTAIN_MULTIPLIER = PointService.POINTS.MULTIPLIERS.VICE_CAPTAIN;
   
   // Get active tournament
 static async getActiveTournament() {
@@ -390,6 +387,10 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
     let totalPoints = 0;
     let pointsBreakdown = [];
     
+    // Define multipliers directly here instead of using this.POINTS
+    const CAPTAIN_MULTIPLIER = 2;
+    const VICE_CAPTAIN_MULTIPLIER = 1.5;
+    
     // Process every player in the team, not just those with match points
     for (let i = 0; i < players.length; i++) {
       const player = players[i];
@@ -411,9 +412,9 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
           
           // Apply captain/vice-captain multipliers
           if (isCaptain) {
-            finalPoints = basePoints * 2; // Use actual value instead of this.POINTS.MULTIPLIERS.CAPTAIN
+            finalPoints = basePoints * CAPTAIN_MULTIPLIER;
           } else if (isViceCaptain) {
-            finalPoints = basePoints * 1.5; // Use actual value instead of this.POINTS.MULTIPLIERS.VICE_CAPTAIN
+            finalPoints = basePoints * VICE_CAPTAIN_MULTIPLIER;
           } else {
             finalPoints = basePoints;
           }
@@ -433,7 +434,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
       // Add to total team points
       totalPoints += playerPoints;
       
-      // Add to points breakdown array - ALWAYS add the player even if they have 0 points
+      // Add to points breakdown array
       pointsBreakdown.push({
         playerId: playerId,
         playerName: player.name || 'Unknown',
@@ -441,7 +442,8 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         finalPoints: finalPoints,
         isCaptain: isCaptain,
         isViceCaptain: isViceCaptain,
-        multiplier: isCaptain ? 2 : isViceCaptain ? 1.5 : 1
+        multiplier: isCaptain ? CAPTAIN_MULTIPLIER : 
+                   isViceCaptain ? VICE_CAPTAIN_MULTIPLIER : 1
       });
     }
     
@@ -459,7 +461,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
       if (!existingMatches.includes(matchId)) {
         await updateDoc(weeklyStatsRef, {
           points: currentPoints + totalPoints,
-          pointsBreakdown: pointsBreakdown, // Store the complete breakdown for ALL players
+          pointsBreakdown: pointsBreakdown, // Store the complete breakdown
           processedMatches: [...existingMatches, matchId],
           updatedAt: new Date()
         });
@@ -471,7 +473,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         tournamentId,
         weekNumber,
         points: totalPoints,
-        pointsBreakdown: pointsBreakdown, // Store the complete breakdown for ALL players
+        pointsBreakdown: pointsBreakdown,
         processedMatches: [matchId],
         rank: 0,
         transferWindowId: `${weekNumber}`,
