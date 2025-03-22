@@ -1,0 +1,583 @@
+.leagueContainer {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.2s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+.activeTab {
+  background: var(--primary-color, #f9a825);
+  color: white;
+}
+
+.tab:hover:not(.activeTab) {
+  background: #e0e0e0;
+}
+
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #f44336;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Message styles */
+.message {
+  padding: 12px 15px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.info {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+/* Create League Section */
+.leagueActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.createButton {
+  background: linear-gradient(45deg, var(--primary-color, #f9a825), var(--secondary-color, #ff7043));
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.createButton:hover {
+  opacity: 0.9;
+}
+
+.createForm {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.createForm h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--primary-color, #f9a825);
+  outline: none;
+}
+
+.searchingMessage {
+  color: #666;
+  font-style: italic;
+  margin-top: 5px;
+  font-size: 0.9rem;
+}
+
+.searchResults {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 10px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.searchResultItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.searchResultItem:last-child {
+  border-bottom: none;
+}
+
+.searchResultItem:hover {
+  background: #f5f5f5;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.userName {
+  font-weight: 500;
+}
+
+.teamName {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.addButton {
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.addButton:hover {
+  background: var(--primary-color, #f9a825);
+  color: white;
+}
+
+.selectedUsers {
+  margin-top: 15px;
+}
+
+.selectedUsers label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.userChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.userChip {
+  display: flex;
+  align-items: center;
+  background: #f0f0f0;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+}
+
+.removeButton {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 5px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.removeButton:hover {
+  color: #f44336;
+}
+
+.submitButton {
+  background: linear-gradient(45deg, #388e3c, #4caf50);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.submitButton:hover {
+  opacity: 0.9;
+}
+
+/* League Cards */
+.leaguesList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.leagueCard {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.leagueInfo {
+  flex: 1;
+}
+
+.leagueName {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.leagueStats {
+  color: #666;
+  font-size: 0.9rem;
+  display: flex;
+  gap: 10px;
+}
+
+.ownerBadge {
+  background: var(--primary-color, #f9a825);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.leagueActions {
+  display: flex;
+  gap: 10px;
+}
+
+.viewButton {
+  background: var(--accent-color, #388e3c);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.viewButton:hover {
+  opacity: 0.9;
+}
+
+.deleteButton {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.deleteButton:hover {
+  opacity: 0.9;
+}
+
+/* Invites tab */
+.invitesList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.inviteCard {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inviteInfo {
+  flex: 1;
+}
+
+.inviteMessage {
+  margin: 5px 0 0 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.inviteActions {
+  display: flex;
+  gap: 10px;
+}
+
+.acceptButton {
+  background: var(--accent-color, #388e3c);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.acceptButton:hover {
+  opacity: 0.9;
+}
+
+.declineButton {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.declineButton:hover {
+  opacity: 0.9;
+}
+
+/* Leaderboard Tab */
+.leaderboardTitle {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  color: #333;
+  text-align: center;
+}
+
+.leaderboardTable {
+  overflow-x: auto;
+}
+
+.leaderboardTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboardTable th {
+  background: #f5f5f5;
+  text-align: left;
+  padding: 12px 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.leaderboardTable td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.leaderboardTable tr:hover {
+  background-color: #f9f9f9;
+}
+
+.leaderboardTable .currentUser {
+  background-color: #fff8e1;
+}
+
+.leaderboardTable .currentUser td {
+  font-weight: 600;
+}
+
+.rankColumn {
+  width: 60px;
+  text-align: center;
+}
+
+.teamColumn {
+  min-width: 180px;
+}
+
+.pointsColumn {
+  text-align: center;
+  width: 100px;
+}
+
+.teamInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.userPhoto {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userPhotoPlaceholder {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--primary-color, #f9a825), var(--secondary-color, #ff7043));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.youBadge {
+  background: #4caf50;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 5px;
+}
+
+.topRank {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank1 {
+  background: #ffd700; /* Gold */
+}
+
+.rank2 {
+  background: #c0c0c0; /* Silver */
+}
+
+.rank3 {
+  background: #cd7f32; /* Bronze */
+}
+
+.backButton {
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 20px;
+  transition: background 0.2s;
+}
+
+.backButton:hover {
+  background: #d0d0d0;
+}
+
+/* Empty state styles */
+.emptyState {
+  text-align: center;
+  padding: 30px 20px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  color: #666;
+}
+
+.emptyState p {
+  margin: 5px 0;
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+/* Error state */
+.error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .leagueCard, .inviteCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .leagueActions, .inviteActions {
+    margin-top: 15px;
+    align-self: stretch;
+  }
+  
+  .viewButton, .deleteButton, .acceptButton, .declineButton {
+    flex: 1;
+    text-align: center;
+  }
+}
