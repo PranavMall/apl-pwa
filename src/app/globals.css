@@ -1,4 +1,4 @@
-/* Global Variables */
+/* Global Variables - Light Theme (Default) */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -8,6 +8,20 @@
   --neutral-color: #faf3e0; /* Warm Beige */
   --text-color: #323232; /* Dark Gray */
   --background-color: #ffffff; /* White */
+  
+  /* Card and UI elements */
+  --card-background: #ffffff;
+  --card-border: #e5e7eb;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-background: #ffffff;
+  --input-border: #ddd;
+  --input-text: #333;
+  
+  /* Additional elements */
+  --table-header-bg: linear-gradient(45deg, #f9a825, #ff7043);
+  --table-header-text: white;
+  --table-row-hover: #f9f9f9;
+  --table-border: #f0f0f0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +29,32 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+/* Dark Theme Variables - Applied when .dark-mode class is added to html */
+html.dark-mode {
+  --background: #121212;
+  --foreground: #f8f8f8;
+  --primary-color: #ffb300; /* Brighter Yellow */
+  --secondary-color: #ff7043; /* Keep same orange for identity */
+  --accent-color: #4caf50; /* Brighter Green */
+  --neutral-color: #faf3e0; /* Keep same for contrasting button text */
+  --text-color: #f0f0f0; /* Light Gray */
+  --background-color: #121212; /* Dark background */
+  
+  /* Card and UI elements */
+  --card-background: #1e1e1e;
+  --card-border: #333;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --input-background: #2d2d2d;
+  --input-border: #444;
+  --input-text: #f0f0f0;
+  
+  /* Additional elements */
+  --table-header-bg: linear-gradient(45deg, #f9a825, #d84315);
+  --table-header-text: white;
+  --table-row-hover: #2d2d2d;
+  --table-border: #333;
 }
 
 /* Global Reset */
