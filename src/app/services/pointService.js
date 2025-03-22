@@ -11,16 +11,16 @@ export class PointService {
       RUN: 1,
       BOUNDARY_4: 1,
       BOUNDARY_6: 2,
-      MILESTONE_25: 4,
-      MILESTONE_50: 8,
-      MILESTONE_100: 16,
+      MILESTONE_25: 25,
+      MILESTONE_50: 50,
+      MILESTONE_100: 100,
       DUCK: -5
     },
     BOWLING: {
       WICKET: 25,
-      THREE_WICKETS: 8,
-      FOUR_WICKETS: 16,
-      FIVE_WICKETS: 25,
+      THREE_WICKETS: 50,
+      FOUR_WICKETS: 100,
+      FIVE_WICKETS: 150,
       MAIDEN: 8
     },
     FIELDING: {
