@@ -29,7 +29,6 @@ const categories = [
       { action: "4 Wickets", value: "100 points" },
       { action: "5 Wickets", value: "150 points" },
       { action: "Maiden Over", value: "8 points" },
-      { action: "Economy Rate < 6", value: "4 points" },
     ],
     accent: "#e74c3c", // Red
   },
