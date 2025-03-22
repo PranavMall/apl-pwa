@@ -24,6 +24,26 @@ const HamburgerMenu = () => {
     }
   };
 
+  // Add this to your existing menu items in HamburgerMenu.js
+const loggedInMenu = [
+  { label: "About APL", href: "/about-apl" },
+  { label: "Point System", href: "/point-system" },
+  { 
+    label: "Toggle Dark Mode", 
+    onClick: () => window.toggleDarkMode() 
+  },
+  { label: "Logout", onClick: handleLogout }
+];
+
+const nonLoggedInMenu = [
+  { label: "About APL", href: "/about-apl" },
+  { label: "Point System", href: "/point-system" },
+  { 
+    label: "Toggle Dark Mode", 
+    onClick: () => window.toggleDarkMode() 
+  }
+];
+
   const loggedInMenu = [
     { label: "About APL", href: "/about-apl" },
     { label: "Point System", href: "/point-system" },
