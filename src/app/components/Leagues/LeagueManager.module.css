@@ -581,3 +581,41 @@
     text-align: center;
   }
 }
+
+.addMembersButton {
+  background: var(--primary-color, #2196f3);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.addMembersButton:hover {
+  opacity: 0.9;
+}
+
+.formButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.cancelButton {
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+  flex: 1;
+}
+
+.cancelButton:hover {
+  background: #d0d0d0;
+}
