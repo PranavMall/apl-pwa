@@ -45,3 +45,44 @@
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Add these specific dark mode fixes to src/app/components/ui/tabs.module.css */
+
+@media (prefers-color-scheme: dark) {
+  .tabs-list {
+    background-color: #333;
+  }
+  
+  .tabs-trigger {
+    color: #e0e0e0;
+  }
+  
+  .tabs-trigger[data-state="active"] {
+    background-color: #1a1a1a;
+    color: white;
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
+  }
+  
+  .tabs-content {
+    color: #e0e0e0;
+  }
+}
+
+/* Add these specific styles for the html.dark-mode class to ensure they override */
+html.dark-mode .tabs-list {
+  background-color: #333 !important;
+}
+
+html.dark-mode .tabs-trigger {
+  color: #e0e0e0 !important;
+}
+
+html.dark-mode .tabs-trigger[data-state="active"] {
+  background-color: #1a1a1a !important;
+  color: white !important;
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark-mode .tabs-content {
+  color: #e0e0e0 !important;
+}
