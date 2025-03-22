@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebase';
-import { transferService } from '../../services/transferService';
-import styles from '../admin.module.css';
+import { db } from '../../../../../firebase';  // Need to go up one more level
+import { transferService } from '../../../../services/transferService';  // Need to go up one more level
+import styles from '../../../admin.module.css';  // Assuming you want to use the styles from /admin
 
 export default function RecalculatePointsPage() {
   const [message, setMessage] = useState({ text: '', type: '' });
