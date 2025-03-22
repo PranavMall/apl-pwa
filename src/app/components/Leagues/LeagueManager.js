@@ -600,7 +600,7 @@ const LeagueManager = ({ userId, userName }) => {
         </div>
       )}
     </div>
-  );
+  )
 };
 
 export default LeagueManager;
