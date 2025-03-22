@@ -1,421 +1,432 @@
-// This fix addresses three issues with user points calculation:
-// 1. Match-to-week assignment
-// 2. Points aggregation in weekly stats
-// 3. Ranking updates
+// app/api/cron/update-matches/route.js
+import { cricketService } from '@/app/services/cricketService';
+import { PointService } from '@/app/services/pointService';
+import { transferService } from "@/app/services/transferService";
+import { PlayerMasterService } from '@/app/services/PlayerMasterService'; 
+import { NextResponse } from 'next/server';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  setDoc,
+  updateDoc
+} from 'firebase/firestore';
+import { db } from '../../../../firebase';
 
-// 1. First, let's add a function to the admin tournaments page to ensure all 
-// matches are properly assigned to weeks:
+// Set a safety margin before Vercel's 10s timeout
+const TIMEOUT_MARGIN = 9000; // 9 seconds
 
-// Add to src/app/admin/tournaments/page.js
-// Find the `handleAssignMatch` function and update it to also recalculate points:
-
-const handleAssignMatch = async (e) => {
-  e.preventDefault();
-  
-  try {
-    await setDoc(doc(db, 'matchWeeks', matchAssignment.matchId), {
-      matchId: matchAssignment.matchId,
-      tournamentId: selectedTournament.id,
-      weekNumber: parseInt(matchAssignment.weekNumber),
-      assignedAt: new Date()
-    });
-    
-    setMessage({ type: 'success', text: 'Match assigned successfully' });
-    setMatchAssignment({ matchId: '', weekNumber: '' });
-    
-    // Trigger points recalculation for this match
-    try {
-      await transferService.updateUserWeeklyStats(matchAssignment.matchId);
-      setMessage({ type: 'success', text: 'Match assigned and points recalculated' });
-    } catch (pointsError) {
-      console.error('Error recalculating points:', pointsError);
-      setMessage({ 
-        type: 'warning', 
-        text: 'Match assigned but points recalculation failed. Try manual recalculation.' 
-      });
-    }
-    
-    // Refresh the list of match assignments
-    fetchMatchAssignments();
-  } catch (error) {
-    console.error('Error assigning match:', error);
-    setMessage({ type: 'error', text: `Error assigning match: ${error.message}` });
-  }
-};
-
-// 2. Next, fix the updateUserWeeklyStats method in transferService.js:
-// Replace the existing method with this improved version:
-
-static async updateUserWeeklyStats(matchId) {
-  try {
-    console.log(`Starting weekly stats update for match ${matchId}`);
-    
-    // First try to get the week number from the explicit mapping
-    const matchWeekRef = doc(db, 'matchWeeks', matchId);
-    const matchWeekDoc = await getDoc(matchWeekRef);
-    
-    let weekNumber;
-    let tournamentId;
-    
-    // If we have an explicit mapping, use it
-    if (matchWeekDoc.exists()) {
-      weekNumber = matchWeekDoc.data().weekNumber;
-      tournamentId = matchWeekDoc.data().tournamentId;
-      console.log(`Found explicit mapping: Match ${matchId} belongs to Week ${weekNumber} of tournament ${tournamentId}`);
-    } else {
-      // Otherwise, fall back to calculating based on date
-      // Get match data
-      const matchRef = doc(db, 'matches', matchId);
-      const matchDoc = await getDoc(matchRef);
-      if (!matchDoc.exists()) {
-        throw new Error(`Match ${matchId} not found`);
-      }
-      
-      const matchData = matchDoc.data();
-      const matchDate = matchData.matchInfo?.startDate || 
-                         matchData.matchHeader?.matchStartTimestamp || 
-                         new Date();
-      
-      // Get active tournament
-      const tournament = await this.getActiveTournament();
-      if (!tournament) {
-        console.warn('No active tournament found');
-        return { success: false, error: 'No active tournament found' };
-      }
-      
-      tournamentId = tournament.id;
-      
-      // Find which week this match belongs to
-      weekNumber = this.findMatchWeek(matchDate, tournament.transferWindows);
-      if (!weekNumber) {
-        console.warn(`Could not determine week for match ${matchId}`);
-        return { success: false, error: 'Could not determine week' };
-      }
-      
-      console.log(`Calculated match ${matchId} belongs to Week ${weekNumber} of tournament ${tournamentId}`);
-      
-      // IMPORTANT: Store this mapping for future use
-      try {
-        await setDoc(matchWeekRef, {
-          matchId,
-          tournamentId,
-          weekNumber,
-          autoAssigned: true,
-          assignedAt: new Date()
-        });
-        console.log(`Created match week mapping for match ${matchId}`);
-      } catch (mappingError) {
-        console.error('Error creating match week mapping:', mappingError);
-        // Continue anyway - this is not critical
-      }
-    }
-    
-    // Get all user teams for this tournament
-    const userTeamsRef = collection(db, 'userTeams');
-    const userTeamsQuery = query(userTeamsRef, where('tournamentId', '==', tournamentId));
-    const teamsSnapshot = await getDocs(userTeamsQuery);
-    
-    console.log(`Processing ${teamsSnapshot.size} user teams for tournament ${tournamentId}`);
-    
-    // Process each user team
-    const updatePromises = [];
-    teamsSnapshot.forEach(teamDoc => {
-      const team = teamDoc.data();
-      const userId = team.userId;
-      const players = team.players || [];
-      
-      updatePromises.push(
-        this.calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber)
-      );
-    });
-    
-    await Promise.all(updatePromises);
-    console.log(`Successfully updated weekly stats for ${updatePromises.length} users`);
-    
-    // IMPORTANT: Update weekly rankings after processing all users
-    try {
-      await this.updateWeeklyRankings(tournamentId, weekNumber);
-      console.log(`Updated weekly rankings for tournament ${tournamentId}, week ${weekNumber}`);
-      
-      // Also update overall rankings
-      await this.updateOverallRankings(tournamentId);
-      console.log(`Updated overall rankings for tournament ${tournamentId}`);
-    } catch (rankingError) {
-      console.error('Error updating rankings:', rankingError);
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating user weekly stats:', error);
-    throw error;
-  }
+export async function GET(request) {
+  if (global.gc) {
+  global.gc();
 }
+  // Reset timer at the start of each function invocation
+  const startTime = Date.now();
+  
+  // Define the function inside GET to ensure it uses the fresh startTime
+  function shouldContinueProcessing() {
+    const elapsed = Date.now() - startTime;
+    const shouldContinue = elapsed < TIMEOUT_MARGIN;
+    
+    if (!shouldContinue) {
+      console.log(`Approaching timeout after ${elapsed}ms, will gracefully stop processing`);
+    }
+    
+    return shouldContinue;
+  }
 
-// 3. Fix the calculateAndUpdateUserPoints method to ensure it's correctly 
-// calculating and storing points with the right multipliers:
-
-static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber) {
   try {
-    console.log(`Calculating points for user ${userId}, match ${matchId}, week ${weekNumber}`);
+    // Reset global timing variables at the start of each request
+    global._lastCheckTime = undefined;
+    const requestStartTime = Date.now();
     
-    // Initialize total points for this match
-    let totalPoints = 0;
-    let captainPoints = 0;
-    let viceCaptainPoints = 0;
-    let pointsBreakdown = [];
+    // Parse URL parameters
+    const url = new URL(request.url);
+    const syncRequested = url.searchParams.get('sync') === 'true';
+    const specificMatchId = url.searchParams.get('matchId'); // Parameter for a specific match
+    const matchIdsParam = url.searchParams.get('matchIds'); // Parameter for multiple matches
     
-    // Get match points for each player
-    for (const player of players) {
-      // Create player doc ID from id
-      const playerId = player.id;
-      
-      // Check if player has points for this match
-      const pointsRef = doc(db, 'playerPoints', `${playerId}_${matchId}`);
-      const pointsDoc = await getDoc(pointsRef);
-      
-      if (pointsDoc.exists()) {
-        const playerPoints = pointsDoc.data().points || 0;
-        const playerName = player.name || 'Unknown Player';
-        
-        // Apply captain/vice-captain multipliers
-        let multipliedPoints = playerPoints;
-        let multiplier = 1;
-        
-        if (player.isCaptain) {
-          multiplier = 2;
-          multipliedPoints = playerPoints * multiplier;
-          captainPoints = multipliedPoints;
-          console.log(`Captain ${playerName} earned ${playerPoints} x ${multiplier} = ${multipliedPoints} points`);
-        } else if (player.isViceCaptain) {
-          multiplier = 1.5;
-          multipliedPoints = playerPoints * multiplier;
-          viceCaptainPoints = multipliedPoints;
-          console.log(`Vice-Captain ${playerName} earned ${playerPoints} x ${multiplier} = ${multipliedPoints} points`);
-        } else {
-          console.log(`Player ${playerName} earned ${playerPoints} points`);
+    // Get match IDs from environment variables if available
+    const envMatchIds = process.env.CRICKET_MATCH_IDS || '';
+    
+    // Determine which match IDs to process
+    // Priority: 1. URL parameter 2. Environment variable 3. Default list
+    let matchesToProcess = [];
+    
+    if (specificMatchId) {
+      // Process a single match from URL parameter
+      matchesToProcess = [specificMatchId];
+    } else if (matchIdsParam) {
+      // Process multiple matches from URL parameter
+      matchesToProcess = matchIdsParam.split(',').map(id => id.trim());
+    } else if (envMatchIds) {
+      // Process matches from environment variable
+      matchesToProcess = envMatchIds.split(',').map(id => id.trim());
+    } else {
+      // Fallback to a default list if no other source is available
+      matchesToProcess = [];
+    }
+    
+    console.log(`Will process ${matchesToProcess.length} match(es): ${matchesToProcess.join(', ')}`);
+    
+    // Result array to track what we've done
+    const results = [];
+    
+    // Optionally sync all matches if requested
+    if (syncRequested) {
+      console.log('Starting match data sync...');
+      await cricketService.syncMatchData();
+      results.push({ action: 'sync', success: true });
+    }
+
+    // Create a processing state collection to track progress
+    const processingStatesRef = collection(db, 'processingState');
+
+    try {
+      // Process each match directly
+      for (const matchId of matchesToProcess) {
+        // Check for timeout before processing each match
+        if (!shouldContinueProcessing()) {
+          const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
+          return NextResponse.json({
+            success: true,
+            message: `Timeout prevention: processing stopped after ${elapsedSeconds.toFixed(2)} seconds`,
+            results,
+            timestamp: new Date().toISOString()
+          });
         }
         
-        // Add to the points breakdown
-        pointsBreakdown.push({
-          playerId,
-          playerName,
-          basePoints: playerPoints,
-          multiplier,
-          finalPoints: multipliedPoints,
-          isCaptain: player.isCaptain || false,
-          isViceCaptain: player.isViceCaptain || false
-        });
-        
-        totalPoints += multipliedPoints;
+        try {
+          console.log(`Processing match ID: ${matchId}`);
+          
+          // Get or create processing state for this match
+          const processStateRef = doc(processingStatesRef, matchId);
+          const processStateDoc = await getDoc(processStateRef);
+          let processingState = processStateDoc.exists() 
+            ? processStateDoc.data() 
+            : {
+                currentInnings: 0,
+                currentBatsmenIndex: 0,
+                currentBowlersIndex: 0,
+                completed: false
+              };
+  
+          // Skip if already completed
+          if (processingState.completed) {
+            console.log(`Match ${matchId} already completed, skipping...`);
+            results.push({ matchId, status: 'skipped', reason: 'already completed' });
+            continue;
+          }
+  
+          // Get match data
+          const matchesRef = collection(db, 'matches');
+          const matchQuery = query(matchesRef, where('matchId', '==', matchId));
+          const matchSnapshot = await getDocs(matchQuery);
+          
+          // If match doesn't exist in DB, fetch it from API first
+          if (matchSnapshot.empty) {
+            console.log(`Match ${matchId} not found in database. Fetching from API...`);
+            
+            try {
+              // Try to fetch this match directly from the API
+              const fetchResult = await cricketService.fetchAndSyncSpecificMatch(matchId);
+              console.log(`API fetch result for match ${matchId}:`, fetchResult);
+              
+              if (fetchResult.success) {
+                results.push({ matchId, status: 'fetched-and-processed', success: true });
+              } else {
+                results.push({ 
+                  matchId, 
+                  status: 'fetch-failed', 
+                  error: fetchResult.error || 'Unknown error' 
+                });
+              }
+              
+              // Skip to next match since we've either processed it or failed
+              continue;
+            } catch (fetchError) {
+              console.error(`Error fetching match ${matchId} from API:`, fetchError);
+              results.push({ 
+                matchId, 
+                status: 'failed', 
+                reason: 'API fetch error', 
+                error: fetchError.message 
+              });
+              continue;
+            }
+          }
+  
+          // If we got here, the match exists in the database
+          const matchData = matchSnapshot.docs[0].data();
+          console.log(`Processing match ${matchId}: ${matchData.matchInfo?.team1?.teamName} vs ${matchData.matchInfo?.team2?.teamName}`);
+          
+          // Rest of your existing match processing code...
+          // [Your match processing logic here]
+          
+          // For brevity, I'll add a placeholder indicating where your existing code should go
+          console.log(`Current state: innings=${processingState.currentInnings}, batsmen=${processingState.currentBatsmenIndex}, bowlers=${processingState.currentBowlersIndex}`);
+
+          // Initialize the players with match points tracking Set
+          const playersWithMatchPoints = new Set();
+          
+          // Check if match is abandoned
+          if (matchData.matchInfo?.state === 'Abandon' || 
+              matchData.matchHeader?.state === 'Abandon' ||
+              matchData.isAbandoned === true ||
+              matchData.scorecard?.isAbandoned === true ||
+              (matchData.status && matchData.status.toLowerCase().includes('abandon'))) {
+            console.log(`Match ${matchId} was abandoned, marking as completed without processing points`);
+            
+            // Mark as completed without processing
+            processingState.completed = true;
+            processingState.abandonedMatch = true;
+            await setDoc(processStateRef, processingState);
+            results.push({ matchId, status: 'abandoned', success: true });
+            continue;
+          }
+
+          // Ensure the scorecard exists and has the expected structure
+          if (!matchData.scorecard || !matchData.scorecard.team1 || !matchData.scorecard.team2) {
+            console.error(`Invalid scorecard structure for match ${matchId}`);
+            processingState.error = 'Invalid scorecard structure';
+            await setDoc(processStateRef, processingState);
+            results.push({ matchId, status: 'failed', reason: 'invalid scorecard structure' });
+            continue;
+          }
+
+          // Process match data
+          // Use the same structure as your working code
+          const innings = [matchData.scorecard.team1, matchData.scorecard.team2];
+          console.log(`Found ${innings.length} innings to process`);
+          
+          // Process only remaining innings based on processing state
+          for (let inningsIndex = processingState.currentInnings; inningsIndex < innings.length; inningsIndex++) {
+            // Check for timeout before processing each innings
+            if (!shouldContinueProcessing()) {
+              const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
+              console.log(`Timeout prevention: stopping during match ${matchId}, innings ${inningsIndex + 1} after ${elapsedSeconds.toFixed(2)} seconds`);
+              return NextResponse.json({
+                success: true,
+                message: `Processing stopped at match ${matchId}, innings ${inningsIndex + 1} to prevent timeout`,
+                results,
+                timestamp: new Date().toISOString()
+              });
+            }
+            
+            const battingTeam = innings[inningsIndex];
+            console.log(`Processing innings ${inningsIndex + 1}`);
+
+            // Process batting performances first
+            const batsmen = Array.isArray(battingTeam.batsmen) ? battingTeam.batsmen : Object.values(battingTeam.batsmen || {});
+            console.log(`Processing ${batsmen.length} batsmen`);
+            
+            // Start from where we left off
+            for (let batsmanIndex = processingState.currentBatsmenIndex; batsmanIndex < batsmen.length; batsmanIndex++) {
+              // Check for timeout before processing each batsman
+              if (!shouldContinueProcessing()) {
+                // Save progress before exiting
+                processingState.currentBatsmenIndex = batsmanIndex;
+                processingState.currentInnings = inningsIndex;
+                await setDoc(processStateRef, processingState);
+                
+                const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
+                console.log(`Timeout prevention: saving progress at match ${matchId}, innings ${inningsIndex + 1}, batsman ${batsmanIndex} after ${elapsedSeconds.toFixed(2)} seconds`);
+                
+                return NextResponse.json({
+                  success: true,
+                  message: `Processing saved at match ${matchId}, innings ${inningsIndex + 1}, batsman ${batsmanIndex}`,
+                  results,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              
+              const batsman = batsmen[batsmanIndex];
+              if (!batsman?.name) continue;
+
+              try {
+                // Process batting points
+                const battingPoints = PointService.calculateBattingPoints(batsman);
+
+                // Track that this player received match participation points
+                playersWithMatchPoints.add(batsman.name);
+                
+                await PointService.storePlayerMatchPoints(
+                  PointService.createPlayerDocId(batsman.name),
+                  matchId,
+                  battingPoints,
+                  {
+                    type: 'batting',
+                    innings: inningsIndex + 1,
+                    ...batsman
+                  }
+                );
+
+                // Update processing state after each batsman
+                processingState.currentBatsmenIndex = batsmanIndex + 1;
+                await setDoc(processStateRef, processingState);
+                
+              } catch (error) {
+                console.error(`Error processing batsman ${batsman.name}:`, error);
+              }
+            }
+
+            // Reset batsmen index and move to bowlers
+            processingState.currentBatsmenIndex = 0;
+            await setDoc(processStateRef, processingState);
+
+            // Process bowling performances
+            const bowlers = Array.isArray(battingTeam.bowlers) ? battingTeam.bowlers : Object.values(battingTeam.bowlers || {});
+            console.log(`Processing ${bowlers.length} bowlers`);
+            
+            // Start from where we left off
+            for (let bowlerIndex = processingState.currentBowlersIndex; bowlerIndex < bowlers.length; bowlerIndex++) {
+              // Check for timeout before processing each bowler
+              if (!shouldContinueProcessing()) {
+                // Save progress before exiting
+                processingState.currentBowlersIndex = bowlerIndex;
+                processingState.currentInnings = inningsIndex;
+                await setDoc(processStateRef, processingState);
+                
+                const elapsedSeconds = (Date.now() - requestStartTime) / 1000;
+                console.log(`Timeout prevention: saving progress at match ${matchId}, innings ${inningsIndex + 1}, bowler ${bowlerIndex} after ${elapsedSeconds.toFixed(2)} seconds`);
+                
+                return NextResponse.json({
+                  success: true,
+                  message: `Processing saved at match ${matchId}, innings ${inningsIndex + 1}, bowler ${bowlerIndex}`,
+                  results,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              
+              const bowler = bowlers[bowlerIndex];
+              if (!bowler?.name) continue;
+
+              try {
+                // Check if this player already got match points
+                const hasMatchPoints = playersWithMatchPoints.has(bowler.name);
+
+                // Get basic bowling points
+                const bowlingPoints = PointService.calculateBowlingPoints(bowler);
+                
+                // If they haven't got match points yet, add them
+                const finalPoints = hasMatchPoints ? 
+                  bowlingPoints : 
+                  bowlingPoints + PointService.POINTS.MATCH.PLAYED;
+                
+                // Mark that they've received match points
+                if (!hasMatchPoints) {
+                  playersWithMatchPoints.add(bowler.name);
+                }
+                
+                await PointService.storePlayerMatchPoints(
+                  PointService.createPlayerDocId(bowler.name),
+                  matchId,
+                  finalPoints,
+                  {
+                    type: 'bowling',
+                    innings: inningsIndex + 1,
+                    includesMatchPoints: !hasMatchPoints,
+                    ...bowler
+                  }
+                );
+
+                // Update processing state after each bowler
+                processingState.currentBowlersIndex = bowlerIndex + 1;
+                await setDoc(processStateRef, processingState);
+                
+              } catch (error) {
+                console.error(`Error processing bowler ${bowler.name}:`, error);
+              }
+            }
+
+            // Move to next innings after completing this one
+            processingState.currentInnings = inningsIndex + 1;
+            processingState.currentBatsmenIndex = 0;
+            processingState.currentBowlersIndex = 0;
+            await setDoc(processStateRef, processingState);
+          }
+
+          // Mark match as completed
+          processingState.completed = true;
+          await setDoc(processStateRef, processingState);
+          results.push({ matchId, status: 'completed', success: true });
+
+          console.log(`Successfully completed processing match ${matchId}`);
+        } catch (matchError) {
+          console.error(`Error processing match ${matchId}:`, matchError);
+          results.push({ 
+            matchId, 
+            status: 'error', 
+            error: matchError.message 
+          });
+        }
+      }
+      // Add this code before the final return statement:
+if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
+  // For each processed match, update user team points
+  for (const result of results) {
+    if (result.status === 'completed' || result.pointsCalculated) {
+      try {
+        await transferService.updateUserWeeklyStats(result.matchId);
+        console.log(`Updated user weekly stats for match ${result.matchId}`);
+      } catch (error) {
+        console.error(`Error updating user weekly stats for match ${result.matchId}:`, error);
       }
     }
-    
-    console.log(`Total points for user ${userId} in match ${matchId}: ${totalPoints}`);
-    
-    // Update user's weekly stats
-    const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournamentId}_${weekNumber}`);
-    const weeklyStatsDoc = await getDoc(weeklyStatsRef);
-    
-    const now = new Date();
-    
-    if (weeklyStatsDoc.exists()) {
-      // Update existing stats
-      const currentData = weeklyStatsDoc.data();
-      const currentPoints = currentData.points || 0;
-      const currentMatches = currentData.matches || [];
-      
-      // Check if this match has already been processed
-      if (currentMatches.includes(matchId)) {
-        console.log(`Match ${matchId} already processed for user ${userId}, week ${weekNumber}`);
-        return { success: true, alreadyProcessed: true };
+  }
+  try {
+    // Get the active tournament
+    const tournament = await transferService.getActiveTournament();
+    if (tournament) {
+      // Update rankings for all affected weeks
+      const affectedWeeks = new Set();
+      for (const result of results) {
+        if (result.status === 'completed' || result.pointsCalculated) {
+          // Get week number for this match
+          const matchWeekRef = doc(db, 'matchWeeks', result.matchId);
+          const matchWeekDoc = await getDoc(matchWeekRef);
+          if (matchWeekDoc.exists()) {
+            affectedWeeks.add(matchWeekDoc.data().weekNumber);
+          }
+        }
       }
       
-      // Add this match to the processed list
-      const updatedMatches = [...currentMatches, matchId];
+      // Update rankings for each affected week
+      for (const weekNumber of affectedWeeks) {
+        await transferService.updateWeeklyRankings(tournament.id, weekNumber);
+      }
       
-      // Update with new points
-      await updateDoc(weeklyStatsRef, {
-        points: currentPoints + totalPoints,
-        matches: updatedMatches,
-        lastMatchId: matchId,
-        captainPoints: (currentData.captainPoints || 0) + captainPoints,
-        viceCaptainPoints: (currentData.viceCaptainPoints || 0) + viceCaptainPoints,
-        pointsBreakdown: [...(currentData.pointsBreakdown || []), ...pointsBreakdown],
-        updatedAt: now
-      });
-    } else {
-      // Create new stats entry
-      await setDoc(weeklyStatsRef, {
-        userId,
-        tournamentId,
-        weekNumber,
-        points: totalPoints,
-        matches: [matchId],
-        lastMatchId: matchId,
-        captainPoints,
-        viceCaptainPoints,
-        pointsBreakdown,
-        rank: 0, // Will be updated by updateWeeklyRankings
-        transferWindowId: weekNumber.toString(),
-        createdAt: now,
-        updatedAt: now
-      });
+      // Update overall rankings
+      await transferService.updateOverallRankings(tournament.id);
+      
+      console.log('Rankings updated successfully');
     }
-    
-    // Also update the user's total points in the users collection
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      const currentTotalPoints = userData.totalPoints || 0;
-      
-      await updateDoc(userRef, {
-        totalPoints: currentTotalPoints + totalPoints,
-        lastUpdated: now
-      });
-      
-      console.log(`Updated total points for user ${userId}: ${currentTotalPoints} + ${totalPoints} = ${currentTotalPoints + totalPoints}`);
-    }
-    
-    return { success: true, points: totalPoints };
   } catch (error) {
-    console.error(`Error calculating points for user ${userId}:`, error);
-    return { success: false, error: error.message };
+    console.error('Error updating rankings:', error);
   }
 }
 
-// 4. Create a utility script for manual points recalculation
-// Add this to src/app/admin/tools/recalculate-points.js:
-
-"use client";
-
-import React, { useState } from 'react';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebase';
-import { transferService } from '../../services/transferService';
-import styles from '../admin.module.css';
-
-export default function RecalculatePointsPage() {
-  const [message, setMessage] = useState({ text: '', type: '' });
-  const [loading, setLoading] = useState(false);
-  const [matchId, setMatchId] = useState('');
-  const [weekNumber, setWeekNumber] = useState('');
-  const [tournament, setTournament] = useState(null);
-  
-  const handleRecalculateMatch = async () => {
-    if (!matchId) {
-      setMessage({ text: 'Please enter a match ID', type: 'error' });
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setMessage({ text: 'Recalculating points...', type: 'info' });
-      
-      // Get active tournament if not already set
-      if (!tournament) {
-        const activeTournament = await transferService.getActiveTournament();
-        setTournament(activeTournament);
-      }
-      
-      // Check if match exists in matchWeeks collection
-      const matchWeekRef = doc(db, 'matchWeeks', matchId);
-      const matchWeekDoc = await getDoc(matchWeekRef);
-      
-      if (!matchWeekDoc.exists() && !weekNumber) {
-        setMessage({ 
-          text: 'Match not assigned to any week. Please specify a week number.', 
-          type: 'error' 
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // If week specified and no existing mapping, create one
-      if (!matchWeekDoc.exists() && weekNumber) {
-        await setDoc(matchWeekRef, {
-          matchId,
-          tournamentId: tournament.id,
-          weekNumber: parseInt(weekNumber),
-          manualAssignment: true,
-          assignedAt: new Date()
-        });
-        
-        setMessage({ text: 'Created match-week mapping', type: 'info' });
-      }
-      
-      // Call the updateUserWeeklyStats method
-      await transferService.updateUserWeeklyStats(matchId);
-      
-      setMessage({ 
-        text: `Points recalculated successfully for match ${matchId}`, 
-        type: 'success' 
+      const totalElapsedSeconds = (Date.now() - requestStartTime) / 1000;
+      return NextResponse.json({
+        success: true,
+        message: 'Match and player data update process completed',
+        processingTime: `${totalElapsedSeconds.toFixed(2)} seconds`,
+        results,
+        matchesProcessed: matchesToProcess,
+        timestamp: new Date().toISOString()
       });
-    } catch (error) {
-      console.error('Error recalculating points:', error);
-      setMessage({ text: `Error: ${error.message}`, type: 'error' });
-    } finally {
-      setLoading(false);
+    } catch (restoreError) {
+      console.error('Error during match restoration:', restoreError);
+      throw restoreError;
     }
-  };
-  
-  return (
-    <div className={styles.container}>
-      <h1>Recalculate User Points</h1>
-      
-      {message.text && (
-        <div className={`${styles.message} ${styles[message.type]}`}>
-          {message.text}
-        </div>
-      )}
-      
-      <div className={styles.card}>
-        <h2>Recalculate Points for a Match</h2>
-        <p>Enter a match ID to recalculate points for all users.</p>
-        
-        <div className={styles.formGroup}>
-          <label htmlFor="matchId">Match ID:</label>
-          <input
-            type="text"
-            id="matchId"
-            value={matchId}
-            onChange={(e) => setMatchId(e.target.value)}
-            placeholder="Enter match ID"
-            className={styles.input}
-          />
-        </div>
-        
-        <div className={styles.formGroup}>
-          <label htmlFor="weekNumber">Week Number (only if not already assigned):</label>
-          <input
-            type="number"
-            id="weekNumber"
-            value={weekNumber}
-            onChange={(e) => setWeekNumber(e.target.value)}
-            placeholder="Week number (optional)"
-            className={styles.input}
-          />
-        </div>
-        
-        <button
-          onClick={handleRecalculateMatch}
-          disabled={loading}
-          className={styles.button}
-        >
-          {loading ? "Processing..." : "Recalculate Points"}
-        </button>
-      </div>
-      
-      <div className={styles.card}>
-        <h2>Instructions</h2>
-        <ul>
-          <li>This tool recalculates user points for a specific match</li>
-          <li>The match must be assigned to a week for points to be calculated correctly</li>
-          <li>If the match is not already assigned to a week, specify the week number</li>
-          <li>This process updates both weekly stats and overall user rankings</li>
-        </ul>
-      </div>
-    </div>
-  );
+  } catch (error) {
+    console.error('Error in cron job:', error);
+    return NextResponse.json(
+      { error: 'Failed to update match and player data', details: error.message },
+      { status: 500 }
+    );
+  }
 }
