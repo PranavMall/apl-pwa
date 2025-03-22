@@ -503,3 +503,125 @@
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 }
+/* Dark mode fixes for league components */
+@media (prefers-color-scheme: dark) {
+  .tab {
+    background: #2d2d2d;
+    color: #e0e0e0;
+  }
+  
+  .activeTab {
+    background: var(--primary-color, #f9a825);
+    color: white;
+  }
+  
+  .createForm, 
+  .leagueCard, 
+  .inviteCard {
+    background: #1e1e1e;
+    border-color: #333;
+  }
+  
+  .message.success {
+    background: #1b5e20;
+  }
+  
+  .message.error {
+    background: #b71c1c;
+  }
+  
+  .userName, 
+  .leagueName,
+  .formGroup label {
+    color: #e0e0e0;
+  }
+  
+  .teamName {
+    color: #bbb;
+  }
+  
+  .leagueStats {
+    color: #aaa;
+  }
+  
+  .input {
+    background-color: #2d2d2d;
+    color: #f0f0f0;
+    border-color: #444;
+  }
+  
+  .input::placeholder {
+    color: #aaa;
+  }
+  
+  .searchResults {
+    background: #2d2d2d;
+    border-color: #444;
+  }
+  
+  .searchResultItem {
+    border-bottom-color: #444;
+  }
+  
+  .searchResultItem:hover {
+    background: #333;
+  }
+  
+  .userChip {
+    background: #333;
+    color: #e0e0e0;
+  }
+  
+  .emptyState {
+    background: #252525;
+    color: #aaa;
+  }
+}
+
+/* Force dark mode styles with the html.dark-mode class */
+html.dark-mode .tab {
+  background: #2d2d2d !important;
+  color: #e0e0e0 !important;
+}
+
+html.dark-mode .activeTab {
+  background: var(--primary-color, #f9a825) !important;
+  color: white !important;
+}
+
+html.dark-mode .createForm,
+html.dark-mode .leagueCard,
+html.dark-mode .inviteCard,
+html.dark-mode .searchResults {
+  background: #1e1e1e !important;
+  border-color: #333 !important;
+}
+
+html.dark-mode .searchResultItem {
+  border-bottom-color: #444 !important;
+}
+
+html.dark-mode .searchResultItem:hover {
+  background: #333 !important;
+}
+
+html.dark-mode .userName,
+html.dark-mode .leagueName,
+html.dark-mode .formGroup label {
+  color: #e0e0e0 !important;
+}
+
+html.dark-mode .teamName {
+  color: #bbb !important;
+}
+
+html.dark-mode .input {
+  background-color: #2d2d2d !important;
+  color: #f0f0f0 !important;
+  border-color: #444 !important;
+}
+
+html.dark-mode .userChip {
+  background: #333 !important;
+  color: #e0e0e0 !important;
+}
