@@ -280,3 +280,153 @@
     color: #e65100;
   }
 }
+
+/* Add responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+  
+  .pageTitle {
+    font-size: 1.5rem;
+  }
+  
+  .filters {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .teamFilter {
+    width: 100%;
+  }
+  
+  .select {
+    width: 100%;
+  }
+  
+  .tabs-trigger {
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+  
+  .tableCell {
+    padding: 10px;
+  }
+  
+  /* Make fantasy points sticky on mobile */
+  .fantasyPointsHeader,
+  .fantasyPointsCell {
+    position: sticky;
+    right: 0;
+    background: inherit; /* Keep background */
+    box-shadow: -5px 0 10px rgba(0,0,0,0.1);
+    z-index: 2;
+  }
+  
+  .fantasyPointsHeader {
+    background: linear-gradient(45deg, #ff9a00, #ff6a00);
+  }
+  
+  .fantasyPointsCell {
+    font-weight: 600;
+    color: #e65100;
+  }
+}
+
+/* Add dark mode compatibility */
+@media (prefers-color-scheme: dark) {
+  .playerCard {
+    background: #2a2a2a; /* Darker background for dark mode */
+    color: #f0f0f0; /* Light text for dark mode */
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
+  }
+  
+  .playerName {
+    color: #f0f0f0; /* Ensure player names are visible in dark mode */
+  }
+  
+  .playerPoints {
+    color: #ccc; /* Lighter color for points in dark mode */
+  }
+  
+  .playerTeam {
+    /* Increase opacity for better visibility */
+    opacity: 0.9;
+  }
+  
+  .tableHeader {
+    background: linear-gradient(45deg, #ff9a00, #ff6a00);
+    color: white;
+  }
+  
+  .tableCell {
+    color: #f0f0f0;
+    border-bottom-color: #333;
+  }
+  
+  .tableRow:nth-child(even) {
+    background-color: #252525;
+  }
+  
+  .tableRow:hover {
+    background-color: #333;
+  }
+  
+  .tab {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+  }
+  
+  .activeTab {
+    background-color: #f9a825;
+    color: white;
+  }
+  
+  .select {
+    background-color: #2d2d2d;
+    color: #f0f0f0;
+    border-color: #444;
+  }
+  
+  .teamFilter label {
+    color: #e0e0e0;
+  }
+}
+
+/* Force dark mode styles for html.dark-mode class */
+html.dark-mode .playerCard {
+  background: #2a2a2a !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .playerName,
+html.dark-mode .playerPoints,
+html.dark-mode .teamFilter label {
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .tableHeader {
+  background: linear-gradient(45deg, #ff9a00, #ff6a00) !important;
+  color: white !important;
+}
+
+html.dark-mode .tableCell {
+  color: #f0f0f0 !important;
+  border-bottom-color: #333 !important;
+}
+
+html.dark-mode .select {
+  background-color: #2d2d2d !important;
+  color: #f0f0f0 !important;
+  border-color: #444 !important;
+}
+
+html.dark-mode .tab {
+  background-color: #2d2d2d !important;
+  color: #e0e0e0 !important;
+}
+
+html.dark-mode .activeTab {
+  background-color: #f9a825 !important;
+  color: white !important;
+}
