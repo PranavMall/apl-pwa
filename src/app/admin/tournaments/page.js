@@ -364,6 +364,18 @@ const handleAssignMatch = async (e) => {
     setMessage({ type: 'success', text: 'Match assigned successfully' });
     setMatchAssignment({ matchId: '', weekNumber: '' });
     
+    // Trigger points recalculation for this match
+    try {
+      await transferService.updateUserWeeklyStats(matchAssignment.matchId);
+      setMessage({ type: 'success', text: 'Match assigned and points recalculated' });
+    } catch (pointsError) {
+      console.error('Error recalculating points:', pointsError);
+      setMessage({ 
+        type: 'warning', 
+        text: 'Match assigned but points recalculation failed. Try manual recalculation.' 
+      });
+    }
+    
     // Refresh the list of match assignments
     fetchMatchAssignments();
   } catch (error) {
