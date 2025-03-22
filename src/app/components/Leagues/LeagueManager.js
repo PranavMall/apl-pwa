@@ -366,44 +366,43 @@ const LeagueManager = ({ userId, userName }) => {
             </div>
           ) : (
             <div className={styles.leaguesList}>
-{leagues.map(league => (
-  <div key={league.id} className={styles.leagueCard}>
-    <div className={styles.leagueInfo}>
-      <h3 className={styles.leagueName}>{league.name}</h3>
-      <div className={styles.leagueStats}>
-        <span>{league.members.length} Members</span>
+  {leagues.map(league => (
+    <div key={league.id} className={styles.leagueCard}>
+      <div className={styles.leagueInfo}>
+        <h3 className={styles.leagueName}>{league.name}</h3>
+        <div className={styles.leagueStats}>
+          <span>{league.members.length} Members</span>
+          {league.creatorId === userId && (
+            <span className={styles.ownerBadge}>Owner</span>
+          )}
+        </div>
+      </div>
+      <div className={styles.leagueActions}>
+        <button 
+          className={styles.viewButton}
+          onClick={() => handleViewLeaderboard(league)}
+        >
+          View Leaderboard
+        </button>
         {league.creatorId === userId && (
-          <span className={styles.ownerBadge}>Owner</span>
+          <>
+            <button 
+              className={styles.addMembersButton}
+              onClick={() => setAddMembersToLeagueId(league.id)}
+            >
+              Add Members
+            </button>
+            <button 
+              className={styles.deleteButton}
+              onClick={() => handleDeleteLeague(league.id)}
+            >
+              Delete
+            </button>
+          </>
         )}
       </div>
     </div>
-    <div className={styles.leagueActions}>
-      <button 
-        className={styles.viewButton}
-        onClick={() => handleViewLeaderboard(league)}
-      >
-        View Leaderboard
-      </button>
-      {league.creatorId === userId && (
-        <>
-          {/* Add this new button */}
-          <button 
-            className={styles.addMembersButton}
-            onClick={() => setAddMembersToLeagueId(league.id)}
-          >
-            Add Members
-          </button>
-          <button 
-            className={styles.deleteButton}
-            onClick={() => handleDeleteLeague(league.id)}
-          >
-            Delete
-          </button>
-        </>
-      )}
-    </div>
-  </div>
-))}
+  ))}
   // Add this after the leagues.map in the myLeagues tab
 {addMembersToLeagueId && (
   <div className={styles.createForm}>
