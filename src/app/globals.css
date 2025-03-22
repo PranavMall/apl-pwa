@@ -57,6 +57,52 @@ html.dark-mode {
   --table-border: #333;
 }
 
+/* Add this section to force dark mode styles */
+html.dark-mode body {
+  background-color: #121212 !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode h1, 
+html.dark-mode h2, 
+html.dark-mode h3, 
+html.dark-mode h4, 
+html.dark-mode h5, 
+html.dark-mode h6 {
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode input, 
+html.dark-mode textarea, 
+html.dark-mode select {
+  background-color: #2d2d2d !important;
+  color: #f0f0f0 !important;
+  border-color: #444 !important;
+}
+
+html.dark-mode button {
+  color: var(--neutral-color) !important;
+}
+
+/* Additional overrides for text-heavy elements */
+html.dark-mode p,
+html.dark-mode span,
+html.dark-mode div,
+html.dark-mode td,
+html.dark-mode th,
+html.dark-mode li {
+  color: #f0f0f0 !important;
+}
+
+/* Card and container backgrounds */
+html.dark-mode .card,
+html.dark-mode [class*="card"],
+html.dark-mode [class*="container"],
+html.dark-mode [class*="section"] {
+  background-color: #1e1e1e !important;
+  border-color: #333 !important;
+}
+
 /* Global Reset */
 html,
 body {
