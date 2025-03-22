@@ -213,10 +213,9 @@ const MyTeamPage = () => {
     setViceCaptain(player.id === viceCaptain?.id ? null : player);
   };
   
-// Replace the saveTeam function in src/app/my-team/page.js with this fixed version
 const saveTeam = async () => {
   try {
-    setTeamMessage({ text: '', type: '' });
+    setMessage({ text: '', type: '' });
     
     // Validate team selection
     const totalPlayers = 
@@ -226,7 +225,7 @@ const saveTeam = async () => {
       selectedPlayers.wicketkeepers.length;
     
     if (totalPlayers !== 11) {
-      setTeamMessage({ 
+      setMessage({ 
         text: `You must select exactly 11 players. Current: ${totalPlayers}`, 
         type: 'error' 
       });
@@ -234,12 +233,12 @@ const saveTeam = async () => {
     }
     
     if (!captain) {
-      setTeamMessage({ text: 'You must select a captain', type: 'error' });
+      setMessage({ text: 'You must select a captain', type: 'error' });
       return;
     }
     
     if (!viceCaptain) {
-      setTeamMessage({ text: 'You must select a vice-captain', type: 'error' });
+      setMessage({ text: 'You must select a vice-captain', type: 'error' });
       return;
     }
     
@@ -271,14 +270,22 @@ const saveTeam = async () => {
     
     const result = await transferService.saveUserTeam(user.uid, allPlayers);
     if (result.success) {
-      setTeamMessage({ text: 'Team saved successfully!', type: 'success' });
-      // Track team registration - FIX: Use a default value instead of userProfile
-      logTeamRegistration('Fantasy Team'); // Using a generic name since we don't have userProfile here
+      setMessage({ text: 'Team saved successfully!', type: 'success' });
+      
+      // Track team registration with a default name
+      logTeamRegistration('Fantasy Team');
+      
       // Refresh team data
       setEditMode(false);
       fetchTeamData();
+      
+      // Optional: Refresh the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500); // Give time for the success message to be visible
+      
     } else {
-      setTeamMessage({ 
+      setMessage({ 
         text: `Error saving team: ${result.error || 'Unknown error'}`, 
         type: 'error' 
       });
@@ -287,7 +294,7 @@ const saveTeam = async () => {
     setSaving(false);
   } catch (error) {
     console.error('Error saving team:', error);
-    setTeamMessage({ 
+    setMessage({ 
       text: 'Error saving team. Please try again.', 
       type: 'error' 
     });
