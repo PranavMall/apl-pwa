@@ -377,6 +377,9 @@ static findMatchWeek(matchDate, transferWindows) {
   return defaultWeek;
 }
 
+// In src/app/services/transferService.js
+// Modify the calculateAndUpdateUserPoints function
+
 static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId, weekNumber) {
   try {
     // Initialize total points for this match
@@ -404,9 +407,9 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
           
           // Apply captain/vice-captain multipliers
           if (isCaptain) {
-            finalPoints = basePoints * this.POINTS.MULTIPLIERS.CAPTAIN;
+            finalPoints = basePoints * 2; // Use actual value instead of this.POINTS.MULTIPLIERS.CAPTAIN
           } else if (isViceCaptain) {
-            finalPoints = basePoints * this.POINTS.MULTIPLIERS.VICE_CAPTAIN;
+            finalPoints = basePoints * 1.5; // Use actual value instead of this.POINTS.MULTIPLIERS.VICE_CAPTAIN
           } else {
             finalPoints = basePoints;
           }
@@ -426,7 +429,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
       // Add to total team points
       totalPoints += playerPoints;
       
-      // Add to points breakdown array
+      // Add to points breakdown array - ALWAYS add the player even if they have 0 points
       pointsBreakdown.push({
         playerId: playerId,
         playerName: player.name || 'Unknown',
@@ -434,8 +437,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         finalPoints: finalPoints,
         isCaptain: isCaptain,
         isViceCaptain: isViceCaptain,
-        multiplier: isCaptain ? this.POINTS.MULTIPLIERS.CAPTAIN : 
-                   isViceCaptain ? this.POINTS.MULTIPLIERS.VICE_CAPTAIN : 1
+        multiplier: isCaptain ? 2 : isViceCaptain ? 1.5 : 1
       });
     }
     
@@ -453,7 +455,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
       if (!existingMatches.includes(matchId)) {
         await updateDoc(weeklyStatsRef, {
           points: currentPoints + totalPoints,
-          pointsBreakdown: pointsBreakdown, // Store the complete breakdown
+          pointsBreakdown: pointsBreakdown, // Store the complete breakdown for ALL players
           processedMatches: [...existingMatches, matchId],
           updatedAt: new Date()
         });
@@ -465,7 +467,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         tournamentId,
         weekNumber,
         points: totalPoints,
-        pointsBreakdown: pointsBreakdown, // Store the complete breakdown
+        pointsBreakdown: pointsBreakdown, // Store the complete breakdown for ALL players
         processedMatches: [matchId],
         rank: 0,
         transferWindowId: `${weekNumber}`,
