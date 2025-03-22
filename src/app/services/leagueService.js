@@ -49,6 +49,62 @@ export class LeagueService {
     }
   }
 
+  static async addMembersToLeague(leagueId, leagueName, creatorUserId, invitedUserIds = []) {
+    try {
+      // Verify the user is the creator
+      const leagueRef = doc(db, 'leagues', leagueId);
+      const leagueDoc = await getDoc(leagueRef);
+      
+      if (!leagueDoc.exists()) {
+        return { success: false, error: 'League not found' };
+      }
+      
+      const leagueData = leagueDoc.data();
+      
+      if (leagueData.creatorId !== creatorUserId) {
+        return { success: false, error: 'Only the league creator can add members' };
+      }
+      
+      // Filter out users who are already members or have pending invites
+      const existingMembers = leagueData.members || [];
+      const existingPendingInvites = leagueData.pendingInvites || [];
+      
+      const newInvitees = invitedUserIds.filter(
+        userId => !existingMembers.includes(userId) && !existingPendingInvites.includes(userId)
+      );
+      
+      if (newInvitees.length === 0) {
+        return { success: false, error: 'All selected users are already members or have pending invites' };
+      }
+      
+      // Update the league document with new pending invites
+      await updateDoc(leagueRef, {
+        pendingInvites: arrayUnion(...newInvitees)
+      });
+      
+      // Create league invitations for each new invited user
+      for (const userId of newInvitees) {
+        await setDoc(doc(db, 'leagueInvites', `${leagueId}_${userId}`), {
+          leagueId,
+          leagueName,
+          invitedBy: creatorUserId,
+          userId,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        });
+      }
+      
+      return { 
+        success: true, 
+        invitedCount: newInvitees.length,
+        message: `Successfully invited ${newInvitees.length} new member(s)`
+      };
+    } catch (error) {
+      console.error('Error adding members to league:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Get leagues created by a user
   static async getCreatedLeagues(userId) {
     try {
