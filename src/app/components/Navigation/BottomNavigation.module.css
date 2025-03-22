@@ -183,3 +183,41 @@
     font-size: 20px;
   }
 }
+/* Add these specific dark mode fixes to src/app/components/Navigation/BottomNavigation.module.css */
+
+@media (prefers-color-scheme: dark) {
+  .bottomNav {
+    background: linear-gradient(45deg, #d17d00, #cc5800);
+  }
+  
+  .navItem {
+    color: #ffffff;
+  }
+  
+  .profileImageContainer {
+    border-color: #ffffff;
+    background-color: #333;
+  }
+  
+  .label {
+    color: #ffffff;
+  }
+}
+
+/* Add these specific styles for the html.dark-mode class to ensure they override */
+html.dark-mode .bottomNav {
+  background: linear-gradient(45deg, #d17d00, #cc5800) !important;
+}
+
+html.dark-mode .navItem {
+  color: #ffffff !important;
+}
+
+html.dark-mode .profileImageContainer {
+  border-color: #ffffff !important;
+  background-color: #333 !important;
+}
+
+html.dark-mode .label {
+  color: #ffffff !important;
+}
