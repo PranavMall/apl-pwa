@@ -1,0 +1,85 @@
+.leagueContainer {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.2s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+.activeTab {
+  background: var(--primary-color, #f9a825);
+  color: white;
+}
+
+.tab:hover:not(.activeTab) {
+  background: #e0e0e0;
+}
+
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #f44336;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Message styles */
+.message {
+  padding: 12px 15px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.info {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+/* Create League Section */
+.leagueActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.createButton {
+  background: linear-gradient(45deg, var(--primary-color, #f9a825), var(--secondary-color, #ff7043));
+  color: white;
+  border: none;
+  padding: 8px 16px;
