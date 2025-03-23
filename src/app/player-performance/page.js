@@ -7,7 +7,7 @@ import EmbeddedLookerReport from '../components/EmbeddedLookerReport';
 
 const PlayerPerformancePage = () => {
   // Looker Studio report URL
-  const lookerReportUrl = "https://lookerstudio.google.com/s/lAmlzvBK7ZE";
+  const lookerReportUrl = "https://lookerstudio.google.com/reporting/584b5014-3212-4480-b6af-0d653a17b5f2/page/K21wD";
   const [isLoading, setIsLoading] = useState(true);
 
   return (
