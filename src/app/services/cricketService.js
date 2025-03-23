@@ -13,7 +13,6 @@ import {
   writeBatch  // Add this import
 } from 'firebase/firestore';
 import { PlayerService } from './playerService';
-import { PointService } from './pointService';
 
 export class cricketService {
   static validateAndCleanObject(obj) {
