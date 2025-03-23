@@ -1,4 +1,4 @@
-// src/app/services/sheetsSyncSimple.js
+// src/app/services/sheetsSyncService.js
 
 import { db } from '../../firebase';
 import { 
@@ -12,8 +12,47 @@ import {
   setDoc 
 } from 'firebase/firestore';
 import { transferService } from './transferService';
+import { google } from 'googleapis';
 
 export class SheetsSyncService {
+  /**
+   * Initialize Google Sheets API client with service account credentials
+   * @returns {Promise<Object>} - Authenticated Google Sheets API client
+   */
+  static async getAuthenticatedSheetsClient() {
+    try {
+      // Get service account credentials from environment variables
+      // In production, you should store these as secure environment variables
+      // For development, you can use a JSON file (add to .gitignore!)
+      
+      // Option 1: Using environment variables (recommended for production)
+      const credentials = {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      };
+      
+      // Option 2: Using a JSON file (for development)
+      // const credentials = require('../../../service-account-key.json');
+      
+      // Create a JWT client
+      const auth = new google.auth.JWT(
+        credentials.client_email,
+        null,
+        credentials.private_key,
+        ['https://www.googleapis.com/auth/spreadsheets.readonly']
+      );
+      
+      // Authenticate
+      await auth.authorize();
+      
+      // Create and return the Sheets API client
+      return google.sheets({ version: 'v4', auth });
+    } catch (error) {
+      console.error('Error authenticating with Google Sheets:', error);
+      throw error;
+    }
+  }
+  
   /**
    * Fetch player performance data from Google Sheets API
    * @param {string} sheetId - The Google Sheets ID
@@ -21,16 +60,20 @@ export class SheetsSyncService {
    */
   static async fetchPerformanceData(sheetId) {
     try {
-      // Use Google Sheets API to fetch data
-      const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Player_Performance!A1:V1000?key=${process.env.NEXT_PUBLIC_GOOGLE_API_KEY}`
-      );
+      // Get authenticated client
+      const sheets = await this.getAuthenticatedSheetsClient();
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sheet data: ${response.status}`);
+      // Make the API request
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: 'Player_Performance!A1:V1000'
+      });
+      
+      const data = response.data;
+      
+      if (!data.values || data.values.length === 0) {
+        throw new Error('No data found in spreadsheet');
       }
-      
-      const data = await response.json();
       
       // Transform sheet data to a usable format
       // Get headers from first row
@@ -46,7 +89,7 @@ export class SheetsSyncService {
         return playerData;
       });
     } catch (error) {
-      console.error('Error fetching from Google Sheets:', error);
+      console.error('Error fetching data from Google Sheets:', error);
       throw error;
     }
   }
