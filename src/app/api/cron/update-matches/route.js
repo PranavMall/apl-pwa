@@ -18,6 +18,8 @@ import { db } from '../../../../firebase';
 
 // Set a safety margin before Vercel's 10s timeout
 const TIMEOUT_MARGIN = 9000; // 9 seconds
+const processStateRef = doc(processingStatesRef, matchId);
+const processStateDoc = await getDoc(processStateRef);
 
 export async function GET(request) {
   if (global.gc) {
@@ -120,6 +122,11 @@ export async function GET(request) {
             results.push({ matchId, status: 'skipped', reason: 'already completed' });
             continue;
           }
+          if (processStateDoc.exists() && processStateDoc.data().resetInProgress) {
+  console.log(`Match ${matchId} is being reset, skipping processing`);
+  results.push({ matchId, status: 'skipped', reason: 'reset in progress' });
+  continue;  // Skip to next match
+}
   
           // Get match data
           const matchesRef = collection(db, 'matches');
