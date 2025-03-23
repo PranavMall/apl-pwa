@@ -18,7 +18,7 @@ import { db } from '../../../../firebase';
 
 // Set a safety margin before Vercel's 10s timeout
 const TIMEOUT_MARGIN = 9000; // 9 seconds
-const processStateRef = doc(processingStatesRef, matchId);
+const processStateRef = doc(db, 'processingState', matchId);
 const processStateDoc = await getDoc(processStateRef);
 
 export async function GET(request) {
