@@ -4,7 +4,6 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import styles from './page.module.css';
 import EmbeddedLookerReport from '../components/EmbeddedLookerReport';
-import { userStatService } from '../services/userStatService';
 
 const PlayerPerformancePage = () => {
   // Looker Studio report URL
