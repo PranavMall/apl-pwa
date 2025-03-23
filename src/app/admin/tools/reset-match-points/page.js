@@ -9,6 +9,8 @@ import {
   getDocs, 
   updateDoc, 
   doc,
+  setDoc,
+  deleteField,
   arrayRemove
 } from "firebase/firestore";
 import styles from "../../tournaments/admin.module.css";
@@ -46,11 +48,19 @@ async function resetAndRecalculateMatchPoints(matchId, weekNumber) {
     weeklyStatsSnapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
       
+      // Log document data for debugging
+      console.log(`Checking document ${docSnapshot.id}:`, {
+        hasLastMatchId: data.lastMatchId === matchId,
+        matches: data.matches ? JSON.stringify(data.matches) : "none",
+        processedMatches: data.processedMatches ? JSON.stringify(data.processedMatches) : "none"
+      });
+      
       // Check multiple possible locations where match data could be stored
+      // Use string comparison to avoid type issues
       const hasMatch = 
-        (data.lastMatchId === matchId) || 
-        (data.matches && Object.values(data.matches).includes(matchId)) ||
-        (data.processedMatches && data.processedMatches.includes(matchId));
+        (String(data.lastMatchId) === String(matchId)) || 
+        (data.matches && Object.values(data.matches).some(id => String(id) === String(matchId))) ||
+        (data.processedMatches && data.processedMatches.some(id => String(id) === String(matchId)));
       
       if (hasMatch) {
         console.log(`Resetting match ${matchId} for document ${docSnapshot.id}`);
@@ -59,10 +69,12 @@ async function resetAndRecalculateMatchPoints(matchId, weekNumber) {
         const updateObj = {
           points: 0,
           pointsBreakdown: [],
-          lastMatchId: deleteField(),  // Remove lastMatchId if it exists
-          matches: {},  // Clear matches object
-          processedMatches: []  // Clear processedMatches array
         };
+        
+        // Only remove fields that exist
+        if (data.lastMatchId) updateObj.lastMatchId = deleteField();
+        if (data.matches) updateObj.matches = {};
+        if (data.processedMatches) updateObj.processedMatches = [];
         
         updatePromises.push(updateDoc(docSnapshot.ref, updateObj));
       }
@@ -86,14 +98,15 @@ async function resetAndRecalculateMatchPoints(matchId, weekNumber) {
     }, { merge: false });  // Complete overwrite
     
     // 5. Trigger recalculation via API
-    console.log("Triggering recalculation...");
-    const response = await fetch(`/api/cron/update-matches?matchId=${matchId}`);
-    const result = await response.json();
-    console.log("Recalculation result:", result);
+    console.log("Triggering recalculation in the background...");
+    // Don't wait for completion - let it run in the background
+    fetch(`/api/cron/update-matches?matchId=${matchId}`).catch(err => 
+      console.error("Error triggering recalculation:", err)
+    );
     
     return {
       success: true,
-      message: `Reset and recalculated ${updatePromises.length} documents for match ${matchId}`
+      message: `Reset ${updatePromises.length} documents for match ${matchId}. Recalculation has been triggered and will continue in the background.`
     };
   } catch (error) {
     // Clear the reset flag if anything fails
