@@ -19,77 +19,99 @@ export default function ResetMatchPointsPage() {
   const [matchId, setMatchId] = useState('114960');
   const [weekNumber, setWeekNumber] = useState('1');
   
-  async function resetAndRecalculateMatchPoints(matchId, weekNumber) {
-    try {
-      console.log(`Starting reset for match ${matchId}, week ${weekNumber}`);
+async function resetAndRecalculateMatchPoints(matchId, weekNumber) {
+  try {
+    console.log(`Starting reset for match ${matchId}, week ${weekNumber}`);
+    
+    // 1. Set reset flag to block concurrent processing
+    const processStateRef = doc(db, 'processingState', matchId);
+    await setDoc(processStateRef, {
+      resetInProgress: true,
+      lastResetAttempt: new Date()
+    }, { merge: true });
+    
+    // 2. Get all userWeeklyStats documents for this week
+    const weeklyStatsRef = collection(db, "userWeeklyStats");
+    const weeklyStatsQuery = query(
+      weeklyStatsRef,
+      where("weekNumber", "==", parseInt(weekNumber))
+    );
+    
+    const weeklyStatsSnapshot = await getDocs(weeklyStatsQuery);
+    console.log(`Found ${weeklyStatsSnapshot.size} weekly stats documents`);
+    
+    // 3. Reset points and clear match data
+    const updatePromises = [];
+    
+    weeklyStatsSnapshot.forEach(docSnapshot => {
+      const data = docSnapshot.data();
       
-      // 1. Get all userWeeklyStats documents for this week
-      const weeklyStatsRef = collection(db, "userWeeklyStats");
-      const weeklyStatsQuery = query(
-        weeklyStatsRef,
-        where("weekNumber", "==", parseInt(weekNumber))
-      );
+      // Check multiple possible locations where match data could be stored
+      const hasMatch = 
+        (data.lastMatchId === matchId) || 
+        (data.matches && Object.values(data.matches).includes(matchId)) ||
+        (data.processedMatches && data.processedMatches.includes(matchId));
       
-      const weeklyStatsSnapshot = await getDocs(weeklyStatsQuery);
-      console.log(`Found ${weeklyStatsSnapshot.size} weekly stats documents`);
-      
-      // 2. Reset points and remove match from processedMatches
-      const updatePromises = [];
-      
-      weeklyStatsSnapshot.forEach(docSnapshot => {
-        const docData = docSnapshot.data();
-        const processedMatches = docData.processedMatches || [];
+      if (hasMatch) {
+        console.log(`Resetting match ${matchId} for document ${docSnapshot.id}`);
         
-        // Check if this match was processed for this user
-        if (processedMatches.includes(matchId)) {
-          console.log(`Resetting match ${matchId} for user ${docData.userId}`);
-          
-          // Calculate how many points to subtract
-          let pointsToSubtract = 0;
-          if (docData.pointsBreakdown) {
-            // Sum up finalPoints from all players for this match
-            docData.pointsBreakdown.forEach(playerPoints => {
-              pointsToSubtract += (playerPoints.finalPoints || 0);
-            });
-          }
-          
-          // Update document - subtract points and remove match from processedMatches
-          updatePromises.push(
-            updateDoc(docSnapshot.ref, {
-              points: Math.max(0, (docData.points || 0) - pointsToSubtract),
-              processedMatches: arrayRemove(matchId),
-              // Clear the pointsBreakdown array (optional)
-              pointsBreakdown: []
-            })
-          );
-        }
-      });
-      
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises);
-        console.log(`Reset ${updatePromises.length} documents`);
-      } else {
-        console.log("No documents needed resetting");
+        // Build update object
+        const updateObj = {
+          points: 0,
+          pointsBreakdown: [],
+          lastMatchId: deleteField(),  // Remove lastMatchId if it exists
+          matches: {},  // Clear matches object
+          processedMatches: []  // Clear processedMatches array
+        };
+        
+        updatePromises.push(updateDoc(docSnapshot.ref, updateObj));
       }
-      
-      // 3. Trigger recalculation via API
-      console.log("Triggering recalculation...");
-      const response = await fetch(`/api/cron/update-matches?matchId=${matchId}`);
-      const result = await response.json();
-      console.log("Recalculation result:", result);
-      
-      return {
-        success: true,
-        message: `Reset and recalculated ${updatePromises.length} documents for match ${matchId}`
-      };
-    } catch (error) {
-      console.error("Error resetting match points:", error);
-      return {
-        success: false,
-        error: error.message
-      };
+    });
+    
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+      console.log(`Reset ${updatePromises.length} documents`);
+    } else {
+      console.log("No documents needed resetting");
     }
+    
+    // 4. Reset the processing state to allow recalculation
+    await setDoc(processStateRef, {
+      completed: false,
+      currentInnings: 0,
+      currentBatsmenIndex: 0,
+      currentBowlersIndex: 0,
+      resetInProgress: false,
+      resetCompleted: true
+    }, { merge: false });  // Complete overwrite
+    
+    // 5. Trigger recalculation via API
+    console.log("Triggering recalculation...");
+    const response = await fetch(`/api/cron/update-matches?matchId=${matchId}`);
+    const result = await response.json();
+    console.log("Recalculation result:", result);
+    
+    return {
+      success: true,
+      message: `Reset and recalculated ${updatePromises.length} documents for match ${matchId}`
+    };
+  } catch (error) {
+    // Clear the reset flag if anything fails
+    try {
+      await updateDoc(doc(db, 'processingState', matchId), {
+        resetInProgress: false
+      });
+    } catch (flagError) {
+      console.error("Error clearing reset flag:", flagError);
+    }
+    
+    console.error("Error resetting match points:", error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
+}
   
   const handleResetPoints = async () => {
     setLoading(true);
