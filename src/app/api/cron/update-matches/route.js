@@ -18,13 +18,11 @@ import { db } from '../../../../firebase';
 
 // Set a safety margin before Vercel's 10s timeout
 const TIMEOUT_MARGIN = 9000; // 9 seconds
-const processStateRef = doc(db, 'processingState', matchId);
-const processStateDoc = await getDoc(processStateRef);
 
 export async function GET(request) {
   if (global.gc) {
-  global.gc();
-}
+    global.gc();
+  }
   // Reset timer at the start of each function invocation
   const startTime = Date.now();
   
@@ -122,11 +120,13 @@ export async function GET(request) {
             results.push({ matchId, status: 'skipped', reason: 'already completed' });
             continue;
           }
+          
+          // Skip if reset is in progress
           if (processStateDoc.exists() && processStateDoc.data().resetInProgress) {
-  console.log(`Match ${matchId} is being reset, skipping processing`);
-  results.push({ matchId, status: 'skipped', reason: 'reset in progress' });
-  continue;  // Skip to next match
-}
+            console.log(`Match ${matchId} is being reset, skipping processing`);
+            results.push({ matchId, status: 'skipped', reason: 'reset in progress' });
+            continue;  // Skip to next match
+          }
   
           // Get match data
           const matchesRef = collection(db, 'matches');
@@ -372,56 +372,56 @@ export async function GET(request) {
         }
       }
       // Add this code before the final return statement:
-if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
-  // For each processed match, update user team points
-  for (const result of results) {
-    if (result.status === 'completed' || result.pointsCalculated) {
-      try {
-        await transferService.updateUserWeeklyStats(result.matchId);
-        console.log(`Updated user weekly stats for match ${result.matchId}`);
-      } catch (error) {
-        console.error(`Error updating user weekly stats for match ${result.matchId}:`, error);
-      }
-    }
-  }
-  try {
-    // Get the active tournament
-    const tournament = await transferService.getActiveTournament();
-    try {
-  await transferService.updateUserTeamPoints(tournament.id);
-  console.log('User teams synchronized with latest player data');
-} catch (error) {
-  console.error('Error synchronizing user teams:', error);
-}
-    if (tournament) {
-      // Update rankings for all affected weeks
-      const affectedWeeks = new Set();
-      for (const result of results) {
-        if (result.status === 'completed' || result.pointsCalculated) {
-          // Get week number for this match
-          const matchWeekRef = doc(db, 'matchWeeks', result.matchId);
-          const matchWeekDoc = await getDoc(matchWeekRef);
-          if (matchWeekDoc.exists()) {
-            affectedWeeks.add(matchWeekDoc.data().weekNumber);
+      if (results.some(r => r.status === 'completed' || r.pointsCalculated)) {
+        // For each processed match, update user team points
+        for (const result of results) {
+          if (result.status === 'completed' || result.pointsCalculated) {
+            try {
+              await transferService.updateUserWeeklyStats(result.matchId);
+              console.log(`Updated user weekly stats for match ${result.matchId}`);
+            } catch (error) {
+              console.error(`Error updating user weekly stats for match ${result.matchId}:`, error);
+            }
           }
         }
+        try {
+          // Get the active tournament
+          const tournament = await transferService.getActiveTournament();
+          try {
+            await transferService.updateUserTeamPoints(tournament.id);
+            console.log('User teams synchronized with latest player data');
+          } catch (error) {
+            console.error('Error synchronizing user teams:', error);
+          }
+          if (tournament) {
+            // Update rankings for all affected weeks
+            const affectedWeeks = new Set();
+            for (const result of results) {
+              if (result.status === 'completed' || result.pointsCalculated) {
+                // Get week number for this match
+                const matchWeekRef = doc(db, 'matchWeeks', result.matchId);
+                const matchWeekDoc = await getDoc(matchWeekRef);
+                if (matchWeekDoc.exists()) {
+                  affectedWeeks.add(matchWeekDoc.data().weekNumber);
+                }
+              }
+            }
+            
+            // Update rankings for each affected week
+            for (const weekNumber of affectedWeeks) {
+              await transferService.updateWeeklyRankings(tournament.id, weekNumber);
+            }
+            
+            // Update overall rankings
+            await transferService.updateOverallRankings(tournament.id);
+            
+            console.log('Rankings updated successfully');
+          }
+          
+        } catch (error) {
+          console.error('Error updating rankings:', error);
+        }
       }
-      
-      // Update rankings for each affected week
-      for (const weekNumber of affectedWeeks) {
-        await transferService.updateWeeklyRankings(tournament.id, weekNumber);
-      }
-      
-      // Update overall rankings
-      await transferService.updateOverallRankings(tournament.id);
-      
-      console.log('Rankings updated successfully');
-    }
-    
-  } catch (error) {
-    console.error('Error updating rankings:', error);
-  }
-}
 
       const totalElapsedSeconds = (Date.now() - requestStartTime) / 1000;
       return NextResponse.json({
