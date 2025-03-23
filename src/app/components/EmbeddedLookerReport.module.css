@@ -1,0 +1,138 @@
+.reportContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  position: relative;
+  margin-bottom: 20px;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.reportTitle {
+  padding: 15px 20px;
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(45deg, var(--primary-color, #f9a825), var(--secondary-color, #ff7043));
+  color: white;
+}
+
+.reportFrame {
+  width: 100%;
+  height: 100%;
+  min-height: 550px;
+  border: none;
+  transition: opacity 0.3s ease;
+}
+
+.loadingIndicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.loadingSpinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--primary-color, #f9a825);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+.errorMessage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #c62828;
+  background: #ffebee;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 400px;
+}
+
+.retryButton {
+  background: var(--primary-color, #f9a825);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  margin-top: 15px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.retryButton:hover {
+  opacity: 0.9;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .reportContainer {
+    background-color: #1e1e1e;
+  }
+  
+  .reportTitle {
+    border-bottom-color: #333;
+  }
+  
+  .loadingSpinner {
+    border-color: #333;
+    border-top-color: var(--primary-color, #f9a825);
+  }
+  
+  .errorMessage {
+    background: #3a1c1c;
+    color: #ff8a80;
+  }
+}
+
+/* Make sure the iframe stays within the container */
+@media (max-width: 768px) {
+  .reportContainer {
+    min-height: 500px;
+  }
+  
+  .reportFrame {
+    min-height: 450px;
+  }
+  
+  .reportTitle {
+    font-size: 1.2rem;
+    padding: 12px 15px;
+  }
+}
+
+/* Force dark mode styles with the html.dark-mode class */
+html.dark-mode .reportContainer {
+  background-color: #1e1e1e !important;
+}
+
+html.dark-mode .reportTitle {
+  border-bottom-color: #333 !important;
+}
+
+html.dark-mode .errorMessage {
+  background: #3a1c1c !important;
+  color: #ff8a80 !important;
+}
