@@ -1,6 +1,6 @@
 // src/app/api/sync/player-stats/route.js
 import { NextResponse } from 'next/server';
-import { SheetsSyncService } from '@/app/services/sheetsSyncService';
+import { SheetsSyncService } from '@/app/services/sheetsSyncSimple';
 
 export async function GET(request) {
   try {
