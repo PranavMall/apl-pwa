@@ -1,6 +1,6 @@
 // src/app/api/sync/player-stats/route.js
 import { NextResponse } from 'next/server';
-import { SheetsSyncService } from '@/app/services/sheetsSyncSimple';
+import { SheetsSyncService } from '@/app/services/sheetsSyncService';
 
 export async function GET(request) {
   try {
@@ -15,6 +15,9 @@ export async function GET(request) {
       }, { status: 400 });
     }
     
+    // Log the start of process
+    console.log(`Starting sync from Google Sheet ID: ${sheetId}`);
+    
     // Fetch performance data from the sheet
     const performanceData = await SheetsSyncService.fetchPerformanceData(sheetId);
     
@@ -24,6 +27,8 @@ export async function GET(request) {
         error: 'No data found in the sheet' 
       }, { status: 404 });
     }
+    
+    console.log(`Successfully fetched ${performanceData.length} rows of player data`);
     
     // Update user stats with the performance data
     const result = await SheetsSyncService.updateUserStats(performanceData);
