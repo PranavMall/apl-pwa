@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './EmbeddedLookerReport.module.css';
 
-const EmbeddedLookerReport = ({ reportUrl = "https://lookerstudio.google.com/embed/reporting/kbstgW3T7Nw/page/1m", title = "Player Statistics" }) => {
+const EmbeddedLookerReport = ({ reportUrl = "https://lookerstudio.google.com/reporting/584b5014-3212-4480-b6af-0d653a17b5f2/page/K21wD", title = "Player Statistics" }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
