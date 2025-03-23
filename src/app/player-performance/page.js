@@ -24,6 +24,6 @@ const PlayerPerformancePage = () => {
               </CardContent>
       </Card>
   );
-};
+}
 
 export default PlayerPerformancePage;
