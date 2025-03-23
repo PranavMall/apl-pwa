@@ -23,6 +23,7 @@ const PlayerPerformancePage = () => {
           />
               </CardContent>
       </Card>
+              </div>
   );
 }
 
