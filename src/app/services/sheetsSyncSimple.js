@@ -207,7 +207,7 @@ export class SheetsSyncService {
               }
               
               // Update weekly stats
-              const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userTeam.userId}_${tournament.id}_${weekNum}`);
+              const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userTeam.userId}_${tournament.id}`);
               const weeklyStatsDoc = await getDoc(weeklyStatsRef);
               
               if (weeklyStatsDoc.exists()) {
