@@ -1,4 +1,4 @@
-// src/app/services/sheetsSyncSimple.js - Fixed version
+// src/app/services/sheetsSyncService.js
 
 import { db } from '../../firebase';
 import { 
@@ -22,10 +22,17 @@ export class SheetsSyncService {
   static async getAuthenticatedSheetsClient() {
     try {
       // Get service account credentials from environment variables
+      // In production, you should store these as secure environment variables
+      // For development, you can use a JSON file (add to .gitignore!)
+      
+      // Option 1: Using environment variables (recommended for production)
       const credentials = {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
         private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n')
       };
+      
+      // Option 2: Using a JSON file (for development)
+      // const credentials = require('../../../service-account-key.json');
       
       // Create a JWT client
       const auth = new google.auth.JWT(
@@ -86,88 +93,15 @@ export class SheetsSyncService {
       throw error;
     }
   }
-  
+
   /**
-   * Helper function to normalize player names for reliable matching
-   * @param {string} name - The player name to normalize
-   * @returns {string} - Normalized player name
+   * Update user weekly stats directly from the sheet data
+   * @param {Array} performanceData - Array of player performance data from sheets
+   * @returns {Promise<Object>} - Result of the operation
    */
-  static normalizePlayerName(name) {
-    if (!name) return '';
-    // Remove punctuation, normalize spaces, and convert to lowercase
-    return name.replace(/[^\w\s]/g, '')  // Remove punctuation
-              .replace(/\s+/g, ' ')      // Normalize spaces
-              .trim()                    // Trim spaces
-              .toLowerCase();            // Convert to lowercase
-  }
-  
-  /**
-   * Process data for a specific week and prepare it for usage
-   * @param {Array} performanceData - Performance data from sheets
-   * @param {number|null} targetWeek - Specific week to process or null for all weeks
-   * @returns {Map} - Map of week numbers to processed player data
-   */
-  static processDataByWeek(performanceData, targetWeek = null) {
-    // Group data by week
-    const weekGroups = new Map();
-    
-    performanceData.forEach(playerData => {
-      const week = playerData.Week;
-      const matchId = playerData.Match;
-      const playerName = playerData.Players;
-      const teamName = playerData.Team;
-      // Ensure we're parsing the Total Points as a number and default to 0 if invalid
-      const totalPoints = parseFloat(playerData['Total Points']) || 0;
-      
-      if (!week || !playerName) return;
-      
-      const weekNum = parseInt(week);
-      if (isNaN(weekNum)) return;
-      
-      // Skip weeks that don't match the target week if specified
-      if (targetWeek !== null && weekNum !== targetWeek) return;
-      
-      // Create week array for this week if it doesn't exist
-      if (!weekGroups.has(weekNum)) {
-        weekGroups.set(weekNum, []);
-      }
-      
-      // Add the player to this week's array
-      // CRITICAL FIX: Add normalized name here during processing
-      weekGroups.get(weekNum).push({
-        weekNumber: weekNum,
-        matchId: matchId || `week-${weekNum}`,
-        playerName,
-        teamName,
-        totalPoints,
-        normalizedName: this.normalizePlayerName(playerName) // This is the critical fix!
-      });
-    });
-    
-    // Log summary of processed data
-    weekGroups.forEach((weekData, weekNum) => {
-      console.log(`Week ${weekNum}: Processed ${weekData.length} players`);
-    });
-    
-    return weekGroups;
-  }
-  
-  /**
-   * Update user stats with pagination to avoid timeouts
-   * @param {Array} performanceData - Array of player performance data
-   * @param {number|null} targetWeek - Specific week to process or null for all weeks
-   * @param {number} startIndex - Starting index for pagination
-   * @param {number} batchSize - Number of users to process per batch
-   * @returns {Promise<Object>} - Result with pagination information
-   */
-  static async updateUserStatsWithPagination(
-    performanceData, 
-    targetWeek = null,
-    startIndex = 0,
-    batchSize = 50
-  ) {
+  static async updateUserStats(performanceData) {
     try {
-      console.log(`Updating user stats with pagination - Start: ${startIndex}, Batch: ${batchSize}`);
+      console.log('Updating user stats from performance data...');
       
       // Get active tournament
       const tournament = await transferService.getActiveTournament();
@@ -175,9 +109,35 @@ export class SheetsSyncService {
         return { success: false, error: 'No active tournament found' };
       }
       
-      // Process data by week - returns a Map where each value is an array of player objects
-      const weekGroups = this.processDataByWeek(performanceData, targetWeek);
-      console.log(`Processed data for ${weekGroups.size} week(s)`);
+      // Process data by week
+      const weekGroups = new Map();
+      
+      // Group data by week
+      performanceData.forEach(playerData => {
+        const week = playerData.Week;
+        const matchId = playerData.Match;
+        const playerName = playerData.Players;
+        const teamName = playerData.Team;
+        const totalPoints = parseFloat(playerData['Total Points']) || 0;
+        
+        if (!week || !matchId || !playerName) return;
+        
+        const weekNum = parseInt(week);
+        if (isNaN(weekNum)) return;
+        
+        // Create key for this week if it doesn't exist
+        if (!weekGroups.has(weekNum)) {
+          weekGroups.set(weekNum, []);
+        }
+        
+        weekGroups.get(weekNum).push({
+          weekNumber: weekNum,
+          matchId,
+          playerName,
+          teamName,
+          totalPoints
+        });
+      });
       
       // Get all user teams for this tournament
       const userTeamsRef = collection(db, 'userTeams');
@@ -188,10 +148,9 @@ export class SheetsSyncService {
         return { success: false, error: 'No user teams found for this tournament' };
       }
       
-      // Convert snapshot to array
-      const allUserTeams = [];
+      const userTeams = [];
       teamsSnapshot.forEach(doc => {
-        allUserTeams.push({
+        userTeams.push({
           id: doc.id,
           userId: doc.data().userId,
           tournamentId: doc.data().tournamentId,
@@ -199,44 +158,26 @@ export class SheetsSyncService {
         });
       });
       
-      console.log(`Found ${allUserTeams.length} total user teams`);
-      
-      // Apply pagination to user teams
-      const endIndex = Math.min(startIndex + batchSize, allUserTeams.length);
-      const userTeamsBatch = allUserTeams.slice(startIndex, endIndex);
-      const hasMoreUsers = endIndex < allUserTeams.length;
-      
-      console.log(`Processing users ${startIndex} to ${endIndex - 1} of ${allUserTeams.length}`);
-      
-      // Process each week's data for the current batch of users
+      // Process each week's data
       const results = [];
-      const allUnmatchedPlayers = [];
       
       for (const [weekNum, weekData] of weekGroups.entries()) {
         try {
           console.log(`Processing Week ${weekNum} data (${weekData.length} player records)`);
           
-          // Create a map to store unmatched players for this week
-          const unmatchedPlayers = new Map();
-          
-          // Process each user's team in the current batch
-          let teamsProcessed = 0;
-          for (const userTeam of userTeamsBatch) {
+          // Process each user's team
+          for (const userTeam of userTeams) {
             try {
               // Calculate points for this user's team
               let weeklyPoints = 0;
               const pointsBreakdown = [];
-              const userUnmatchedPlayers = [];
               
               // Check each of the user's players
               for (const player of userTeam.players) {
-                // FIX: Ensure we normalize the player name here too
-                const normalizedPlayerName = this.normalizePlayerName(player.name);
-                
-                // Find this player in the week's data using normalized names
-                // Make sure we use normalizedName for comparison
+                // Find this player in the week's data
+                // We'll do a case-insensitive match on player name
                 const playerPerformance = weekData.find(p => 
-                  p.normalizedName === normalizedPlayerName
+                  p.playerName.toLowerCase() === player.name.toLowerCase()
                 );
                 
                 if (playerPerformance) {
@@ -256,35 +197,12 @@ export class SheetsSyncService {
                   pointsBreakdown.push({
                     playerId: player.id,
                     playerName: player.name,
-                    sheetPlayerName: playerPerformance.playerName,  // For debugging
                     basePoints: playerPerformance.totalPoints,
                     finalPoints: playerPoints,
                     isCaptain: player.isCaptain || false,
                     isViceCaptain: player.isViceCaptain || false,
                     multiplier: player.isCaptain ? 2 : (player.isViceCaptain ? 1.5 : 1)
                   });
-                } else {
-                  // Track unmatched player
-                  userUnmatchedPlayers.push({
-                    playerId: player.id,
-                    playerName: player.name,
-                    normalizedName: normalizedPlayerName
-                  });
-                  
-                  // Add to global unmatched log
-                  if (!unmatchedPlayers.has(normalizedPlayerName)) {
-                    unmatchedPlayers.set(normalizedPlayerName, {
-                      playerName: player.name,
-                      normalizedName,
-                      count: 0,
-                      users: []
-                    });
-                  }
-                  
-                  const record = unmatchedPlayers.get(normalizedPlayerName);
-                  record.count++;
-                  record.users.push(userTeam.userId);
-                  unmatchedPlayers.set(normalizedPlayerName, record);
                 }
               }
               
@@ -297,7 +215,6 @@ export class SheetsSyncService {
                 await updateDoc(weeklyStatsRef, {
                   points: weeklyPoints,
                   pointsBreakdown: pointsBreakdown,
-                  unmatchedPlayers: userUnmatchedPlayers, // For debugging
                   updatedAt: new Date()
                 });
               } else {
@@ -308,14 +225,11 @@ export class SheetsSyncService {
                   weekNumber: weekNum,
                   points: weeklyPoints,
                   pointsBreakdown: pointsBreakdown,
-                  unmatchedPlayers: userUnmatchedPlayers, // For debugging
                   rank: 0, // Will be updated by ranking function
                   transferWindowId: `${weekNum}`,
                   createdAt: new Date()
                 });
               }
-              
-              teamsProcessed++;
             } catch (userError) {
               console.error(`Error processing user ${userTeam.userId} for week ${weekNum}:`, userError);
             }
@@ -324,22 +238,11 @@ export class SheetsSyncService {
           // Update weekly rankings
           await transferService.updateWeeklyRankings(tournament.id, weekNum);
           
-          // Log unmatched players if there are any
-          if (unmatchedPlayers.size > 0) {
-            console.log(`WARNING: ${unmatchedPlayers.size} players couldn't be matched for Week ${weekNum}:`);
-            unmatchedPlayers.forEach((record, name) => {
-              console.log(`- ${record.playerName} (${record.count} users): ${record.users.slice(0, 3).join(', ')}${record.users.length > 3 ? '...' : ''}`);
-              // Add to the collection of all unmatched players
-              allUnmatchedPlayers.push(record);
-            });
-          }
-          
           results.push({
             week: weekNum,
             status: 'success',
             playersProcessed: weekData.length,
-            teamsProcessed,
-            unmatchedPlayerCount: unmatchedPlayers.size
+            teamsProcessed: userTeams.length
           });
         } catch (weekError) {
           console.error(`Error processing week ${weekNum}:`, weekError);
@@ -351,28 +254,16 @@ export class SheetsSyncService {
         }
       }
       
-      // Update overall rankings if this is the last batch
-      if (!hasMoreUsers) {
-        await transferService.updateOverallRankings(tournament.id);
-      }
+      // Update overall rankings
+      await transferService.updateOverallRankings(tournament.id);
       
       return {
         success: true,
-        results,
-        unmatchedPlayers: allUnmatchedPlayers,
-        hasMoreUsers,
-        nextStartIndex: hasMoreUsers ? endIndex : null,
-        processedUsers: userTeamsBatch.length,
-        totalUsers: allUserTeams.length
+        results
       };
     } catch (error) {
       console.error('Error updating user stats from sheets:', error);
       return { success: false, error: error.message };
     }
-  }
-  
-  // Original method for backward compatibility - calls the new paginated version
-  static async updateUserStats(performanceData) {
-    return this.updateUserStatsWithPagination(performanceData, null, 0, 1000);
   }
 }
