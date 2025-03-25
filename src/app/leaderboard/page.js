@@ -65,114 +65,109 @@ const LeaderboardPage = () => {
     }
   };
 
-  const fetchLeaderboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Get active tournament
-      const tournament = await transferService.getActiveTournament();
-      if (!tournament) {
-        setError("No active tournament found.");
-        setLoading(false);
-        return;
-      }
-      
-      setActiveTournament(tournament);
-      
-      // Get all user data
-      const usersRef = collection(db, "users");
-      const usersSnapshot = await getDocs(usersRef);
-      
-      const users = {};
-      usersSnapshot.forEach(doc => {
-        // Get user data
-        const userData = doc.data();
-        
-        // Include all users who have a teamName (as they've registered)
-        if (userData.teamName) {
-          users[doc.id] = {
-            id: doc.id,
-            teamName: userData.teamName || "Unnamed Team",
-            photoURL: userData.photoURL,
-            weeks: {},
-            weeklyTotalPoints: 0,
-            referralPoints: userData.referralPoints || 0,
-            totalPoints: 0
-          };
-        }
-      });
-      
-      // Get completed transfer windows to determine which weeks to show
-      const windows = tournament.transferWindows || [];
-      const completedWindows = windows
-        .filter(window => window.status === "completed")
-        .sort((a, b) => b.weekNumber - a.weekNumber)
-        .slice(0, 5); // Get last 5 completed weeks
-      
-      setWeekNumbers(completedWindows.map(window => window.weekNumber));
-      
-      // Get weekly stats for all users
-      const weeklyStatsRef = collection(db, "userWeeklyStats");
-      const q = query(
-        weeklyStatsRef,
-        where("tournamentId", "==", tournament.id)
-      );
-      
-      const statsSnapshot = await getDocs(q);
-      
-      // Process stats for each user
-      statsSnapshot.forEach(doc => {
-        const statsData = doc.data();
-        const userId = statsData.userId;
-        const weekNumber = statsData.weekNumber;
-        const points = statsData.points || 0;
-        
-        if (users[userId]) {
-          // Add week points
-          users[userId].weeks[weekNumber] = points;
-          
-          // Update weekly total points
-          users[userId].weeklyTotalPoints = (users[userId].weeklyTotalPoints || 0) + points;
-        }
-      });
-      
-      // Get referral bonuses for each user
-      for (const userId in users) {
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          // Add referral points if they exist
-          users[userId].referralPoints = userData.referralPoints || 0;
-          
-          // Calculate total points (weekly points + referral bonus)
-          users[userId].totalPoints = (users[userId].weeklyTotalPoints || 0) + users[userId].referralPoints;
-        }
-      }
-      
-      // Convert to array and sort by total points
-      const leaderboardArray = Object.values(users)
-        .sort((a, b) => b.totalPoints - a.totalPoints);
-      
-      // Assign ranks
-      leaderboardArray.forEach((teamUser, index) => {
-        teamUser.rank = index + 1;
-        
-        // If this is the current user, save their rank
-        if (teamUser.id === user?.uid) {
-          setUserRank(teamUser.rank);
-        }
-      });
-      
-      setLeaderboardData(leaderboardArray);
+const fetchLeaderboardData = async () => {
+  try {
+    setLoading(true);
+    
+    // Get active tournament
+    const tournament = await transferService.getActiveTournament();
+    if (!tournament) {
+      setError("No active tournament found.");
       setLoading(false);
-    } catch (error) {
-      console.error("Error fetching leaderboard data:", error);
-      setError("Failed to load leaderboard data. Please try again later.");
-      setLoading(false);
+      return;
     }
-  };
+    
+    setActiveTournament(tournament);
+    
+    // Get all user data
+    const usersRef = collection(db, "users");
+    const usersSnapshot = await getDocs(usersRef);
+    
+    const users = {};
+    usersSnapshot.forEach(doc => {
+      // Get user data
+      const userData = doc.data();
+      
+      // Include all users who have a teamName (as they've registered)
+      if (userData.teamName) {
+        users[doc.id] = {
+          id: doc.id,
+          teamName: userData.teamName || "Unnamed Team",
+          photoURL: userData.photoURL,
+          weeks: {},
+          weeklyTotalPoints: 0,
+          referralPoints: userData.referralPoints || 0,
+          totalPoints: 0  // We'll calculate this from weekly stats
+        };
+      }
+    });
+    
+    // Define completed weeks to show
+    const completedWindows = tournament.transferWindows
+      .filter(window => window.status === "completed")
+      .sort((a, b) => b.weekNumber - a.weekNumber)
+      .slice(0, 5); // Get last 5 completed weeks
+    
+    setWeekNumbers(completedWindows.map(window => window.weekNumber));
+    
+    // Get weekly stats for all users
+    const weeklyStatsRef = collection(db, "userWeeklyStats");
+    
+    // For each user, query their weekly stats for each week
+    for (const userId in users) {
+      let weeklyTotalPoints = 0;
+      
+      // Process each week separately
+      for (const window of completedWindows) {
+        const weekNum = window.weekNumber;
+        
+        // Get stats for this specific week using the week-specific document ID
+        const weeklyStatRef = doc(db, "userWeeklyStats", `${userId}_${tournament.id}_${weekNum}`);
+        const weeklyStatDoc = await getDoc(weeklyStatRef);
+        
+        if (weeklyStatDoc.exists()) {
+          const weeklyPoints = weeklyStatDoc.data().points || 0;
+          
+          // Update the weeks object with this week's points
+          users[userId].weeks[weekNum] = weeklyPoints;
+          
+          // Add to weekly total
+          weeklyTotalPoints += weeklyPoints;
+        } else {
+          // If no data for this week, set to 0 or null
+          users[userId].weeks[weekNum] = 0;
+        }
+      }
+      
+      // Update weekly total
+      users[userId].weeklyTotalPoints = weeklyTotalPoints;
+      
+      // Calculate total points (weekly points + referral bonus)
+      users[userId].totalPoints = weeklyTotalPoints + users[userId].referralPoints;
+    }
+    
+    // Convert to array and sort by total points
+    const leaderboardArray = Object.values(users)
+      .sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    // Assign ranks
+    leaderboardArray.forEach((teamUser, index) => {
+      teamUser.rank = index + 1;
+      
+      // If this is the current user, save their rank
+      if (teamUser.id === user?.uid) {
+        setUserRank(teamUser.rank);
+      }
+    });
+    
+    setLeaderboardData(leaderboardArray);
+    setLoading(false);
+  } catch (error) {
+    console.error("Error fetching leaderboard data:", error);
+    setError("Failed to load leaderboard data. Please try again later.");
+    setLoading(false);
+  }
+};
 
   if (loading) {
     return <div className={styles.loading}>Loading leaderboard data...</div>;
