@@ -1,12 +1,19 @@
 // src/app/api/sync/player-stats/route.js
+
 import { NextResponse } from 'next/server';
 import { SheetsSyncService } from '@/app/services/sheetsSyncSimple';
 
 export async function GET(request) {
   try {
-    // Get the sheet ID from environment variables or query parameters
+    // Get parameters
     const url = new URL(request.url);
-    const sheetId = url.searchParams.get('sheetId') || process.env.PLAYER_STATS_SHEET_ID || '1G8NTmAzg1NqRpgp4FOBWWzfxf59UyfzbLVCL992hDpM';
+    const sheetId = url.searchParams.get('sheetId') || process.env.PLAYER_STATS_SHEET_ID;
+    
+    // New pagination parameters
+    const weekParam = url.searchParams.get('week');
+    const weekNumber = weekParam ? parseInt(weekParam) : null;
+    const userStartIndex = url.searchParams.get('startIndex') ? parseInt(url.searchParams.get('startIndex')) : 0;
+    const batchSize = url.searchParams.get('batchSize') ? parseInt(url.searchParams.get('batchSize')) : 50;
     
     if (!sheetId) {
       return NextResponse.json({ 
@@ -15,8 +22,8 @@ export async function GET(request) {
       }, { status: 400 });
     }
     
-    // Log the start of process
     console.log(`Starting sync from Google Sheet ID: ${sheetId}`);
+    console.log(`Pagination: ${weekNumber ? 'Week ' + weekNumber : 'All weeks'}, Starting from user ${userStartIndex}, Batch size ${batchSize}`);
     
     // Fetch performance data from the sheet
     const performanceData = await SheetsSyncService.fetchPerformanceData(sheetId);
@@ -30,13 +37,40 @@ export async function GET(request) {
     
     console.log(`Successfully fetched ${performanceData.length} rows of player data`);
     
-    // Update user stats with the performance data
-    const result = await SheetsSyncService.updateUserStats(performanceData);
+    // Filter data to specific week if provided
+    const filteredData = weekNumber 
+      ? performanceData.filter(row => parseInt(row.Week) === weekNumber)
+      : performanceData;
     
+    console.log(`Processing ${filteredData.length} rows ${weekNumber ? `for week ${weekNumber}` : 'across all weeks'}`);
+    
+    // Update user stats with pagination
+    const result = await SheetsSyncService.updateUserStatsWithPagination(
+      filteredData, 
+      weekNumber,
+      userStartIndex,
+      batchSize
+    );
+    
+    // Determine if there's more data to process
+    const hasMoreUsers = result.hasMoreUsers || false;
+    const nextStartIndex = result.nextStartIndex || 0;
+    
+    // Return information about sync progress and next batch
     return NextResponse.json({
       success: true,
-      message: 'Player stats sync completed',
-      processedRows: performanceData.length,
+      message: hasMoreUsers 
+        ? `Partial sync completed (batch ${userStartIndex/batchSize + 1}). Please run next batch.` 
+        : 'Complete sync finished successfully',
+      processedRows: filteredData.length,
+      processedUsers: result.processedUsers || 0,
+      totalUsers: result.totalUsers || 0,
+      weekNumber: weekNumber,
+      hasMoreUsers,
+      nextStartIndex,
+      nextBatchUrl: hasMoreUsers
+        ? `/api/sync/player-stats?sheetId=${sheetId}${weekNumber ? `&week=${weekNumber}` : ''}&startIndex=${nextStartIndex}&batchSize=${batchSize}`
+        : null,
       results: result.results || [],
       timestamp: new Date().toISOString()
     });
