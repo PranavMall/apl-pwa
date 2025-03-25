@@ -102,49 +102,59 @@ export class SheetsSyncService {
               .toLowerCase();            // Convert to lowercase
   }
   
-  /**
-   * Process data for a specific week and prepare it for usage
-   * @param {Array} performanceData - Performance data from sheets
-   * @param {number|null} targetWeek - Specific week to process or null for all weeks
-   * @returns {Map} - Map of week numbers to processed player data
-   */
-  static processDataByWeek(performanceData, targetWeek = null) {
-    // Group data by week
-    const weekGroups = new Map();
+/**
+ * Process data for a specific week and prepare it for usage
+ * @param {Array} performanceData - Performance data from sheets
+ * @param {number|null} targetWeek - Specific week to process or null for all weeks
+ * @returns {Map} - Map of week numbers to processed player data
+ */
+static processDataByWeek(performanceData, targetWeek = null) {
+  // Group data by week
+  const weekGroups = new Map();
+  
+  performanceData.forEach(playerData => {
+    const week = playerData.Week;
+    const matchId = playerData.Match;
+    const playerName = playerData.Players;
+    const teamName = playerData.Team;
+    // Ensure we're parsing the Total Points as a number and default to 0 if invalid
+    const totalPoints = parseFloat(playerData['Total Points']) || 0;
     
-    performanceData.forEach(playerData => {
-      const week = playerData.Week;
-      const matchId = playerData.Match;
-      const playerName = playerData.Players;
-      const teamName = playerData.Team;
-      const totalPoints = parseFloat(playerData['Total Points']) || 0;
-      
-      if (!week || !playerName) return;
-      
-      const weekNum = parseInt(week);
-      if (isNaN(weekNum)) return;
-      
-      // Skip weeks that don't match the target week if specified
-      if (targetWeek !== null && weekNum !== targetWeek) return;
-      
-      // Create key for this week if it doesn't exist
-      if (!weekGroups.has(weekNum)) {
-        weekGroups.set(weekNum, []);
-      }
-      
-      weekGroups.get(weekNum).push({
-        weekNumber: weekNum,
-        matchId: matchId || `week-${weekNum}`,
-        playerName,
-        teamName,
-        totalPoints,
-        // Add normalized name to improve matching
-        normalizedName: this.normalizePlayerName(playerName)
+    if (!week || !playerName) return;
+    
+    const weekNum = parseInt(week);
+    if (isNaN(weekNum)) return;
+    
+    // Skip weeks that don't match the target week if specified
+    if (targetWeek !== null && weekNum !== targetWeek) return;
+    
+    // Create key for this week if it doesn't exist
+    if (!weekGroups.has(weekNum)) {
+      weekGroups.set(weekNum, {
+        players: [],
+        unmatchedPlayers: new Map() // Initialize unmatchedPlayers as a Map for each week
       });
-    });
+    }
     
-    return weekGroups;
-  }
+    // Add the player to this week's data, including the normalized name
+    weekGroups.get(weekNum).players.push({
+      weekNumber: weekNum,
+      matchId: matchId || `week-${weekNum}`,
+      playerName,
+      teamName,
+      totalPoints,
+      // Add normalized name to improve matching
+      normalizedName: this.normalizePlayerName(playerName)
+    });
+  });
+  
+  // Log summary of processed data
+  weekGroups.forEach((weekData, weekNum) => {
+    console.log(`Week ${weekNum}: Processed ${weekData.players.length} players`);
+  });
+  
+  return weekGroups;
+}
   
 /**
  * Update user stats with pagination to avoid timeouts
