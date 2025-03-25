@@ -1,4 +1,4 @@
-// Complete fixed version of src/app/services/sheetsSyncSimple.js
+// src/app/services/sheetsSyncSimple.js - Fixed version
 
 import { db } from '../../firebase';
 import { 
@@ -128,20 +128,19 @@ export class SheetsSyncService {
       if (targetWeek !== null && weekNum !== targetWeek) return;
       
       // Create week array for this week if it doesn't exist
-      // IMPORTANT: This must be an array, not an object with a players array
       if (!weekGroups.has(weekNum)) {
         weekGroups.set(weekNum, []);
       }
       
       // Add the player to this week's array
+      // CRITICAL FIX: Add normalized name here during processing
       weekGroups.get(weekNum).push({
         weekNumber: weekNum,
         matchId: matchId || `week-${weekNum}`,
         playerName,
         teamName,
         totalPoints,
-        // Add normalized name to improve matching
-        normalizedName: this.normalizePlayerName(playerName)
+        normalizedName: this.normalizePlayerName(playerName) // This is the critical fix!
       });
     });
     
@@ -215,7 +214,6 @@ export class SheetsSyncService {
       
       for (const [weekNum, weekData] of weekGroups.entries()) {
         try {
-          // weekData is now an array of player objects
           console.log(`Processing Week ${weekNum} data (${weekData.length} player records)`);
           
           // Create a map to store unmatched players for this week
@@ -232,11 +230,11 @@ export class SheetsSyncService {
               
               // Check each of the user's players
               for (const player of userTeam.players) {
-                // Normalize the player name
+                // FIX: Ensure we normalize the player name here too
                 const normalizedPlayerName = this.normalizePlayerName(player.name);
                 
                 // Find this player in the week's data using normalized names
-                // weekData is now directly an array (not an object with a players property)
+                // Make sure we use normalizedName for comparison
                 const playerPerformance = weekData.find(p => 
                   p.normalizedName === normalizedPlayerName
                 );
