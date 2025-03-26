@@ -581,7 +581,7 @@ const LeagueManager = ({ userId, userName }) => {
                         </div>
                       </td>
                       <td className={styles.pointsColumn}>
-                        {user.totalPoints}
+                         {team.totalPoints || 0}
                       </td>
                       <td className={styles.rankColumn}>
                         {user.rank || 'N/A'}
