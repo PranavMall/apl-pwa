@@ -3,8 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { LeagueService } from '@/app/services/leagueService';
 import styles from './LeagueManager.module.css';
-import { collection, query, getDocs, where, orderBy, doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase";
 
 const LeagueManager = ({ userId, userName }) => {
   const [activeTab, setActiveTab] = useState('myLeagues');
@@ -583,7 +581,7 @@ const LeagueManager = ({ userId, userName }) => {
                         </div>
                       </td>
                       <td className={styles.pointsColumn}>
-                         {team.totalPoints || 0}
+                        {user.totalPoints}
                       </td>
                       <td className={styles.rankColumn}>
                         {user.rank || 'N/A'}
