@@ -175,38 +175,21 @@ static async updateUserStats(performanceData) {
         // Process each user's team
         for (const userTeam of userTeams) {
           try {
-            // Get the existing weekly stats doc first to check processed matches
+            // Get existing weekly stats document
             const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userTeam.userId}_${tournament.id}_${weekNum}`);
             const weeklyStatsDoc = await getDoc(weeklyStatsRef);
             
-            // Initialize points and breakdown from existing document or start fresh
-            let weeklyPoints = 0;
+            // IMPORTANT: Because of the transition to tracking matches, we need to
+            // recalculate all points from scratch for this week to avoid duplication
             let pointsBreakdown = [];
             let processedMatches = [];
-            
-            if (weeklyStatsDoc.exists()) {
-              const existingData = weeklyStatsDoc.data();
-              weeklyPoints = existingData.points || 0;
-              pointsBreakdown = existingData.pointsBreakdown || [];
-              processedMatches = existingData.processedMatches || [];
-            }
-            
-            // Track if we've processed new matches
-            let newMatchesProcessed = false;
+            let weeklyPoints = 0;
             
             // Process each match in this week
             for (const [matchId, matchPlayers] of matchesMap.entries()) {
-              // Skip already processed matches
-              if (processedMatches.includes(matchId)) {
-                console.log(`Skipping already processed match ${matchId} for user ${userTeam.userId}`);
-                continue;
-              }
-              
               console.log(`Processing match ${matchId} for user ${userTeam.userId}`);
-              newMatchesProcessed = true;
               
               // Calculate match points for this user's team
-              let matchPoints = 0;
               const matchBreakdown = [];
               
               // Check each of the user's players
@@ -218,7 +201,8 @@ static async updateUserStats(performanceData) {
                 );
                 
                 if (playerPerformance) {
-                  let playerPoints = playerPerformance.totalPoints;
+                  let basePoints = playerPerformance.totalPoints;
+                  let playerPoints = basePoints;
                   
                   // Apply captain/vice-captain multipliers
                   if (player.isCaptain) {
@@ -227,25 +211,22 @@ static async updateUserStats(performanceData) {
                     playerPoints *= 1.5;
                   }
                   
-                  // Add to total
-                  matchPoints += playerPoints;
-                  
                   // Add to breakdown
                   matchBreakdown.push({
                     playerId: player.id,
                     playerName: player.name,
-                    basePoints: playerPerformance.totalPoints,
+                    basePoints: basePoints,
                     finalPoints: playerPoints,
                     isCaptain: player.isCaptain || false,
                     isViceCaptain: player.isViceCaptain || false,
                     multiplier: player.isCaptain ? 2 : (player.isViceCaptain ? 1.5 : 1),
-                    matchId: matchId
+                    matchId: matchId // Include match ID for future tracking
                   });
+                  
+                  // Add to total
+                  weeklyPoints += playerPoints;
                 }
               }
-              
-              // Add match points to weekly total
-              weeklyPoints += matchPoints;
               
               // Add this match's breakdown to overall breakdown
               pointsBreakdown = [...pointsBreakdown, ...matchBreakdown];
@@ -254,34 +235,30 @@ static async updateUserStats(performanceData) {
               processedMatches.push(matchId);
             }
             
-            // Only update the document if new matches were processed
-            if (newMatchesProcessed) {
-              if (weeklyStatsDoc.exists()) {
-                // Update existing stats
-                await updateDoc(weeklyStatsRef, {
-                  points: weeklyPoints,
-                  pointsBreakdown: pointsBreakdown,
-                  processedMatches: processedMatches,
-                  updatedAt: new Date()
-                });
-              } else {
-                // Create new stats
-                await setDoc(weeklyStatsRef, {
-                  userId: userTeam.userId,
-                  tournamentId: tournament.id,
-                  weekNumber: weekNum,
-                  points: weeklyPoints,
-                  pointsBreakdown: pointsBreakdown,
-                  processedMatches: processedMatches,
-                  rank: 0, // Will be updated by ranking function
-                  transferWindowId: `${weekNum}`,
-                  createdAt: new Date()
-                });
-              }
-              console.log(`Updated stats for user ${userTeam.userId}, week ${weekNum}: ${weeklyPoints} points`);
+            // Update or create the weekly stats document
+            if (weeklyStatsDoc.exists()) {
+              // Update existing stats
+              await updateDoc(weeklyStatsRef, {
+                points: weeklyPoints,
+                pointsBreakdown: pointsBreakdown,
+                processedMatches: processedMatches,
+                updatedAt: new Date()
+              });
             } else {
-              console.log(`No new matches to process for user ${userTeam.userId}, week ${weekNum}`);
+              // Create new stats
+              await setDoc(weeklyStatsRef, {
+                userId: userTeam.userId,
+                tournamentId: tournament.id,
+                weekNumber: weekNum,
+                points: weeklyPoints,
+                pointsBreakdown: pointsBreakdown,
+                processedMatches: processedMatches,
+                rank: 0, // Will be updated by ranking function
+                transferWindowId: `${weekNum}`,
+                createdAt: new Date()
+              });
             }
+            console.log(`Updated stats for user ${userTeam.userId}, week ${weekNum}: ${weeklyPoints} points`);
           } catch (userError) {
             console.error(`Error processing user ${userTeam.userId} for week ${weekNum}:`, userError);
           }
