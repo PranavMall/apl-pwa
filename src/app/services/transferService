@@ -387,11 +387,11 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
     let totalPoints = 0;
     let pointsBreakdown = [];
     
-    // Define multipliers directly here instead of using this.POINTS
+    // Define multipliers
     const CAPTAIN_MULTIPLIER = 2;
     const VICE_CAPTAIN_MULTIPLIER = 1.5;
     
-    // Process every player in the team, not just those with match points
+    // Process every player in the team
     for (let i = 0; i < players.length; i++) {
       const player = players[i];
       const playerId = player.id;
@@ -456,12 +456,26 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
       const currentData = weeklyStatsDoc.data();
       const currentPoints = currentData.points || 0;
       const existingMatches = currentData.processedMatches || [];
+      const existingBreakdown = currentData.pointsBreakdown || [];
       
-      // Only add points if this match hasn't been processed yet
+      // IMPORTANT: Only add points if this match hasn't been processed yet
       if (!existingMatches.includes(matchId)) {
+        // Create new breakdown by combining existing breakdown with new match breakdown
+        // This is critical for preserving previous match data within the same week
+        const newBreakdown = [...existingBreakdown];
+        
+        // Remove any existing entries for this match (shouldn't happen, but just in case)
+        const filteredBreakdown = newBreakdown.filter(item => item.matchId !== matchId);
+        
+        // Add new breakdown for this match with the matchId
+        const matchBreakdown = pointsBreakdown.map(item => ({
+          ...item,
+          matchId: matchId // Ensure matchId is included in each breakdown item
+        }));
+        
         await updateDoc(weeklyStatsRef, {
           points: currentPoints + totalPoints,
-          pointsBreakdown: pointsBreakdown, // Store the complete breakdown
+          pointsBreakdown: [...filteredBreakdown, ...matchBreakdown],
           processedMatches: [...existingMatches, matchId],
           updatedAt: new Date()
         });
@@ -473,7 +487,7 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
         tournamentId,
         weekNumber,
         points: totalPoints,
-        pointsBreakdown: pointsBreakdown,
+        pointsBreakdown: pointsBreakdown.map(item => ({ ...item, matchId })),
         processedMatches: [matchId],
         rank: 0,
         transferWindowId: `${weekNumber}`,
@@ -627,21 +641,21 @@ static async ensureWeeklyStatsForAllUsers(tournamentId) {
   }
   
   // Save user team
-  static async saveUserTeam(userId, players) {
-    try {
-      const tournament = await this.getActiveTournament();
-      
-      if (!tournament) {
-        return { success: false, error: 'No active tournament found' };
-      }
-      
-      const { isActive } = await this.isTransferWindowActive();
-      
-      if (!isActive) {
-        return { success: false, error: 'Transfer window is not active' };
-      }
-      
-      // Validate team composition - FIX HERE
+static async saveUserTeam(userId, players) {
+  try {
+    const tournament = await this.getActiveTournament();
+    
+    if (!tournament) {
+      return { success: false, error: 'No active tournament found' };
+    }
+    
+    const { isActive, window } = await this.isTransferWindowActive();
+    
+    if (!isActive) {
+      return { success: false, error: 'Transfer window is not active' };
+    }
+    
+    // Validate team composition
     const batsmenCount = players.filter(p => p.role === this.ROLES.BATSMAN).length;
     const bowlersCount = players.filter(p => p.role === this.ROLES.BOWLER).length;
     const allroundersCount = players.filter(p => p.role === this.ROLES.ALLROUNDER).length;
@@ -664,54 +678,61 @@ static async ensureWeeklyStatsForAllUsers(tournamentId) {
       return { success: false, error: `Team must have exactly ${this.TEAM_LIMITS[this.ROLES.WICKETKEEPER]} wicket-keeper` };
     }
       
-      // Check if team exists
-      const userTeam = await this.getUserTeam(userId, tournament.id);
-      
-      // Determine if this is a new team or update
-      const isNewTeam = !userTeam;
-      
-      // Find current transfer window
-      const now = new Date();
-      const currentWindow = tournament.transferWindows.find(window => {
-        const startDate = window.startDate instanceof Timestamp 
-          ? window.startDate.toDate() 
-          : new Date(window.startDate);
-        const endDate = window.endDate instanceof Timestamp 
-          ? window.endDate.toDate() 
-          : new Date(window.endDate);
-        
-        return now >= startDate && now <= endDate;
-      });
-      
-      // Create/update team document
-      const teamRef = doc(db, 'userTeams', `${userId}_${tournament.id}`);
-      await setDoc(teamRef, {
-        userId,
-        tournamentId: tournament.id,
-        registrationDate: isNewTeam ? now : userTeam.registrationDate,
-        isLateRegistration: isNewTeam ? now > new Date(tournament.registrationDeadline) : userTeam.isLateRegistration,
-        players,
-        transfersRemaining: isNewTeam ? 2 : userTeam.transfersRemaining - 1,
-        lastTransferDate: now,
-        lastTransferWindow: currentWindow ? {
-          startDate: currentWindow.startDate,
-          endDate: currentWindow.endDate,
-          weekNumber: currentWindow.weekNumber
-        } : null,
-        lastUpdated: now
-      }, { merge: true });
-      
-      // Create weekly stats entry if needed
-      if (currentWindow) {
-        await this.createWeeklyStatsEntry(userId, tournament.id, currentWindow);
+    // Check if team exists
+    const userTeam = await this.getUserTeam(userId, tournament.id);
+    
+    // Determine if this is a new team or update
+    const isNewTeam = !userTeam;
+    
+    // Get current transfer window data
+    const currentWindow = window;
+    const currentWeekNumber = currentWindow.weekNumber;
+    
+    // IMPORTANT: Add a new collection to store the transfer history
+    // This allows us to track which team was used for which week
+    const transferHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournament.id}_${currentWeekNumber}`);
+    
+    // Store the new team selection in the transfer history
+    await setDoc(transferHistoryRef, {
+      userId,
+      tournamentId: tournament.id,
+      weekNumber: currentWeekNumber,
+      players: players, // Store the complete team selection
+      transferDate: new Date(),
+      transferWindow: {
+        weekNumber: currentWeekNumber,
+        startDate: currentWindow.startDate,
+        endDate: currentWindow.endDate
       }
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Error saving user team:', error);
-      throw error;
-    }
+    });
+    
+    // Update the main team document
+    const teamRef = doc(db, 'userTeams', `${userId}_${tournament.id}`);
+    await setDoc(teamRef, {
+      userId,
+      tournamentId: tournament.id,
+      registrationDate: isNewTeam ? new Date() : userTeam.registrationDate,
+      isLateRegistration: isNewTeam ? new Date() > new Date(tournament.registrationDeadline) : userTeam.isLateRegistration,
+      players,
+      transfersRemaining: isNewTeam ? 2 : userTeam.transfersRemaining - 1,
+      lastTransferDate: new Date(),
+      lastTransferWindow: {
+        startDate: currentWindow.startDate,
+        endDate: currentWindow.endDate,
+        weekNumber: currentWindow.weekNumber
+      },
+      lastUpdated: new Date()
+    }, { merge: true });
+    
+    // Create weekly stats entry if needed
+    await this.createWeeklyStatsEntry(userId, tournament.id, currentWindow);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving user team:', error);
+    throw error;
   }
+}
   
   // Create or update weekly stats entry
   static async createWeeklyStatsEntry(userId, tournamentId, transferWindow) {
