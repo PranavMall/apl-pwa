@@ -64,47 +64,6 @@ const fetchPlayerPerformanceData = async () => {
       // Process the raw data from Google Sheets
       const processedData = result.processedRows ? 
         result.processedRows.map(row => calculateMetrics(row)) : [];
-
-      // Group and cumulate points for the same player within the same week
-      const playerMap = {};
-      
-      processedData.forEach(player => {
-        const key = `${player.name}_${player.week}`;
-  
-  if (!playerMap[key]) {
-    playerMap[key] = { ...player };
-  } else {
-    // Cumulate points and stats for the same player in the same week
-    const existing = playerMap[key];
-    
-    // Add points
-    existing.totalPoints += player.totalPoints;
-    
-    // Add batting stats
-    existing.runs += player.runs;
-    existing.fours += player.fours;
-    existing.sixes += player.sixes;
-    existing.thirties += player.thirties;
-    existing.fifties += player.fifties;
-    existing.hundreds += player.hundreds;
-    
-    // Add bowling stats
-    existing.wickets += player.wickets;
-    existing.threeWickets += player.threeWickets;
-    existing.fourWickets += player.fourWickets;
-    existing.fiveWickets += player.fiveWickets;
-    existing.maidens += player.maidens;
-    
-    // Add fielding stats
-    existing.catches += player.catches;
-    existing.stumpings += player.stumpings;
-    existing.directThrows += player.directThrows;
-    existing.runOuts += player.runOuts;
-  }
-});
-
-// Convert back to array
-const cumulativeData = Object.values(playerMap);
       
       // Extract available weeks for filter
       const weeks = new Set();
@@ -124,7 +83,7 @@ const cumulativeData = Object.values(playerMap);
   };
 
   // Helper function to calculate metrics from points
- const calculateMetrics = (player) => {
+const calculateMetrics = (player) => {
     return {
       // Common metrics
       runs: parseInt(player.Runs) || 0,
@@ -227,61 +186,61 @@ const cumulativeData = Object.values(playerMap);
     switch (selectedPosition) {
       case 'batsman':
         return (
-          <tr key={`${player.name}-${player.week}`}>
-            <td data-label="Player">{player.name}</td>
-            <td data-label="Team">{player.team}</td>
-            <td data-label="Runs">{player.runs}</td>
-            <td data-label="4s">{player.fours}</td>
-            <td data-label="6s">{player.sixes}</td>
-            <td data-label="30+">{player.thirties}</td>
-            <td data-label="50s">{player.fifties}</td>
-            <td data-label="100s">{player.hundreds}</td>
-            <td data-label="Points" className={styles.pointsColumn}>{player.totalPoints}</td>
+          <tr key={`${player.name}-${player.week}-${player.match}`}>
+            <td>{player.name}</td>
+            <td>{player.team}</td>
+            <td>{player.runs}</td>
+            <td>{player.fours}</td>
+            <td>{player.sixes}</td>
+            <td>{player.thirties}</td>
+            <td>{player.fifties}</td>
+            <td>{player.hundreds}</td>
+            <td className={styles.pointsColumn}>{player.totalPoints}</td>
           </tr>
         );
       case 'bowler':
         return (
-          <tr key={`${player.name}-${player.week}`}>
-            <td data-label="Player">{player.name}</td>
-            <td data-label="Team">{player.team}</td>
-            <td data-label="Wickets">{player.wickets}</td>
-            <td data-label="3W Haul">{player.threeWickets}</td>
-            <td data-label="4W Haul">{player.fourWickets}</td>
-            <td data-label="5W Haul">{player.fiveWickets}</td>
-            <td data-label="Maidens">{player.maidens}</td>
-            <td data-label="Points" className={styles.pointsColumn}>{player.totalPoints}</td>
+          <tr key={`${player.name}-${player.week}-${player.match}`}>
+            <td>{player.name}</td>
+            <td>{player.team}</td>
+            <td>{player.wickets}</td>
+            <td>{player.threeWickets}</td>
+            <td>{player.fourWickets}</td>
+            <td>{player.fiveWickets}</td>
+            <td>{player.maidens}</td>
+            <td className={styles.pointsColumn}>{player.totalPoints}</td>
           </tr>
         );
       case 'wicketkeeper':
         return (
-          <tr key={`${player.name}-${player.week}`}>
-            <td data-label="Player">{player.name}</td>
-            <td data-label="Team">{player.team}</td>
-            <td data-label="Runs">{player.runs}</td>
-            <td data-label="Catches">{player.catches}</td>
-            <td data-label="Stumpings">{player.stumpings}</td>
-            <td data-label="Run Outs">{player.directThrows + player.runOuts}</td>
-            <td data-label="Points" className={styles.pointsColumn}>{player.totalPoints}</td>
+          <tr key={`${player.name}-${player.week}-${player.match}`}>
+            <td>{player.name}</td>
+            <td>{player.team}</td>
+            <td>{player.runs}</td>
+            <td>{player.catches}</td>
+            <td>{player.stumpings}</td>
+            <td>{player.directThrows + player.runOuts}</td>
+            <td className={styles.pointsColumn}>{player.totalPoints}</td>
           </tr>
         );
       case 'allrounder':
         return (
-          <tr key={`${player.name}-${player.week}`}>
-            <td data-label="Player">{player.name}</td>
-            <td data-label="Team">{player.team}</td>
-            <td data-label="Runs">{player.runs}</td>
-            <td data-label="Wickets">{player.wickets}</td>
-            <td data-label="Catches">{player.catches}</td>
-            <td data-label="Points" className={styles.pointsColumn}>{player.totalPoints}</td>
+          <tr key={`${player.name}-${player.week}-${player.match}`}>
+            <td>{player.name}</td>
+            <td>{player.team}</td>
+            <td>{player.runs}</td>
+            <td>{player.wickets}</td>
+            <td>{player.catches}</td>
+            <td className={styles.pointsColumn}>{player.totalPoints}</td>
           </tr>
         );
       default:
         return (
-          <tr key={`${player.name}-${player.week}`}>
-            <td data-label="Player">{player.name}</td>
-            <td data-label="Team">{player.team}</td>
-            <td data-label="Position">
-              <span className={`${styles.roleBadge} ${styles[player.position]}`}>
+          <tr key={`${player.name}-${player.week}-${player.match}`}>
+            <td>{player.name}</td>
+            <td>{player.team}</td>
+            <td>
+               <span className={`${styles.roleBadge} ${styles[player.position]}`}>
                 {player.position === 'batsman' ? 'Batsman' :
                  player.position === 'bowler' ? 'Bowler' :
                  player.position === 'allrounder' ? 'All-rounder' :
@@ -289,7 +248,7 @@ const cumulativeData = Object.values(playerMap);
                  player.position.toUpperCase()}
               </span>
             </td>
-            <td data-label="Points" className={styles.pointsColumn}>{player.totalPoints}</td>
+            <td className={styles.pointsColumn}>{player.totalPoints}</td>
           </tr>
         );
     }
@@ -308,37 +267,20 @@ const cumulativeData = Object.values(playerMap);
           </CardHeader>
           <CardContent>
             <div className={styles.filters}>
-              <div className={styles.positionTabs}>
-                <button 
-                  className={`${styles.positionTab} ${selectedPosition === 'all' ? styles.activeTab : ''}`}
-                  onClick={() => setSelectedPosition('all')}
+              <div className={styles.filterGroup}>
+                <label htmlFor="position-filter">Position:</label>
+                <select
+                  id="position-filter"
+                  className={styles.select}
+                  value={selectedPosition}
+                  onChange={(e) => setSelectedPosition(e.target.value)}
                 >
-                  All
-                </button>
-                <button 
-                  className={`${styles.positionTab} ${selectedPosition === 'batsman' ? styles.activeTab : ''}`}
-                  onClick={() => setSelectedPosition('batsman')}
-                >
-                  Batsmen
-                </button>
-                <button 
-                  className={`${styles.positionTab} ${selectedPosition === 'bowler' ? styles.activeTab : ''}`}
-                  onClick={() => setSelectedPosition('bowler')}
-                >
-                  Bowlers
-                </button>
-                <button 
-                  className={`${styles.positionTab} ${selectedPosition === 'allrounder' ? styles.activeTab : ''}`}
-                  onClick={() => setSelectedPosition('allrounder')}
-                >
-                  All-rounders
-                </button>
-                <button 
-                  className={`${styles.positionTab} ${selectedPosition === 'wicketkeeper' ? styles.activeTab : ''}`}
-                  onClick={() => setSelectedPosition('wicketkeeper')}
-                >
-                  Wicket Keepers
-                </button>
+                  <option value="all">All Positions</option>
+                  <option value="batsman">Batsmen</option>
+                  <option value="bowler">Bowlers</option>
+                  <option value="allrounder">All-rounders</option>
+                  <option value="wicketkeeper">Wicket Keepers</option>
+                </select>
               </div>
               
               <div className={styles.filterGroup}>
