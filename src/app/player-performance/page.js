@@ -90,7 +90,7 @@ const calculateMetrics = (player) => {
       // Common metrics
       runs: parseInt(player.Runs) || 0,
       totalPoints: parseInt(player["Total Points"]) || 0,
-      position: player["Player Position"]?.toLowerCase() || 'unknown', // Get position from Player Position field
+      position: player["Player Position"] || 'unknown', // Get position from Player Position field
       team: player.Team || 'unknown',
       name: player.Players || 'Unknown Player',
       week: parseInt(player.Week) || 0,
