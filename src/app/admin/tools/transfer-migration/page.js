@@ -15,7 +15,7 @@ import {
   orderBy,
   limit 
 } from 'firebase/firestore';
-import { migrateTransferHistory } from '../migrateTransferHistory';
+import { migrateTransferHistory } from '../../scripts/migrateTransferHistory';
 
 // Helper function to get the active tournament
 async function getActiveTournament() {
@@ -211,3 +211,266 @@ export default function TransferHistoryMigrationPage() {
       setLoading(false);
     }
   };
+
+  // Run a test recalculation for a specific user and week
+  const testRecalculation = async () => {
+    if (!selectedUserId || !weekNumber) {
+      setMessage({ type: 'error', text: 'Please enter a user ID and week number' });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setMessage({ type: 'info', text: 'Testing recalculation...' });
+      
+      // Get active tournament
+      const tournament = await getActiveTournament();
+      if (!tournament) {
+        setMessage({ type: 'error', text: 'No active tournament found' });
+        setLoading(false);
+        return;
+      }
+      
+      // Get user's team for this week from transfer history
+      const transferHistoryRef = doc(db, 'userTransferHistory', `${selectedUserId}_${tournament.id}_${weekNumber}`);
+      const transferHistoryDoc = await getDoc(transferHistoryRef);
+      
+      if (!transferHistoryDoc.exists()) {
+        setMessage({ type: 'error', text: `No transfer history found for user ${selectedUserId}, week ${weekNumber}` });
+        setLoading(false);
+        return;
+      }
+      
+      const teamPlayers = transferHistoryDoc.data().players;
+      
+      // Get matches for this week
+      const matchWeeksRef = collection(db, 'matchWeeks');
+      const q = query(matchWeeksRef, where('weekNumber', '==', parseInt(weekNumber)), where('tournamentId', '==', tournament.id));
+      const snapshot = await getDocs(q);
+      
+      const matches = [];
+      snapshot.forEach(doc => {
+        matches.push(doc.data().matchId);
+      });
+      
+      if (matches.length === 0) {
+        setMessage({ type: 'error', text: `No matches found for week ${weekNumber}` });
+        setLoading(false);
+        return;
+      }
+      
+      // Get weekly stats for this user and week
+      const weeklyStatsRef = doc(db, 'userWeeklyStats', `${selectedUserId}_${tournament.id}_${weekNumber}`);
+      const weeklyStatsDoc = await getDoc(weeklyStatsRef);
+      
+      const beforePoints = weeklyStatsDoc.exists() ? weeklyStatsDoc.data().points : 0;
+      
+      setMessage({ 
+        type: 'info', 
+        text: `User ${selectedUserId} has ${teamPlayers.length} players for week ${weekNumber}. Found ${matches.length} matches. Current points: ${beforePoints}. Testing recalculation...` 
+      });
+      
+      // This is just a test - we're not actually updating anything
+      setMessage({ 
+        type: 'success', 
+        text: `Test successful! User ${selectedUserId} has ${teamPlayers.length} players for week ${weekNumber}. Found ${matches.length} matches. Current points: ${beforePoints}.` 
+      });
+    } catch (error) {
+      console.error('Error testing recalculation:', error);
+      setMessage({ 
+        type: 'error', 
+        text: `Error: ${error.message}` 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.errorMessage}>
+          <h2>Access Denied</h2>
+          <p>You do not have permission to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.container}>
+      <h1 className={styles.pageTitle}>Transfer History Migration</h1>
+      
+      {message && (
+        <div className={`${styles.message} ${styles[message.type]}`}>
+          {message.text}
+        </div>
+      )}
+      
+      <div className={styles.grid}>
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Run Migration</h2>
+          <p className={styles.sectionDescription}>
+            This will create transfer history records for all users based on their current teams and weekly stats.
+            Run this tool before updating the main application code.
+          </p>
+          
+          <div className={styles.warningBox}>
+            <h3>⚠️ Warning</h3>
+            <p>
+              This migration will create historical records for all user teams.
+              Make sure to back up your database before proceeding.
+            </p>
+          </div>
+          
+          <button 
+            className={styles.button}
+            onClick={handleMigration}
+            disabled={loading}
+          >
+            {loading ? 'Running Migration...' : 'Start Migration'}
+          </button>
+          
+          {migrationResult && (
+            <div className={styles.resultBox}>
+              <h3>Migration Results</h3>
+              <pre>{JSON.stringify(migrationResult, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+        
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Verify Migration</h2>
+          
+          <form onSubmit={verifyUserTransferHistory} className={styles.formContainer}>
+            <div className={styles.formGroup}>
+              <label htmlFor="userId">User ID</label>
+              <input
+                type="text"
+                id="userId"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                placeholder="Enter user ID to verify"
+                required
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              className={styles.button}
+              disabled={loading}
+            >
+              {loading ? 'Verifying...' : 'Verify User'}
+            </button>
+          </form>
+          
+          {verificationResult && (
+            <div className={styles.resultBox}>
+              <h3>Verification Results</h3>
+              <p>User ID: {verificationResult.userId}</p>
+              <p>Tournament ID: {verificationResult.tournamentId}</p>
+              <p>Transfer History Records: {verificationResult.transferHistoryCount}</p>
+              <p>Weekly Stats Records: {verificationResult.weeklyStatsCount}</p>
+            </div>
+          )}
+          
+          {transferHistory.length > 0 && (
+            <div className={styles.dataSection}>
+              <h3>Transfer History</h3>
+              <div className={styles.tableWrapper}>
+                <table className={styles.dataTable}>
+                  <thead>
+                    <tr>
+                      <th>Week</th>
+                      <th>Transfer Date</th>
+                      <th>Players</th>
+                      <th>Created By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transferHistory.map((record) => (
+                      <tr key={record.id}>
+                        <td>{record.weekNumber}</td>
+                        <td>{record.transferDateFormatted}</td>
+                        <td>{record.players?.length || 0} players</td>
+                        <td>{record.migrated ? 'Migration' : 'User'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          {weeklyStats.length > 0 && (
+            <div className={styles.dataSection}>
+              <h3>Weekly Stats</h3>
+              <div className={styles.tableWrapper}>
+                <table className={styles.dataTable}>
+                  <thead>
+                    <tr>
+                      <th>Week</th>
+                      <th>Points</th>
+                      <th>Rank</th>
+                      <th>Matches</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {weeklyStats.map((record) => (
+                      <tr key={record.id}>
+                        <td>{record.weekNumber}</td>
+                        <td>{record.points}</td>
+                        <td>{record.rank}</td>
+                        <td>{record.processedMatches?.length || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Test Recalculation</h2>
+        
+        <div className={styles.formContainer}>
+          <div className={styles.formGroup}>
+            <label htmlFor="testUserId">User ID</label>
+            <input
+              type="text"
+              id="testUserId"
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              placeholder="Enter user ID"
+              required
+            />
+          </div>
+          
+          <div className={styles.formGroup}>
+            <label htmlFor="weekNumber">Week Number</label>
+            <input
+              type="number"
+              id="weekNumber"
+              value={weekNumber}
+              onChange={(e) => setWeekNumber(e.target.value)}
+              min="1"
+              step="1"
+              required
+            />
+          </div>
+          
+          <button 
+            type="button" 
+            className={styles.button}
+            onClick={testRecalculation}
+            disabled={loading}
+          >
+            {loading ? 'Testing...' : 'Test Recalculation'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
