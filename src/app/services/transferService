@@ -519,6 +519,135 @@ static async calculateAndUpdateUserPoints(userId, players, matchId, tournamentId
     }
   }
 
+/**
+ * Recalculates weekly points for a user for a specific week
+ * This uses the correct team from transfer history records
+ * @param {string} userId - The user ID
+ * @param {string} tournamentId - The tournament ID
+ * @param {number} weekNumber - The week number
+ * @returns {Promise<Object>} - The result of the operation
+ */
+static async recalculateWeeklyPoints(userId, tournamentId, weekNumber) {
+  try {
+    console.log(`Recalculating weekly points for user ${userId}, tournament ${tournamentId}, week ${weekNumber}`);
+    
+    // First, get the correct team for this week from transfer history
+    let teamPlayers = await this.getTeamForWeek(userId, tournamentId, weekNumber);
+    
+    if (!teamPlayers || teamPlayers.length === 0) {
+      console.warn(`No team found for user ${userId} in week ${weekNumber}`);
+      return { success: false, error: 'No team found for this user' };
+    }
+    
+    // Get matches for this week
+    const matchWeeksRef = collection(db, 'matchWeeks');
+    const q = query(matchWeeksRef, where('weekNumber', '==', weekNumber), where('tournamentId', '==', tournamentId));
+    const snapshot = await getDocs(q);
+    
+    const matches = [];
+    snapshot.forEach(doc => {
+      matches.push(doc.data().matchId);
+    });
+    
+    if (matches.length === 0) {
+      console.log(`No matches found for week ${weekNumber}`);
+      return { success: false, message: 'No matches found for this week' };
+    }
+    
+    console.log(`Found ${matches.length} matches for week ${weekNumber}`);
+    
+    // Clear existing weekly stats to start fresh
+    const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournamentId}_${weekNumber}`);
+    await setDoc(weeklyStatsRef, {
+      userId,
+      tournamentId,
+      weekNumber,
+      points: 0,
+      pointsBreakdown: [],
+      processedMatches: [],
+      rank: 0,
+      transferWindowId: `${weekNumber}`,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    // Calculate points for each match using the correct team
+    for (const matchId of matches) {
+      console.log(`Processing match ${matchId} for user ${userId}`);
+      await this.calculateAndUpdateUserPoints(userId, teamPlayers, matchId, tournamentId, weekNumber);
+    }
+    
+    // Get the final stats to return
+    const updatedStatsDoc = await getDoc(weeklyStatsRef);
+    const finalPoints = updatedStatsDoc.exists() ? updatedStatsDoc.data().points : 0;
+    
+    return { 
+      success: true, 
+      points: finalPoints,
+      matchesProcessed: matches.length
+    };
+  } catch (error) {
+    console.error(`Error recalculating weekly points for user ${userId}, week ${weekNumber}:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Helper function to get the team that should be used for a specific week
+ * This searches the transfer history to find the appropriate team
+ * @param {string} userId - The user ID
+ * @param {string} tournamentId - The tournament ID 
+ * @param {number} weekNumber - The week number to get the team for
+ * @returns {Promise<Array>} - Array of player objects for this week
+ */
+static async getTeamForWeek(userId, tournamentId, weekNumber) {
+  try {
+    console.log(`Getting team for user ${userId}, week ${weekNumber}`);
+    
+    // First check transfer history for this specific week
+    const transferHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournamentId}_${weekNumber}`);
+    const transferHistoryDoc = await getDoc(transferHistoryRef);
+    
+    if (transferHistoryDoc.exists()) {
+      // Use the team from this week's transfer history
+      console.log(`Found transfer history for week ${weekNumber}`);
+      return transferHistoryDoc.data().players;
+    }
+    
+    // If no transfer for this week, find the most recent transfer before this week
+    console.log(`No transfer history found for week ${weekNumber}, looking for previous weeks`);
+    
+    let currentWeek = weekNumber - 1;
+    while (currentWeek > 0) {
+      const prevHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournamentId}_${currentWeek}`);
+      const prevHistoryDoc = await getDoc(prevHistoryRef);
+      
+      if (prevHistoryDoc.exists()) {
+        console.log(`Found transfer history for week ${currentWeek}`);
+        return prevHistoryDoc.data().players;
+      }
+      
+      currentWeek--;
+    }
+    
+    // If still no team found, use current team
+    console.log(`No transfer history found for any previous week, using current team`);
+    const teamRef = doc(db, 'userTeams', `${userId}_${tournamentId}`);
+    const teamDoc = await getDoc(teamRef);
+    
+    if (teamDoc.exists()) {
+      return teamDoc.data().players;
+    }
+    
+    // If no team found, return empty array
+    console.log(`No team found for user ${userId}`);
+    return [];
+  } catch (error) {
+    console.error(`Error getting team for week ${weekNumber}:`, error);
+    throw error;
+  }
+}
+
 // Add to src/app/services/transferService.js
 static async getUserWeeklyStats(userId) {
   try {
