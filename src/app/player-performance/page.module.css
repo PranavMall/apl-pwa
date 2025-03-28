@@ -60,6 +60,7 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   background: white;
   margin-bottom: 30px;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .table {
@@ -78,6 +79,7 @@
   top: 0;
   cursor: pointer;
   transition: background 0.2s;
+  white-space: nowrap; /* Prevents wrapping */
 }
 
 .table th:hover {
@@ -87,6 +89,30 @@
 .table td {
   padding: 12px 15px;
   border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap; /* Prevents wrapping for better mobile scrolling */
+}
+
+/* Freeze first column for better mobile experience */
+.table th:first-child,
+.table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background-color: white; /* Match regular cell background */
+  box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+}
+
+.table th:first-child {
+  z-index: 11; /* Above frozen cells */
+  background: linear-gradient(45deg, #ff9a00, #ff6a00); /* Match header styling */
+}
+
+.table tr:nth-child(even) td:first-child {
+  background-color: #f9f9f9; /* Match zebra striping */
+}
+
+.table tr:hover td:first-child {
+  background-color: #fff5e6; /* Match hover color */
 }
 
 .table tr:nth-child(even) {
@@ -185,6 +211,27 @@
   .searchInput {
     width: 100%;
   }
+  
+  /* Add indicator for scrollable table */
+  .tableWrapper::after {
+    content: '←→';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #666;
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+}
+
+/* Mobile-friendly table scroll indicator */
+@media (max-width: 768px) {
+  .tableWrapper {
+    position: relative;
+    padding-bottom: 5px;
+    margin-bottom: 35px;
+  }
 }
 
 /* Dark mode compatibility */
@@ -200,6 +247,19 @@
   .table td {
     color: #f0f0f0;
     border-bottom-color: #333;
+  }
+  
+  .table th:first-child,
+  .table td:first-child {
+    background-color: #1e1e1e;
+  }
+  
+  .table tr:nth-child(even) td:first-child {
+    background-color: #252525;
+  }
+  
+  .table tr:hover td:first-child {
+    background-color: #333;
   }
   
   .table tr:nth-child(even) {
@@ -239,6 +299,19 @@ html.dark-mode .table {
 html.dark-mode .table td {
   color: #f0f0f0 !important;
   border-bottom-color: #333 !important;
+}
+
+html.dark-mode .table th:first-child,
+html.dark-mode .table td:first-child {
+  background-color: #1e1e1e !important;
+}
+
+html.dark-mode .table tr:nth-child(even) td:first-child {
+  background-color: #252525 !important;
+}
+
+html.dark-mode .table tr:hover td:first-child {
+  background-color: #333 !important;
 }
 
 html.dark-mode .table tr:nth-child(even) {
