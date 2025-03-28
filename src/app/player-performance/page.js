@@ -22,9 +22,11 @@ const PlayerPerformancePage = () => {
     // Apply filters when data, position, week, or search term changes
     let data = [...playerData];
     
-    // Filter by position
+    // Filter by position - case insensitive matching
     if (selectedPosition && selectedPosition !== 'all') {
-      data = data.filter(player => player.position === selectedPosition);
+      data = data.filter(player => 
+        player.position?.toLowerCase() === selectedPosition.toLowerCase()
+      );
     }
     
     // Filter by week
@@ -88,7 +90,7 @@ const calculateMetrics = (player) => {
       // Common metrics
       runs: parseInt(player.Runs) || 0,
       totalPoints: parseInt(player["Total Points"]) || 0,
-      position: player["Position"]?.toLowerCase() || 'unknown', // Ensure lowercase for consistency
+      position: player["Player Position"]?.toLowerCase() || 'unknown', // Get position from Player Position field
       team: player.Team || 'unknown',
       name: player.Players || 'Unknown Player',
       week: parseInt(player.Week) || 0,
@@ -96,23 +98,23 @@ const calculateMetrics = (player) => {
       
       // Batting metrics
       fours: parseInt(player["4 Runs"]) || 0,
-      sixes: Math.floor(parseInt(player["6 Runs"] || 0) / 2),
-      thirties: Math.floor(parseInt(player["30 Runs"] || 0) / 25),
-      fifties: Math.floor(parseInt(player["Half Century"] || 0) / 50),
-      hundreds: Math.floor(parseInt(player.Century || 0) / 100),
+      sixes: parseInt(player["6 Runs"]) || 0,
+      thirties: parseInt(player["30 Runs"]) || 0,
+      fifties: parseInt(player["Half Century"]) || 0,
+      hundreds: parseInt(player.Century) || 0,
       
       // Bowling metrics
-      wickets: Math.floor(parseInt(player.Wicket || 0) / 25),
-      threeWickets: Math.floor(parseInt(player["3-Wicket"] || 0) / 50),
-      fourWickets: Math.floor(parseInt(player["4-Wicket"] || 0) / 100),
-      fiveWickets: Math.floor(parseInt(player["5-Wicket"] || 0) / 150),
-      maidens: Math.floor(parseInt(player["Maiden Over"] || 0) / 8),
+      wickets: parseInt(player.Wicket) || 0,
+      threeWickets: parseInt(player["3-Wicket"]) || 0,
+      fourWickets: parseInt(player["4-Wicket"]) || 0,
+      fiveWickets: parseInt(player["5-Wicket"]) || 0,
+      maidens: parseInt(player["Maiden Over"]) || 0,
       
       // Fielding metrics
-      catches: Math.floor(parseInt(player.Catch || 0) / 8),
-      stumpings: Math.floor(parseInt(player.Stumping || 0) / 12),
-      directThrows: Math.floor(parseInt(player["Direct Throw"] || 0) / 12),
-      runOuts: Math.floor(parseInt(player["Run out"] || 0) / 12)
+      catches: parseInt(player.Catch) || 0,
+      stumpings: parseInt(player.Stumping) || 0,
+      directThrows: parseInt(player["Direct Throw"]) || 0,
+      runOuts: parseInt(player["Run out"]) || 0
     };
   };
 
@@ -127,7 +129,6 @@ const calculateMetrics = (player) => {
             <th>Runs</th>
             <th>4s</th>
             <th>6s</th>
-            <th>30+</th>
             <th>50s</th>
             <th>100s</th>
             <th>Points</th>
@@ -139,9 +140,9 @@ const calculateMetrics = (player) => {
             <th>Player</th>
             <th>Team</th>
             <th>Wickets</th>
-            <th>3W Haul</th>
-            <th>4W Haul</th>
-            <th>5W Haul</th>
+            <th>3W</th>
+            <th>4W</th>
+            <th>5W</th>
             <th>Maidens</th>
             <th>Points</th>
           </tr>
@@ -154,7 +155,7 @@ const calculateMetrics = (player) => {
             <th>Runs</th>
             <th>Catches</th>
             <th>Stumpings</th>
-            <th>Run Outs</th>
+            <th>Dismissals</th>
             <th>Points</th>
           </tr>
         );
@@ -192,7 +193,6 @@ const calculateMetrics = (player) => {
             <td>{player.runs}</td>
             <td>{player.fours}</td>
             <td>{player.sixes}</td>
-            <td>{player.thirties}</td>
             <td>{player.fifties}</td>
             <td>{player.hundreds}</td>
             <td className={styles.pointsColumn}>{player.totalPoints}</td>
@@ -245,7 +245,7 @@ const calculateMetrics = (player) => {
                  player.position === 'bowler' ? 'Bowler' :
                  player.position === 'allrounder' ? 'All-rounder' :
                  player.position === 'wicketkeeper' ? 'Wicket-keeper' :
-                 player.position.toUpperCase()}
+                 player.position}
               </span>
             </td>
             <td className={styles.pointsColumn}>{player.totalPoints}</td>
@@ -270,17 +270,17 @@ const calculateMetrics = (player) => {
               <div className={styles.filterGroup}>
                 <label htmlFor="position-filter">Position:</label>
                 <select
-  id="position-filter"
-  className={styles.select}
-  value={selectedPosition}
-  onChange={(e) => setSelectedPosition(e.target.value)}
->
-  <option value="all">All Positions</option>
-  <option value="batsman">Batsmen</option>  // Should be "batsman" not "Batsmen"
-  <option value="bowler">Bowlers</option>   // Should be "bowler" not "Bowlers" 
-  <option value="allrounder">All-rounders</option>  // Should be "allrounder" not "All-rounders"
-  <option value="wicketkeeper">Wicket Keepers</option> // Should be "wicketkeeper" not "Wicket Keepers"
-</select>
+                  id="position-filter"
+                  className={styles.select}
+                  value={selectedPosition}
+                  onChange={(e) => setSelectedPosition(e.target.value)}
+                >
+                  <option value="all">All Positions</option>
+                  <option value="batsman">Batsman</option>  
+                  <option value="bowler">Bowler</option>   
+                  <option value="allrounder">All-rounder</option>  
+                  <option value="wicketkeeper">Wicket-keeper</option>
+                </select>
               </div>
               
               <div className={styles.filterGroup}>
