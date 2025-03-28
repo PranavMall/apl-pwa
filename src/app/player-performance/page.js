@@ -44,12 +44,12 @@ const PlayerPerformancePage = () => {
     setFilteredData(data);
   }, [playerData, selectedPosition, selectedWeek, searchTerm]);
 
-  const fetchPlayerPerformanceData = async () => {
+const fetchPlayerPerformanceData = async () => {
     try {
       setLoading(true);
       
-      // Fetch data from the API endpoint that gets data from Google Sheets
-      const response = await fetch('/api/sync/player-stats?sheetId=1G8NTmAzg1NqRpgp4FOBWWzfxf59UyfzbLVCL992hDpM');
+      // Fetch data from our API endpoint
+      const response = await fetch('/api/player-performance?sheetId=1G8NTmAzg1NqRpgp4FOBWWzfxf59UyfzbLVCL992hDpM');
       
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}`);
