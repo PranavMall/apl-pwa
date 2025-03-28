@@ -270,17 +270,17 @@ const calculateMetrics = (player) => {
               <div className={styles.filterGroup}>
                 <label htmlFor="position-filter">Position:</label>
                 <select
-                  id="position-filter"
-                  className={styles.select}
-                  value={selectedPosition}
-                  onChange={(e) => setSelectedPosition(e.target.value)}
-                >
-                  <option value="all">All Positions</option>
-                  <option value="batsman">Batsmen</option>
-                  <option value="bowler">Bowlers</option>
-                  <option value="allrounder">All-rounders</option>
-                  <option value="wicketkeeper">Wicket Keepers</option>
-                </select>
+  id="position-filter"
+  className={styles.select}
+  value={selectedPosition}
+  onChange={(e) => setSelectedPosition(e.target.value)}
+>
+  <option value="all">All Positions</option>
+  <option value="batsman">Batsmen</option>  // Should be "batsman" not "Batsmen"
+  <option value="bowler">Bowlers</option>   // Should be "bowler" not "Bowlers" 
+  <option value="allrounder">All-rounders</option>  // Should be "allrounder" not "All-rounders"
+  <option value="wicketkeeper">Wicket Keepers</option> // Should be "wicketkeeper" not "Wicket Keepers"
+</select>
               </div>
               
               <div className={styles.filterGroup}>
