@@ -94,268 +94,269 @@ export class SheetsSyncService {
     }
   }
 
-  /**
-   * Update user weekly stats using the transfer history system
-   * @param {Array} performanceData - Array of player performance data from sheets
-   * @returns {Promise<Object>} - Result of the operation
-   */
-  static async updateUserStats(performanceData) {
-    try {
-      console.log('Updating user stats from performance data using transfer history...');
+/**
+ * Update user weekly stats using the transfer history system
+ * This function ensures that the correct team is used for each week
+ * @param {Array} performanceData - Array of player performance data from sheets
+ * @returns {Promise<Object>} - Result of the operation
+ */
+static async updateUserStats(performanceData) {
+  try {
+    console.log('Updating user stats from performance data using transfer history...');
+    
+    // Get active tournament
+    const tournament = await transferService.getActiveTournament();
+    if (!tournament) {
+      return { success: false, error: 'No active tournament found' };
+    }
+    
+    // Process data by week and match
+    const weekGroups = new Map();
+    
+    // Group data by week and match
+    performanceData.forEach(playerData => {
+      const week = playerData.Week;
+      const matchId = playerData.Match;
+      const playerName = playerData.Players;
+      const teamName = playerData.Team;
+      const totalPoints = parseFloat(playerData['Total Points']) || 0;
       
-      // Get active tournament
-      const tournament = await transferService.getActiveTournament();
-      if (!tournament) {
-        return { success: false, error: 'No active tournament found' };
+      if (!week || !matchId || !playerName) return;
+      
+      const weekNum = parseInt(week);
+      if (isNaN(weekNum)) return;
+      
+      // Create key for this week if it doesn't exist
+      if (!weekGroups.has(weekNum)) {
+        weekGroups.set(weekNum, new Map());
       }
       
-      // Process data by week and match
-      const weekGroups = new Map();
-      
-      // Group data by week and match
-      performanceData.forEach(playerData => {
-        const week = playerData.Week;
-        const matchId = playerData.Match;
-        const playerName = playerData.Players;
-        const teamName = playerData.Team;
-        const totalPoints = parseFloat(playerData['Total Points']) || 0;
-        
-        if (!week || !matchId || !playerName) return;
-        
-        const weekNum = parseInt(week);
-        if (isNaN(weekNum)) return;
-        
-        // Create key for this week if it doesn't exist
-        if (!weekGroups.has(weekNum)) {
-          weekGroups.set(weekNum, new Map());
-        }
-        
-        // Create key for this match if it doesn't exist
-        const matchesInWeek = weekGroups.get(weekNum);
-        if (!matchesInWeek.has(matchId)) {
-          matchesInWeek.set(matchId, []);
-        }
-        
-        // Add player data to the specific match in this week
-        matchesInWeek.get(matchId).push({
-          weekNumber: weekNum,
-          matchId,
-          playerName,
-          teamName,
-          totalPoints
-        });
-      });
-      
-      // Get all user teams for this tournament
-      const userTeamsRef = collection(db, 'userTeams');
-      const userTeamsQuery = query(userTeamsRef, where('tournamentId', '==', tournament.id));
-      const teamsSnapshot = await getDocs(userTeamsQuery);
-      
-      if (teamsSnapshot.empty) {
-        return { success: false, error: 'No user teams found for this tournament' };
+      // Create key for this match if it doesn't exist
+      const matchesInWeek = weekGroups.get(weekNum);
+      if (!matchesInWeek.has(matchId)) {
+        matchesInWeek.set(matchId, []);
       }
       
-      const userIds = [];
-      teamsSnapshot.forEach(doc => {
-        userIds.push(doc.data().userId);
+      // Add player data to the specific match in this week
+      matchesInWeek.get(matchId).push({
+        weekNumber: weekNum,
+        matchId,
+        playerName,
+        teamName,
+        totalPoints
       });
-      
-      // Process each week's data
-      const results = [];
-      
-      for (const [weekNum, matchesMap] of weekGroups.entries()) {
-        try {
-          console.log(`Processing Week ${weekNum} data with ${matchesMap.size} matches`);
-          
-          // Process each user
-          for (const userId of userIds) {
-            try {
-              // Get the correct team for this week from transfer history
-              // This is the critical part that uses the new transfer history system
-              let teamPlayers = await this.getTeamForWeek(userId, tournament.id, weekNum);
-              
-              if (!teamPlayers || teamPlayers.length === 0) {
-                console.warn(`No team found for user ${userId} in week ${weekNum}, skipping`);
-                continue;
-              }
-              
-              // Get existing weekly stats document
-              const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournament.id}_${weekNum}`);
-              const weeklyStatsDoc = await getDoc(weeklyStatsRef);
-              
-              // Clear and recalculate all points from scratch for this week to avoid duplication
-              let pointsBreakdown = [];
-              let processedMatches = [];
-              let weeklyPoints = 0;
-              
-              // Process each match in this week
-              for (const [matchId, matchPlayers] of matchesMap.entries()) {
-                console.log(`Processing match ${matchId} for user ${userId}`);
-                
-                // Calculate match points for this user's team
-                const matchBreakdown = [];
-                
-                // Check each of the user's players
-                for (const player of teamPlayers) {
-                  // Find this player in the match data
-                  // We'll do a case-insensitive match on player name
-                  const playerPerformance = matchPlayers.find(p => 
-                    p.playerName.toLowerCase() === player.name.toLowerCase()
-                  );
-                  
-                  if (playerPerformance) {
-                    let basePoints = playerPerformance.totalPoints;
-                    let playerPoints = basePoints;
-                    
-                    // Apply captain/vice-captain multipliers
-                    if (player.isCaptain) {
-                      playerPoints *= 2;
-                    } else if (player.isViceCaptain) {
-                      playerPoints *= 1.5;
-                    }
-                    
-                    // Add to breakdown
-                    matchBreakdown.push({
-                      playerId: player.id,
-                      playerName: player.name,
-                      basePoints: basePoints,
-                      finalPoints: playerPoints,
-                      isCaptain: player.isCaptain || false,
-                      isViceCaptain: player.isViceCaptain || false,
-                      multiplier: player.isCaptain ? 2 : (player.isViceCaptain ? 1.5 : 1),
-                      matchId: matchId // Include match ID for future tracking
-                    });
-                    
-                    // Add to total
-                    weeklyPoints += playerPoints;
-                  }
-                }
-                
-                // Add this match's breakdown to overall breakdown
-                pointsBreakdown = [...pointsBreakdown, ...matchBreakdown];
-                
-                // Add this match to processed matches
-                processedMatches.push(matchId);
-              }
-              
-              // Update or create the weekly stats document
-              if (weeklyStatsDoc.exists()) {
-                // Update existing stats
-                await updateDoc(weeklyStatsRef, {
-                  points: weeklyPoints,
-                  pointsBreakdown: pointsBreakdown,
-                  processedMatches: processedMatches,
-                  updatedAt: new Date()
-                });
-              } else {
-                // Create new stats
-                await setDoc(weeklyStatsRef, {
-                  userId: userId,
-                  tournamentId: tournament.id,
-                  weekNumber: weekNum,
-                  points: weeklyPoints,
-                  pointsBreakdown: pointsBreakdown,
-                  processedMatches: processedMatches,
-                  rank: 0, // Will be updated by ranking function
-                  transferWindowId: `${weekNum}`,
-                  createdAt: new Date()
-                });
-              }
-              
-              console.log(`Updated stats for user ${userId}, week ${weekNum}: ${weeklyPoints} points`);
-            } catch (userError) {
-              console.error(`Error processing user ${userId} for week ${weekNum}:`, userError);
+    });
+    
+    // Get all user teams for this tournament
+    const userTeamsRef = collection(db, 'userTeams');
+    const userTeamsQuery = query(userTeamsRef, where('tournamentId', '==', tournament.id));
+    const teamsSnapshot = await getDocs(userTeamsQuery);
+    
+    if (teamsSnapshot.empty) {
+      return { success: false, error: 'No user teams found for this tournament' };
+    }
+    
+    const userIds = [];
+    teamsSnapshot.forEach(doc => {
+      userIds.push(doc.data().userId);
+    });
+    
+    // Process each week's data
+    const results = [];
+    
+    for (const [weekNum, matchesMap] of weekGroups.entries()) {
+      try {
+        console.log(`Processing Week ${weekNum} data with ${matchesMap.size} matches`);
+        
+        // Process each user
+        for (const userId of userIds) {
+          try {
+            // Get the correct team for this week from transfer history
+            // This is the critical part that uses the new transfer history system
+            let teamPlayers = await this.getTeamForWeek(userId, tournament.id, weekNum);
+            
+            if (!teamPlayers || teamPlayers.length === 0) {
+              console.warn(`No team found for user ${userId} in week ${weekNum}, skipping`);
+              continue;
             }
+            
+            // Get existing weekly stats document
+            const weeklyStatsRef = doc(db, 'userWeeklyStats', `${userId}_${tournament.id}_${weekNum}`);
+            const weeklyStatsDoc = await getDoc(weeklyStatsRef);
+            
+            // Clear and recalculate all points from scratch for this week to avoid duplication
+            let pointsBreakdown = [];
+            let processedMatches = [];
+            let weeklyPoints = 0;
+            
+            // Process each match in this week
+            for (const [matchId, matchPlayers] of matchesMap.entries()) {
+              console.log(`Processing match ${matchId} for user ${userId}`);
+              
+              // Calculate match points for this user's team
+              const matchBreakdown = [];
+              
+              // Check each of the user's players
+              for (const player of teamPlayers) {
+                // Find this player in the match data
+                // We'll do a case-insensitive match on player name
+                const playerPerformance = matchPlayers.find(p => 
+                  p.playerName.toLowerCase() === player.name.toLowerCase()
+                );
+                
+                if (playerPerformance) {
+                  let basePoints = playerPerformance.totalPoints;
+                  let playerPoints = basePoints;
+                  
+                  // Apply captain/vice-captain multipliers
+                  if (player.isCaptain) {
+                    playerPoints *= 2;
+                  } else if (player.isViceCaptain) {
+                    playerPoints *= 1.5;
+                  }
+                  
+                  // Add to breakdown
+                  matchBreakdown.push({
+                    playerId: player.id,
+                    playerName: player.name,
+                    basePoints: basePoints,
+                    finalPoints: playerPoints,
+                    isCaptain: player.isCaptain || false,
+                    isViceCaptain: player.isViceCaptain || false,
+                    multiplier: player.isCaptain ? 2 : (player.isViceCaptain ? 1.5 : 1),
+                    matchId: matchId // Include match ID for future tracking
+                  });
+                  
+                  // Add to total
+                  weeklyPoints += playerPoints;
+                }
+              }
+              
+              // Add this match's breakdown to overall breakdown
+              pointsBreakdown = [...pointsBreakdown, ...matchBreakdown];
+              
+              // Add this match to processed matches
+              processedMatches.push(matchId);
+            }
+            
+            // Update or create the weekly stats document
+            if (weeklyStatsDoc.exists()) {
+              // Update existing stats
+              await updateDoc(weeklyStatsRef, {
+                points: weeklyPoints,
+                pointsBreakdown: pointsBreakdown,
+                processedMatches: processedMatches,
+                updatedAt: new Date()
+              });
+            } else {
+              // Create new stats
+              await setDoc(weeklyStatsRef, {
+                userId: userId,
+                tournamentId: tournament.id,
+                weekNumber: weekNum,
+                points: weeklyPoints,
+                pointsBreakdown: pointsBreakdown,
+                processedMatches: processedMatches,
+                rank: 0, // Will be updated by ranking function
+                transferWindowId: `${weekNum}`,
+                createdAt: new Date()
+              });
+            }
+            
+            console.log(`Updated stats for user ${userId}, week ${weekNum}: ${weeklyPoints} points`);
+          } catch (userError) {
+            console.error(`Error processing user ${userId} for week ${weekNum}:`, userError);
           }
-          
-          // Update weekly rankings
-          await transferService.updateWeeklyRankings(tournament.id, weekNum);
-          
-          // Count total players across all matches in this week
-          let totalPlayersProcessed = 0;
-          for (const players of matchesMap.values()) {
-            totalPlayersProcessed += players.length;
-          }
-          
-          results.push({
-            week: weekNum,
-            status: 'success',
-            playersProcessed: totalPlayersProcessed,
-            matchesProcessed: matchesMap.size,
-            teamsProcessed: userIds.length
-          });
-        } catch (weekError) {
-          console.error(`Error processing week ${weekNum}:`, weekError);
-          results.push({
-            week: weekNum,
-            status: 'error',
-            error: weekError.message
-          });
-        }
-      }
-      
-      // Update overall rankings
-      await transferService.updateOverallRankings(tournament.id);
-      
-      return {
-        success: true,
-        results
-      };
-    } catch (error) {
-      console.error('Error updating user stats from sheets:', error);
-      return { success: false, error: error.message };
-    }
-  }
-  
-  /**
-   * Get the correct team for a specific week using transfer history
-   * @param {string} userId - The user ID
-   * @param {string} tournamentId - The tournament ID
-   * @param {number} weekNumber - The week number
-   * @returns {Promise<Array>} - Array of players for this week
-   */
-  static async getTeamForWeek(userId, tournamentId, weekNumber) {
-    try {
-      // First check transfer history for this specific week
-      const transferHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournamentId}_${weekNumber}`);
-      const transferHistoryDoc = await getDoc(transferHistoryRef);
-      
-      if (transferHistoryDoc.exists()) {
-        // Use the team from this week's transfer history
-        console.log(`Found transfer history for user ${userId}, week ${weekNumber}`);
-        return transferHistoryDoc.data().players;
-      }
-      
-      // If no transfer for this week, find the most recent transfer before this week
-      console.log(`No transfer history found for user ${userId}, week ${weekNumber}, looking for previous weeks`);
-      
-      let currentWeek = weekNumber - 1;
-      while (currentWeek > 0) {
-        const prevHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournamentId}_${currentWeek}`);
-        const prevHistoryDoc = await getDoc(prevHistoryRef);
-        
-        if (prevHistoryDoc.exists()) {
-          console.log(`Found transfer history for user ${userId}, week ${currentWeek}`);
-          return prevHistoryDoc.data().players;
         }
         
-        currentWeek--;
+        // Update weekly rankings
+        await transferService.updateWeeklyRankings(tournament.id, weekNum);
+        
+        // Count total players across all matches in this week
+        let totalPlayersProcessed = 0;
+        for (const players of matchesMap.values()) {
+          totalPlayersProcessed += players.length;
+        }
+        
+        results.push({
+          week: weekNum,
+          status: 'success',
+          playersProcessed: totalPlayersProcessed,
+          matchesProcessed: matchesMap.size,
+          teamsProcessed: userIds.length
+        });
+      } catch (weekError) {
+        console.error(`Error processing week ${weekNum}:`, weekError);
+        results.push({
+          week: weekNum,
+          status: 'error',
+          error: weekError.message
+        });
       }
-      
-      // If still no team found, use current team
-      console.log(`No transfer history found for any previous week, using current team for user ${userId}`);
-      const teamRef = doc(db, 'userTeams', `${userId}_${tournamentId}`);
-      const teamDoc = await getDoc(teamRef);
-      
-      if (teamDoc.exists()) {
-        return teamDoc.data().players;
-      }
-      
-      // If no team found, return empty array
-      return [];
-    } catch (error) {
-      console.error(`Error getting team for week ${weekNumber}:`, error);
-      throw error;
     }
+    
+    // Update overall rankings
+    await transferService.updateOverallRankings(tournament.id);
+    
+    return {
+      success: true,
+      results
+    };
+  } catch (error) {
+    console.error('Error updating user stats from sheets:', error);
+    return { success: false, error: error.message };
   }
+}
+
+/**
+ * Get the correct team for a specific week using transfer history
+ * @param {string} userId - The user ID
+ * @param {string} tournamentId - The tournament ID
+ * @param {number} weekNumber - The week number
+ * @returns {Promise<Array>} - Array of players for this week
+ */
+static async getTeamForWeek(userId, tournamentId, weekNumber) {
+  try {
+    // First check transfer history for this specific week
+    const transferHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournamentId}_${weekNumber}`);
+    const transferHistoryDoc = await getDoc(transferHistoryRef);
+    
+    if (transferHistoryDoc.exists()) {
+      // Use the team from this week's transfer history
+      console.log(`Found transfer history for user ${userId}, week ${weekNumber}`);
+      return transferHistoryDoc.data().players;
+    }
+    
+    // If no transfer for this week, find the most recent transfer before this week
+    console.log(`No transfer history found for user ${userId}, week ${weekNumber}, looking for previous weeks`);
+    
+    let currentWeek = weekNumber - 1;
+    while (currentWeek > 0) {
+      const prevHistoryRef = doc(db, 'userTransferHistory', `${userId}_${tournamentId}_${currentWeek}`);
+      const prevHistoryDoc = await getDoc(prevHistoryRef);
+      
+      if (prevHistoryDoc.exists()) {
+        console.log(`Found transfer history for user ${userId}, week ${currentWeek}`);
+        return prevHistoryDoc.data().players;
+      }
+      
+      currentWeek--;
+    }
+    
+    // If still no team found, use current team
+    console.log(`No transfer history found for any previous week, using current team for user ${userId}`);
+    const teamRef = doc(db, 'userTeams', `${userId}_${tournamentId}`);
+    const teamDoc = await getDoc(teamRef);
+    
+    if (teamDoc.exists()) {
+      return teamDoc.data().players;
+    }
+    
+    // If no team found, return empty array
+    return [];
+  } catch (error) {
+    console.error(`Error getting team for week ${weekNumber}:`, error);
+    throw error;
+  }
+}
 }
