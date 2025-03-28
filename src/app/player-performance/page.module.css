@@ -185,63 +185,10 @@
   .searchInput {
     width: 100%;
   }
-  
-  /* Mobile table view */
-  .table {
-    min-width: auto;
-    width: 100%;
-  }
-  
-  .table th, .table td {
-    padding: 10px 8px;
-    font-size: 0.9rem;
-  }
-  
-  /* Card style for mobile table rows */
-  .table tbody tr {
-    display: flex;
-    flex-direction: column;
-    border-bottom: 1px solid #eee;
-    padding: 10px 0;
-  }
-  
-  .table tbody td {
-    border: none;
-    padding: 5px 10px;
-    text-align: left;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .table tbody td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    margin-right: 10px;
-  }
-  
-  .table thead {
-    display: none;
-  }
-  
-  .pointsColumn {
-    font-size: 1.1rem;
-  }
 }
-
-
 
 /* Dark mode compatibility */
 @media (prefers-color-scheme: dark) {
-  body, .container {
-    background: #121212;
-  }
-  
-  .pageTitle, h1, h2, h3 {
-    color: #f0f0f0;
-  }
-  
   .table {
     background: #1e1e1e;
   }
@@ -264,8 +211,7 @@
   }
   
   .select,
-  .searchInput,
-  .positionTab {
+  .searchInput {
     background-color: #2d2d2d;
     color: #f0f0f0;
     border-color: #444;
@@ -280,8 +226,8 @@
     color: #aaa;
   }
   
-  .positionTab:hover:not(.activeTab) {
-    background-color: #3d3d3d;
+  .pageTitle {
+    color: #f0f0f0;
   }
 }
 
@@ -321,52 +267,4 @@ html.dark-mode .noData {
 
 html.dark-mode .pageTitle {
   color: #f0f0f0 !important;
-}
-
-/* Position tabs */
-.positionTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-  width: 100%;
-}
-
-.positionTab {
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  background: white;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex: 1;
-  min-width: 100px;
-  text-align: center;
-  color: #333;
-}
-
-.positionTab:hover {
-  background: #f5f5f5;
-}
-
-.positionTab.activeTab {
-  background: linear-gradient(45deg, #ff9a00, #ff6a00);
-  color: white;
-  border-color: transparent;
-}
-
-@media (max-width: 768px) {
-  .positionTabs {
-    overflow-x: auto;
-    padding-bottom: 5px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .positionTab {
-    padding: 8px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-  }
 }
