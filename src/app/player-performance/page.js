@@ -190,23 +190,23 @@ const PlayerPerformancePage = () => {
       
       // Batting metrics
       fours: parseInt(player["4 Runs"]) || 0,
-      sixes: parseInt(player["6 Runs"]) || 0,
-      thirties: parseInt(player["30 Runs"]) || 0,
-      fifties: parseInt(player["Half Century"]) || 0,
-      hundreds: parseInt(player.Century) || 0,
+      sixes: parseInt(player["6 Runs"])/2 || 0,
+      thirties: parseInt(player["30 Runs"])/25 || 0,
+      fifties: parseInt(player["Half Century"])/50 || 0,
+      hundreds: parseInt(player.Century)/100 || 0,
       
       // Bowling metrics
-      wickets: parseInt(player.Wicket) || 0,
-      threeWickets: parseInt(player["3-Wicket"]) || 0,
-      fourWickets: parseInt(player["4-Wicket"]) || 0,
-      fiveWickets: parseInt(player["5-Wicket"]) || 0,
-      maidens: parseInt(player["Maiden Over"]) || 0,
+      wickets: parseInt(player.Wicket)/25 || 0,
+      threeWickets: parseInt(player["3-Wicket"])/50 || 0,
+      fourWickets: parseInt(player["4-Wicket"])/100 || 0,
+      fiveWickets: parseInt(player["5-Wicket"])/150 || 0,
+      maidens: parseInt(player["Maiden Over"])/8 || 0,
       
       // Fielding metrics
-      catches: parseInt(player.Catch) || 0,
-      stumpings: parseInt(player.Stumping) || 0,
-      directThrows: parseInt(player["Direct Throw"]) || 0,
-      runOuts: parseInt(player["Run out"]) || 0,
+      catches: parseInt(player.Catch)/8 || 0,
+      stumpings: parseInt(player.Stumping)/12 || 0,
+      directThrows: parseInt(player["Direct Throw"])/12 || 0,
+      runOuts: parseInt(player["Run out"])/12 || 0,
       
       // Keep the raw player data for debugging
       raw: { ...player }
