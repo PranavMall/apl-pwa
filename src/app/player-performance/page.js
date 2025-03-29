@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { db } from '../../../firebase';
 import styles from './page.module.css';
 
 const PlayerPerformancePage = () => {
@@ -13,10 +15,50 @@ const PlayerPerformancePage = () => {
   const [selectedWeek, setSelectedWeek] = useState('all');
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Add state for player master data
+  const [playerMasterData, setPlayerMasterData] = useState({});
 
   useEffect(() => {
-    fetchPlayerPerformanceData();
+    // Fetch player master data first, then fetch performance data
+    fetchPlayerMasterData()
+      .then(() => {
+        fetchPlayerPerformanceData();
+      })
+      .catch(err => {
+        console.error('Error in initialization:', err);
+        setError('Failed to initialize the page. Please try again later.');
+        setLoading(false);
+      });
   }, []);
+
+  // Fetch player master data from Firebase
+  const fetchPlayerMasterData = async () => {
+    try {
+      console.log('Fetching player master data from Firebase...');
+      const playerMasterRef = collection(db, 'playersMaster');
+      const snapshot = await getDocs(query(playerMasterRef));
+      
+      const masterData = {};
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        // Create a lookup with player name as key
+        if (data.name) {
+          masterData[data.name.toLowerCase()] = {
+            id: doc.id,
+            role: data.role || 'unknown',
+            team: data.team || 'unknown'
+          };
+        }
+      });
+      
+      console.log(`Loaded ${Object.keys(masterData).length} players from master database`);
+      setPlayerMasterData(masterData);
+      return masterData;
+    } catch (err) {
+      console.error('Error fetching player master data:', err);
+      throw err;
+    }
+  };
 
   useEffect(() => {
     // Apply filters when data, position, week, or search term changes
@@ -65,7 +107,7 @@ const PlayerPerformancePage = () => {
       
       // Process the raw data from Google Sheets
       const processedData = result.processedRows ? 
-        result.processedRows.map(row => calculateMetrics(row)) : [];
+        result.processedRows.map(row => calculateMetrics(row, playerMasterData)) : [];
       
       console.log("Sample processed player data:", processedData.slice(0, 2));
       
@@ -87,91 +129,89 @@ const PlayerPerformancePage = () => {
   };
 
   // Helper function to calculate metrics from points
-  const calculateMetrics = (player) => {
-  // Try different possible position field names
-  // This handles variations in column naming from Google Sheets
-  let position = player["Player Position"] || 
-                player["player position"] || 
-                player["Player-Position"] || 
-                player["Position"] || 
-                player["position"] || 
-                'unknown';
-  
-  // If position is unknown, try to infer it from other stats
-  if (position === 'unknown') {
-    // Wicketkeepers typically have stumping stats
-    if (parseInt(player["Stumping"] || 0) > 0) {
+  const calculateMetrics = (player, masterData) => {
+    // Try to get position from master database first
+    let position = 'unknown';
+    const playerName = player.Players?.toLowerCase() || '';
+    
+    // Look up player by name in master data
+    if (playerName && masterData[playerName]) {
+      position = masterData[playerName].role;
+      console.log(`Found position in master DB for ${player.Players}: ${position}`);
+    } 
+    // Fallback to position column in Google Sheets if available
+    else if (player["Player Position"]) {
+      position = player["Player Position"].toLowerCase();
+      console.log(`Using sheet position for ${player.Players}: ${position}`);
+    }
+    // If still unknown, try to infer it from stats
+    else {
+      // Inference logic as fallback
+      if (parseInt(player["Stumping"] || 0) > 0) {
+        position = 'wicketkeeper';
+      }
+      else if (parseInt(player["Wicket"] || 0) > 0 || 
+               parseInt(player["3-Wicket"] || 0) > 0 || 
+               parseInt(player["Maiden Over"] || 0) > 0) {
+        position = 'bowler';
+      }
+      else if ((parseInt(player["Runs"] || 0) > 0) && 
+               (parseInt(player["Wicket"] || 0) > 0 || parseInt(player["Catch"] || 0) > 0)) {
+        position = 'allrounder';
+      }
+      else if (parseInt(player["Runs"] || 0) > 0 || 
+               parseInt(player["4 Runs"] || 0) > 0 || 
+               parseInt(player["6 Runs"] || 0) > 0) {
+        position = 'batsman';
+      }
+      console.log(`Inferred position for ${player.Players}: ${position}`);
+    }
+    
+    // Normalize position names
+    if (position.includes('bat') || position === 'batter') {
+      position = 'batsman';
+    } else if (position.includes('bowl')) {
+      position = 'bowler';
+    } else if (position.includes('all') || position.includes('rounder')) {
+      position = 'allrounder';
+    } else if (position.includes('keep') || position.includes('wk')) {
       position = 'wicketkeeper';
     }
-    // Bowlers typically have wickets
-    else if (parseInt(player["Wicket"] || 0) > 0 || 
-             parseInt(player["3-Wicket"] || 0) > 0 || 
-             parseInt(player["Maiden Over"] || 0) > 0) {
-      position = 'bowler';
-    }
-    // All-rounders have both batting and bowling stats
-    else if ((parseInt(player["Runs"] || 0) > 0) && 
-             (parseInt(player["Wicket"] || 0) > 0 || parseInt(player["Catch"] || 0) > 0)) {
-      position = 'allrounder';
-    }
-    // Batsmen typically have runs
-    else if (parseInt(player["Runs"] || 0) > 0 || 
-             parseInt(player["4 Runs"] || 0) > 0 || 
-             parseInt(player["6 Runs"] || 0) > 0) {
-      position = 'batsman';
-    }
-  }
-  
-  // Ensure position is lowercase for consistency
-  position = position.toLowerCase();
-  
-  // Map potential variations to our standard position names
-  if (position.includes('bat') || position === 'batter') {
-    position = 'batsman';
-  } else if (position.includes('bowl')) {
-    position = 'bowler';
-  } else if (position.includes('all') || position.includes('rounder')) {
-    position = 'allrounder';
-  } else if (position.includes('keep') || position.includes('wk')) {
-    position = 'wicketkeeper';
-  }
-  
-  console.log(`Player ${player.Players}, Position: ${position}`);
-  
-  return {
-    // Common metrics
-    runs: parseInt(player.Runs) || 0,
-    totalPoints: parseInt(player["Total Points"]) || 0,
-    position: position,
-    team: player.Team || 'unknown',
-    name: player.Players || 'Unknown Player',
-    week: parseInt(player.Week) || 0,
-    match: player.Match || '',
     
-    // Batting metrics
-    fours: parseInt(player["4 Runs"]) || 0,
-    sixes: parseInt(player["6 Runs"]) || 0,
-    thirties: parseInt(player["30 Runs"]) || 0,
-    fifties: parseInt(player["Half Century"]) || 0,
-    hundreds: parseInt(player.Century) || 0,
-    
-    // Bowling metrics
-    wickets: parseInt(player.Wicket) || 0,
-    threeWickets: parseInt(player["3-Wicket"]) || 0,
-    fourWickets: parseInt(player["4-Wicket"]) || 0,
-    fiveWickets: parseInt(player["5-Wicket"]) || 0,
-    maidens: parseInt(player["Maiden Over"]) || 0,
-    
-    // Fielding metrics
-    catches: parseInt(player.Catch) || 0,
-    stumpings: parseInt(player.Stumping) || 0,
-    directThrows: parseInt(player["Direct Throw"]) || 0,
-    runOuts: parseInt(player["Run out"]) || 0,
-    
-    // Keep the raw player data for debugging
-    raw: { ...player }
+    return {
+      // Common metrics
+      runs: parseInt(player.Runs) || 0,
+      totalPoints: parseInt(player["Total Points"]) || 0,
+      position: position,
+      team: player.Team || 'unknown',
+      name: player.Players || 'Unknown Player',
+      week: parseInt(player.Week) || 0,
+      match: player.Match || '',
+      
+      // Batting metrics
+      fours: parseInt(player["4 Runs"]) || 0,
+      sixes: parseInt(player["6 Runs"]) || 0,
+      thirties: parseInt(player["30 Runs"]) || 0,
+      fifties: parseInt(player["Half Century"]) || 0,
+      hundreds: parseInt(player.Century) || 0,
+      
+      // Bowling metrics
+      wickets: parseInt(player.Wicket) || 0,
+      threeWickets: parseInt(player["3-Wicket"]) || 0,
+      fourWickets: parseInt(player["4-Wicket"]) || 0,
+      fiveWickets: parseInt(player["5-Wicket"]) || 0,
+      maidens: parseInt(player["Maiden Over"]) || 0,
+      
+      // Fielding metrics
+      catches: parseInt(player.Catch) || 0,
+      stumpings: parseInt(player.Stumping) || 0,
+      directThrows: parseInt(player["Direct Throw"]) || 0,
+      runOuts: parseInt(player["Run out"]) || 0,
+      
+      // Keep the raw player data for debugging
+      raw: { ...player }
+    };
   };
-};
 
   // Function to render player statistics in a mobile-friendly card format
   const renderPlayerCard = (player) => {
