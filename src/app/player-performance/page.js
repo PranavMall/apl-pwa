@@ -46,7 +46,7 @@ const PlayerPerformancePage = () => {
     setFilteredData(data);
   }, [playerData, selectedPosition, selectedWeek, searchTerm]);
 
-const fetchPlayerPerformanceData = async () => {
+  const fetchPlayerPerformanceData = async () => {
     try {
       setLoading(true);
       
@@ -67,6 +67,8 @@ const fetchPlayerPerformanceData = async () => {
       const processedData = result.processedRows ? 
         result.processedRows.map(row => calculateMetrics(row)) : [];
       
+      console.log("Sample processed player data:", processedData.slice(0, 2));
+      
       // Extract available weeks for filter
       const weeks = new Set();
       processedData.forEach(player => {
@@ -85,12 +87,15 @@ const fetchPlayerPerformanceData = async () => {
   };
 
   // Helper function to calculate metrics from points
-const calculateMetrics = (player) => {
+  const calculateMetrics = (player) => {
+    // Properly extract position, ensuring it's not undefined
+    const position = player["Player Position"]?.toLowerCase() || 'unknown';
+    
     return {
       // Common metrics
       runs: parseInt(player.Runs) || 0,
       totalPoints: parseInt(player["Total Points"]) || 0,
-      position: player["Player Position"] || 'unknown', // Get position from Player Position field
+      position: position,
       team: player.Team || 'unknown',
       name: player.Players || 'Unknown Player',
       week: parseInt(player.Week) || 0,
@@ -114,144 +119,214 @@ const calculateMetrics = (player) => {
       catches: parseInt(player.Catch) || 0,
       stumpings: parseInt(player.Stumping) || 0,
       directThrows: parseInt(player["Direct Throw"]) || 0,
-      runOuts: parseInt(player["Run out"]) || 0
+      runOuts: parseInt(player["Run out"]) || 0,
+      
+      // Keep the raw player data for debugging
+      raw: { ...player }
     };
   };
 
-  // Function to render table headers based on player position
-  const renderTableHeaders = () => {
-    switch (selectedPosition) {
-      case 'batsman':
-        return (
-          <tr>
-            <th>Player</th>
-            <th>Team</th>
-            <th>Runs</th>
-            <th>4s</th>
-            <th>6s</th>
-            <th>50s</th>
-            <th>100s</th>
-            <th>Points</th>
-          </tr>
-        );
-      case 'bowler':
-        return (
-          <tr>
-            <th>Player</th>
-            <th>Team</th>
-            <th>Wickets</th>
-            <th>3W</th>
-            <th>4W</th>
-            <th>5W</th>
-            <th>Maidens</th>
-            <th>Points</th>
-          </tr>
-        );
-      case 'wicketkeeper':
-        return (
-          <tr>
-            <th>Player</th>
-            <th>Team</th>
-            <th>Runs</th>
-            <th>Catches</th>
-            <th>Stumpings</th>
-            <th>Dismissals</th>
-            <th>Points</th>
-          </tr>
-        );
-      case 'allrounder':
-        return (
-          <tr>
-            <th>Player</th>
-            <th>Team</th>
-            <th>Runs</th>
-            <th>Wickets</th>
-            <th>Catches</th>
-            <th>Points</th>
-          </tr>
-        );
-      default:
-        return (
-          <tr>
-            <th>Player</th>
-            <th>Team</th>
-            <th>Position</th>
-            <th>Points</th>
-          </tr>
-        );
-    }
+  // Function to render player statistics in a mobile-friendly card format
+  const renderPlayerCard = (player) => {
+    return (
+      <div key={`${player.name}-${player.week}-${player.match}`} className={styles.playerCard}>
+        <div className={styles.playerCardHeader}>
+          <h3 className={styles.playerName}>{player.name}</h3>
+          <span className={styles.playerTeam}>{player.team}</span>
+        </div>
+        
+        <div className={styles.playerCardBody}>
+          <div className={styles.positionBadge}>
+            <span className={`${styles.roleBadge} ${styles[player.position]}`}>
+              {player.position === 'batsman' ? 'Batsman' :
+               player.position === 'bowler' ? 'Bowler' :
+               player.position === 'allrounder' ? 'All-rounder' :
+               player.position === 'wicketkeeper' ? 'Wicket-keeper' :
+               player.position}
+            </span>
+          </div>
+          
+          <div className={styles.statGroups}>
+            {/* Common stats for all players */}
+            <div className={styles.statGroup}>
+              <div className={styles.stat}>
+                <span className={styles.statLabel}>Points</span>
+                <span className={styles.statValue}>{player.totalPoints}</span>
+              </div>
+            </div>
+            
+            {/* Position-specific stats */}
+            {player.position === 'batsman' && (
+              <div className={styles.statGroup}>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Runs</span>
+                  <span className={styles.statValue}>{player.runs}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>4s/6s</span>
+                  <span className={styles.statValue}>{player.fours}/{player.sixes}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>50s/100s</span>
+                  <span className={styles.statValue}>{player.fifties}/{player.hundreds}</span>
+                </div>
+              </div>
+            )}
+            
+            {player.position === 'bowler' && (
+              <div className={styles.statGroup}>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Wickets</span>
+                  <span className={styles.statValue}>{player.wickets}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>3W/4W/5W</span>
+                  <span className={styles.statValue}>{player.threeWickets}/{player.fourWickets}/{player.fiveWickets}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Maidens</span>
+                  <span className={styles.statValue}>{player.maidens}</span>
+                </div>
+              </div>
+            )}
+            
+            {player.position === 'allrounder' && (
+              <div className={styles.statGroup}>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Runs</span>
+                  <span className={styles.statValue}>{player.runs}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Wickets</span>
+                  <span className={styles.statValue}>{player.wickets}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Catches</span>
+                  <span className={styles.statValue}>{player.catches}</span>
+                </div>
+              </div>
+            )}
+            
+            {player.position === 'wicketkeeper' && (
+              <div className={styles.statGroup}>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Runs</span>
+                  <span className={styles.statValue}>{player.runs}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Catches</span>
+                  <span className={styles.statValue}>{player.catches}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Stumpings</span>
+                  <span className={styles.statValue}>{player.stumpings}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  // Function to render table rows based on player position
-  const renderPlayerRow = (player) => {
-    switch (selectedPosition) {
-      case 'batsman':
-        return (
-          <tr key={`${player.name}-${player.week}-${player.match}`}>
-            <td>{player.name}</td>
-            <td>{player.team}</td>
-            <td>{player.runs}</td>
-            <td>{player.fours}</td>
-            <td>{player.sixes}</td>
-            <td>{player.fifties}</td>
-            <td>{player.hundreds}</td>
-            <td className={styles.pointsColumn}>{player.totalPoints}</td>
-          </tr>
-        );
-      case 'bowler':
-        return (
-          <tr key={`${player.name}-${player.week}-${player.match}`}>
-            <td>{player.name}</td>
-            <td>{player.team}</td>
-            <td>{player.wickets}</td>
-            <td>{player.threeWickets}</td>
-            <td>{player.fourWickets}</td>
-            <td>{player.fiveWickets}</td>
-            <td>{player.maidens}</td>
-            <td className={styles.pointsColumn}>{player.totalPoints}</td>
-          </tr>
-        );
-      case 'wicketkeeper':
-        return (
-          <tr key={`${player.name}-${player.week}-${player.match}`}>
-            <td>{player.name}</td>
-            <td>{player.team}</td>
-            <td>{player.runs}</td>
-            <td>{player.catches}</td>
-            <td>{player.stumpings}</td>
-            <td>{player.directThrows + player.runOuts}</td>
-            <td className={styles.pointsColumn}>{player.totalPoints}</td>
-          </tr>
-        );
-      case 'allrounder':
-        return (
-          <tr key={`${player.name}-${player.week}-${player.match}`}>
-            <td>{player.name}</td>
-            <td>{player.team}</td>
-            <td>{player.runs}</td>
-            <td>{player.wickets}</td>
-            <td>{player.catches}</td>
-            <td className={styles.pointsColumn}>{player.totalPoints}</td>
-          </tr>
-        );
-      default:
-        return (
-          <tr key={`${player.name}-${player.week}-${player.match}`}>
-            <td>{player.name}</td>
-            <td>{player.team}</td>
-            <td>
-               <span className={`${styles.roleBadge} ${styles[player.position]}`}>
-                {player.position === 'batsman' ? 'Batsman' :
-                 player.position === 'bowler' ? 'Bowler' :
-                 player.position === 'allrounder' ? 'All-rounder' :
-                 player.position === 'wicketkeeper' ? 'Wicket-keeper' :
-                 player.position}
-              </span>
-            </td>
-            <td className={styles.pointsColumn}>{player.totalPoints}</td>
-          </tr>
-        );
-    }
+  // Function to render table for desktop view
+  const renderTable = () => {
+    return (
+      <div className={styles.tableWrapper}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Position</th>
+              {selectedPosition === 'batsman' && (
+                <>
+                  <th>Runs</th>
+                  <th>4s</th>
+                  <th>6s</th>
+                  <th>50s</th>
+                  <th>100s</th>
+                </>
+              )}
+              {selectedPosition === 'bowler' && (
+                <>
+                  <th>Wickets</th>
+                  <th>3W</th>
+                  <th>4W</th>
+                  <th>5W</th>
+                  <th>Maidens</th>
+                </>
+              )}
+              {selectedPosition === 'allrounder' && (
+                <>
+                  <th>Runs</th>
+                  <th>Wickets</th>
+                  <th>Catches</th>
+                </>
+              )}
+              {selectedPosition === 'wicketkeeper' && (
+                <>
+                  <th>Runs</th>
+                  <th>Catches</th>
+                  <th>Stumpings</th>
+                </>
+              )}
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map(player => (
+              <tr key={`${player.name}-${player.week}-${player.match}`}>
+                <td>{player.name}</td>
+                <td>{player.team}</td>
+                <td>
+                  <span className={`${styles.roleBadge} ${styles[player.position]}`}>
+                    {player.position === 'batsman' ? 'Batsman' :
+                     player.position === 'bowler' ? 'Bowler' :
+                     player.position === 'allrounder' ? 'All-rounder' :
+                     player.position === 'wicketkeeper' ? 'Wicket-keeper' :
+                     player.position}
+                  </span>
+                </td>
+                {selectedPosition === 'batsman' && (
+                  <>
+                    <td>{player.runs}</td>
+                    <td>{player.fours}</td>
+                    <td>{player.sixes}</td>
+                    <td>{player.fifties}</td>
+                    <td>{player.hundreds}</td>
+                  </>
+                )}
+                {selectedPosition === 'bowler' && (
+                  <>
+                    <td>{player.wickets}</td>
+                    <td>{player.threeWickets}</td>
+                    <td>{player.fourWickets}</td>
+                    <td>{player.fiveWickets}</td>
+                    <td>{player.maidens}</td>
+                  </>
+                )}
+                {selectedPosition === 'allrounder' && (
+                  <>
+                    <td>{player.runs}</td>
+                    <td>{player.wickets}</td>
+                    <td>{player.catches}</td>
+                  </>
+                )}
+                {selectedPosition === 'wicketkeeper' && (
+                  <>
+                    <td>{player.runs}</td>
+                    <td>{player.catches}</td>
+                    <td>{player.stumpings}</td>
+                  </>
+                )}
+                <td className={styles.pointsColumn}>{player.totalPoints}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -319,16 +394,19 @@ const calculateMetrics = (player) => {
                 <p>Try changing your filter selections or search term.</p>
               </div>
             ) : (
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
-                  <thead>
-                    {renderTableHeaders()}
-                  </thead>
-                  <tbody>
-                    {filteredData.map(player => renderPlayerRow(player))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Table for desktop view */}
+                <div className={styles.desktopView}>
+                  {renderTable()}
+                </div>
+                
+                {/* Card-based layout for mobile view */}
+                <div className={styles.mobileView}>
+                  <div className={styles.cardsContainer}>
+                    {filteredData.map(player => renderPlayerCard(player))}
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
