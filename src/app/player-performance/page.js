@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import { collection, getDocs, query } from 'firebase/firestore';
-import { db } from '../../../firebase';
+import { db } from '../../firebase';
 import styles from './page.module.css';
 
 const PlayerPerformancePage = () => {
