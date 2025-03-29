@@ -88,43 +88,90 @@ const PlayerPerformancePage = () => {
 
   // Helper function to calculate metrics from points
   const calculateMetrics = (player) => {
-    // Properly extract position, ensuring it's not undefined
-    const position = player["Player Position"]?.toLowerCase() || 'unknown';
+  // Try different possible position field names
+  // This handles variations in column naming from Google Sheets
+  let position = player["Player Position"] || 
+                player["player position"] || 
+                player["Player-Position"] || 
+                player["Position"] || 
+                player["position"] || 
+                'unknown';
+  
+  // If position is unknown, try to infer it from other stats
+  if (position === 'unknown') {
+    // Wicketkeepers typically have stumping stats
+    if (parseInt(player["Stumping"] || 0) > 0) {
+      position = 'wicketkeeper';
+    }
+    // Bowlers typically have wickets
+    else if (parseInt(player["Wicket"] || 0) > 0 || 
+             parseInt(player["3-Wicket"] || 0) > 0 || 
+             parseInt(player["Maiden Over"] || 0) > 0) {
+      position = 'bowler';
+    }
+    // All-rounders have both batting and bowling stats
+    else if ((parseInt(player["Runs"] || 0) > 0) && 
+             (parseInt(player["Wicket"] || 0) > 0 || parseInt(player["Catch"] || 0) > 0)) {
+      position = 'allrounder';
+    }
+    // Batsmen typically have runs
+    else if (parseInt(player["Runs"] || 0) > 0 || 
+             parseInt(player["4 Runs"] || 0) > 0 || 
+             parseInt(player["6 Runs"] || 0) > 0) {
+      position = 'batsman';
+    }
+  }
+  
+  // Ensure position is lowercase for consistency
+  position = position.toLowerCase();
+  
+  // Map potential variations to our standard position names
+  if (position.includes('bat') || position === 'batter') {
+    position = 'batsman';
+  } else if (position.includes('bowl')) {
+    position = 'bowler';
+  } else if (position.includes('all') || position.includes('rounder')) {
+    position = 'allrounder';
+  } else if (position.includes('keep') || position.includes('wk')) {
+    position = 'wicketkeeper';
+  }
+  
+  console.log(`Player ${player.Players}, Position: ${position}`);
+  
+  return {
+    // Common metrics
+    runs: parseInt(player.Runs) || 0,
+    totalPoints: parseInt(player["Total Points"]) || 0,
+    position: position,
+    team: player.Team || 'unknown',
+    name: player.Players || 'Unknown Player',
+    week: parseInt(player.Week) || 0,
+    match: player.Match || '',
     
-    return {
-      // Common metrics
-      runs: parseInt(player.Runs) || 0,
-      totalPoints: parseInt(player["Total Points"]) || 0,
-      position: position,
-      team: player.Team || 'unknown',
-      name: player.Players || 'Unknown Player',
-      week: parseInt(player.Week) || 0,
-      match: player.Match || '',
-      
-      // Batting metrics
-      fours: parseInt(player["4 Runs"]) || 0,
-      sixes: parseInt(player["6 Runs"]) || 0,
-      thirties: parseInt(player["30 Runs"]) || 0,
-      fifties: parseInt(player["Half Century"]) || 0,
-      hundreds: parseInt(player.Century) || 0,
-      
-      // Bowling metrics
-      wickets: parseInt(player.Wicket) || 0,
-      threeWickets: parseInt(player["3-Wicket"]) || 0,
-      fourWickets: parseInt(player["4-Wicket"]) || 0,
-      fiveWickets: parseInt(player["5-Wicket"]) || 0,
-      maidens: parseInt(player["Maiden Over"]) || 0,
-      
-      // Fielding metrics
-      catches: parseInt(player.Catch) || 0,
-      stumpings: parseInt(player.Stumping) || 0,
-      directThrows: parseInt(player["Direct Throw"]) || 0,
-      runOuts: parseInt(player["Run out"]) || 0,
-      
-      // Keep the raw player data for debugging
-      raw: { ...player }
-    };
+    // Batting metrics
+    fours: parseInt(player["4 Runs"]) || 0,
+    sixes: parseInt(player["6 Runs"]) || 0,
+    thirties: parseInt(player["30 Runs"]) || 0,
+    fifties: parseInt(player["Half Century"]) || 0,
+    hundreds: parseInt(player.Century) || 0,
+    
+    // Bowling metrics
+    wickets: parseInt(player.Wicket) || 0,
+    threeWickets: parseInt(player["3-Wicket"]) || 0,
+    fourWickets: parseInt(player["4-Wicket"]) || 0,
+    fiveWickets: parseInt(player["5-Wicket"]) || 0,
+    maidens: parseInt(player["Maiden Over"]) || 0,
+    
+    // Fielding metrics
+    catches: parseInt(player.Catch) || 0,
+    stumpings: parseInt(player.Stumping) || 0,
+    directThrows: parseInt(player["Direct Throw"]) || 0,
+    runOuts: parseInt(player["Run out"]) || 0,
+    
+    // Keep the raw player data for debugging
+    raw: { ...player }
   };
+};
 
   // Function to render player statistics in a mobile-friendly card format
   const renderPlayerCard = (player) => {
