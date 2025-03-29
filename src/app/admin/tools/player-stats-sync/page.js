@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import styles from '../../tournaments/admin.module.css';
 
@@ -9,6 +9,7 @@ export default function PlayerStatsSyncPage() {
   const [loading, setLoading] = useState(false);
   const [sheetId, setSheetId] = useState('1G8NTmAzg1NqRpgp4FOBWWzfxf59UyfzbLVCL992hDpM');
   const [results, setResults] = useState([]);
+  const [weekNumber, setWeekNumber] = useState('');  // Add state for week filtering
   
   const handleSync = async (e) => {
     e.preventDefault();
@@ -22,8 +23,14 @@ export default function PlayerStatsSyncPage() {
       setLoading(true);
       setMessage({ text: 'Syncing player stats from Google Sheets...', type: 'info' });
       
+      // Create URL with optional week parameter
+      let url = `/api/sync/player-stats?sheetId=${encodeURIComponent(sheetId)}`;
+      if (weekNumber) {
+        url += `&weekNumber=${encodeURIComponent(weekNumber)}`;
+      }
+      
       // Call API endpoint to trigger sync
-      const response = await fetch(`/api/sync/player-stats?sheetId=${encodeURIComponent(sheetId)}`);
+      const response = await fetch(url);
       const data = await response.json();
       
       if (data.success) {
@@ -84,6 +91,23 @@ export default function PlayerStatsSyncPage() {
               />
               <p className={styles.fieldHint}>
                 Your Google Sheet should have the Player_Performance tab with all player stats.
+              </p>
+            </div>
+            
+            {/* Add Week Number field */}
+            <div className={styles.formGroup}>
+              <label htmlFor="weekNumber">Week Number (Optional)</label>
+              <input
+                type="number"
+                id="weekNumber"
+                value={weekNumber}
+                onChange={(e) => setWeekNumber(e.target.value)}
+                placeholder="Filter by specific week number"
+                className={styles.input}
+                min="1"
+              />
+              <p className={styles.fieldHint}>
+                Leave empty to sync all weeks, or enter a specific week number to sync only that week.
               </p>
             </div>
             
