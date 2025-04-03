@@ -277,6 +277,79 @@
     width: 100%;
   }
 }
+
+.leaderboardControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.refreshButton {
+  background: linear-gradient(45deg, #4caf50, #2e7d32);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.refreshButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.refreshButton:active {
+  transform: translateY(0);
+}
+
+/* Make table headers sortable with visual cues */
+.leaderboardTable th {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+  position: relative;
+}
+
+.leaderboardTable th:hover {
+  background: linear-gradient(45deg, #ff8a00, #ff6a00);
+}
+
+/* Add space for sort indicators */
+.leaderboardTable th {
+  padding-right: 24px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .leaderboardControls {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .refreshButton {
+    align-self: flex-end;
+  }
+}
+
+/* Dark mode compatibility */
+@media (prefers-color-scheme: dark) {
+  .refreshButton {
+    background: linear-gradient(45deg, #388e3c, #2e7d32);
+  }
+}
+
+/* Force dark mode styles with the html.dark-mode class */
+html.dark-mode .refreshButton {
+  background: linear-gradient(45deg, #388e3c, #2e7d32) !important;
+  color: white !important;
+}
+
 /* Add these specific dark mode fixes to src/app/leaderboard/leaderboard.module.css */
 
 /* Dark mode specific styles for leaderboard */
