@@ -15,6 +15,26 @@ const GLOBAL_LEADERBOARD_CACHE_KEY = 'globalLeaderboardData';
 const LEAGUE_LEADERBOARD_CACHE_PREFIX = 'leagueLeaderboard_';
 const SELECTED_LEAGUE_CACHE_KEY = 'selectedLeagueId';
 
+// Helper function to safely access localStorage (only in browser)
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(key);
+    }
+  }
+};
+
 // Create a custom hook for managing cached data
 const useCachedData = (cacheKey, fetchFunc, dependencies = []) => {
   const [data, setData] = useState(null);
@@ -25,17 +45,22 @@ const useCachedData = (cacheKey, fetchFunc, dependencies = []) => {
     try {
       setLoading(true);
       
-      // Check cache if not forcing refresh
-      if (!forceRefresh) {
-        const cachedData = localStorage.getItem(cacheKey);
+      // Check cache if not forcing refresh and we have a cacheKey
+      if (!forceRefresh && cacheKey) {
+        const cachedData = safeLocalStorage.getItem(cacheKey);
         if (cachedData) {
-          const parsed = JSON.parse(cachedData);
-          const now = Date.now();
-          
-          if (now - parsed.timestamp < CACHE_DURATION) {
-            setData(parsed);
-            setLoading(false);
-            return parsed;
+          try {
+            const parsed = JSON.parse(cachedData);
+            const now = Date.now();
+            
+            if (now - parsed.timestamp < CACHE_DURATION) {
+              setData(parsed);
+              setLoading(false);
+              return parsed;
+            }
+          } catch (parseError) {
+            console.error(`Error parsing cached data for ${cacheKey}:`, parseError);
+            // Continue to fetch fresh data if parse error
           }
         }
       }
@@ -43,15 +68,17 @@ const useCachedData = (cacheKey, fetchFunc, dependencies = []) => {
       // Fetch fresh data
       const result = await fetchFunc();
       
-      // Cache the result
-      const dataToCache = { 
-        ...result, 
-        timestamp: Date.now() 
-      };
-      localStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+      // Cache the result if we have data and a cacheKey
+      if (result && cacheKey) {
+        const dataToCache = { 
+          ...result, 
+          timestamp: Date.now() 
+        };
+        safeLocalStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+      }
       
-      setData(dataToCache);
-      return dataToCache;
+      setData(result);
+      return result;
     } catch (err) {
       console.error(`Error fetching data for ${cacheKey}:`, err);
       setError(`Failed to load data. ${err.message}`);
@@ -75,9 +102,15 @@ const LeaderboardPage = () => {
   const [weekNumbers, setWeekNumbers] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [userLeagues, setUserLeagues] = useState([]);
-  const [selectedLeagueId, setSelectedLeagueId] = useState(
-    localStorage.getItem(SELECTED_LEAGUE_CACHE_KEY) || ''
-  );
+  const [selectedLeagueId, setSelectedLeagueId] = useState('');
+  
+  // Initialize selectedLeagueId from localStorage (client-side only)
+  useEffect(() => {
+    const savedLeagueId = safeLocalStorage.getItem(SELECTED_LEAGUE_CACHE_KEY);
+    if (savedLeagueId) {
+      setSelectedLeagueId(savedLeagueId);
+    }
+  }, []);
   
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
@@ -241,9 +274,9 @@ const LeaderboardPage = () => {
     setSelectedLeagueId(leagueId);
     
     if (leagueId) {
-      localStorage.setItem(SELECTED_LEAGUE_CACHE_KEY, leagueId);
+      safeLocalStorage.setItem(SELECTED_LEAGUE_CACHE_KEY, leagueId);
     } else {
-      localStorage.removeItem(SELECTED_LEAGUE_CACHE_KEY);
+      safeLocalStorage.removeItem(SELECTED_LEAGUE_CACHE_KEY);
     }
   }, []);
   
