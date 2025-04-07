@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { collection, query, getDocs, where, orderBy, doc, getDoc } from "firebase/firestore";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { collection, query, getDocs, where, orderBy, doc, getDoc, limit } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useAuth } from "@/app/context/authContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/components/ui/card";
@@ -9,22 +9,75 @@ import styles from "./leaderboard.module.css";
 import { transferService } from "../services/transferService";
 import { LeagueService } from "../services/leagueService";
 
+// Constants defined outside the component to avoid recreation on each render
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const GLOBAL_LEADERBOARD_CACHE_KEY = 'globalLeaderboardData';
+const LEAGUE_LEADERBOARD_CACHE_PREFIX = 'leagueLeaderboard_';
+const SELECTED_LEAGUE_CACHE_KEY = 'selectedLeagueId';
+
+// Create a custom hook for managing cached data
+const useCachedData = (cacheKey, fetchFunc, dependencies = []) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      
+      // Check cache if not forcing refresh
+      if (!forceRefresh) {
+        const cachedData = localStorage.getItem(cacheKey);
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          const now = Date.now();
+          
+          if (now - parsed.timestamp < CACHE_DURATION) {
+            setData(parsed);
+            setLoading(false);
+            return parsed;
+          }
+        }
+      }
+      
+      // Fetch fresh data
+      const result = await fetchFunc();
+      
+      // Cache the result
+      const dataToCache = { 
+        ...result, 
+        timestamp: Date.now() 
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+      
+      setData(dataToCache);
+      return dataToCache;
+    } catch (err) {
+      console.error(`Error fetching data for ${cacheKey}:`, err);
+      setError(`Failed to load data. ${err.message}`);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [cacheKey, fetchFunc]);
+
+  // Fetch data on initial load or when dependencies change
+  useEffect(() => {
+    fetchData();
+  }, dependencies);
+
+  return { data, loading, error, refetch: () => fetchData(true) };
+};
 
 const LeaderboardPage = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [leaderboardData, setLeaderboardData] = useState([]);
-  const [weekNumbers, setWeekNumbers] = useState([]);
   const [activeTournament, setActiveTournament] = useState(null);
+  const [weekNumbers, setWeekNumbers] = useState([]);
   const [userRank, setUserRank] = useState(null);
-  
-  // League-related state
   const [userLeagues, setUserLeagues] = useState([]);
-  const [selectedLeague, setSelectedLeague] = useState(null);
-  const [leagueLeaderboardData, setLeagueLeaderboardData] = useState([]);
-  const [loadingLeagueData, setLoadingLeagueData] = useState(false);
+  const [selectedLeagueId, setSelectedLeagueId] = useState(
+    localStorage.getItem(SELECTED_LEAGUE_CACHE_KEY) || ''
+  );
   
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
@@ -32,302 +85,243 @@ const LeaderboardPage = () => {
     direction: 'asc'
   });
   
-  useEffect(() => {
-    fetchLeaderboardData();
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchUserLeagues();
-    }
-  }, [user]);
-
-  // Sort function for table data
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  // Memoized sorted data
-  const sortedLeaderboardData = useMemo(() => {
-    let sortableData = [...leaderboardData];
-    if (sortConfig.key) {
-      sortableData.sort((a, b) => {
-        // Handle nested week points
-        if (sortConfig.key.startsWith('week_')) {
-          const weekNum = parseInt(sortConfig.key.split('_')[1]);
-          const aValue = a.weeks[weekNum] || 0;
-          const bValue = b.weeks[weekNum] || 0;
-          
-          if (sortConfig.direction === 'asc') {
-            return aValue - bValue;
-          } else {
-            return bValue - aValue;
-          }
-        }
-        
-        // Handle other columns
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableData;
-  }, [leaderboardData, sortConfig]);
-  
-  // Memoized sorted league data
-  const sortedLeagueData = useMemo(() => {
-    let sortableData = [...leagueLeaderboardData];
-    if (sortConfig.key) {
-      sortableData.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableData;
-  }, [leagueLeaderboardData, sortConfig]);
-
-  const getSortIndicator = (key) => {
-    if (sortConfig.key === key) {
-      return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
-    }
-    return '';
-  };
-
-  const fetchUserLeagues = async () => {
-    try {
-      const leagues = await LeagueService.getUserLeagues(user.uid);
-      setUserLeagues(leagues);
-      
-      // Check if there's a cached selected league
-      const cachedLeagueId = localStorage.getItem('selectedLeagueId');
-      if (cachedLeagueId) {
-        const league = leagues.find(l => l.id === cachedLeagueId);
-        if (league) {
-          handleLeagueSelection(cachedLeagueId);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user leagues:', error);
-    }
-  };
-
-  const handleLeagueSelection = async (leagueId) => {
-    if (!leagueId) {
-      setSelectedLeague(null);
-      localStorage.removeItem('selectedLeagueId');
-      localStorage.removeItem('leagueLeaderboardData');
-      return;
+  // Fetch global leaderboard data
+  const fetchGlobalLeaderboard = useCallback(async () => {
+    // Get active tournament
+    const tournament = await transferService.getActiveTournament();
+    if (!tournament) {
+      throw new Error("No active tournament found.");
     }
     
-    try {
-      setLoadingLeagueData(true);
-      
-      // Save selected league ID to localStorage
-      localStorage.setItem('selectedLeagueId', leagueId);
-      
-      const selectedLeagueObj = userLeagues.find(league => league.id === leagueId);
-      setSelectedLeague(selectedLeagueObj);
-      
-      // Check if there's cached data and if it's still valid
-      const cachedData = localStorage.getItem(`leagueLeaderboard_${leagueId}`);
-      if (cachedData) {
-        const { data, timestamp } = JSON.parse(cachedData);
-        const now = Date.now();
-        
-        if (now - timestamp < CACHE_DURATION) {
-          // Use cached data if it's less than 5 minutes old
-          console.log('Using cached league leaderboard data');
-          setLeagueLeaderboardData(data);
-          setLoadingLeagueData(false);
-          return;
-        }
+    setActiveTournament(tournament);
+    
+    // Define completed weeks to show
+    const completedWindows = tournament.transferWindows
+      .filter(window => window.status === "completed")
+      .sort((a, b) => b.weekNumber - a.weekNumber)
+      .slice(0, 5); // Get last 5 completed weeks
+    
+    const weekNums = completedWindows.map(window => window.weekNumber);
+    setWeekNumbers(weekNums);
+    
+    // Perform a single batch query for all users with the teamName field
+    const usersRef = collection(db, "users");
+    const usersQuery = query(usersRef, where("teamName", "!=", null));
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    // Create a map of userId to user data for faster lookups
+    const usersMap = {};
+    usersSnapshot.forEach(doc => {
+      const userData = doc.data();
+      if (userData.teamName) {
+        usersMap[doc.id] = {
+          id: doc.id,
+          teamName: userData.teamName || "Unnamed Team",
+          photoURL: userData.photoURL,
+          weeks: {},
+          weeklyTotalPoints: 0,
+          referralPoints: userData.referralPoints || 0,
+          totalPoints: userData.totalPoints || 0,
+          rank: userData.rank || 0
+        };
       }
+    });
+    
+    // Get weekly stats in bulk for the specific weeks
+    const weeklyStatsRef = collection(db, "userWeeklyStats");
+    
+    // Only query for the tournament and weeks we need
+    for (const weekNum of weekNums) {
+      const weekQuery = query(
+        weeklyStatsRef,
+        where("tournamentId", "==", tournament.id),
+        where("weekNumber", "==", weekNum)
+      );
       
-      // Fetch fresh data if no cache or cache expired
-      const leaderboardData = await LeagueService.getLeagueLeaderboard(leagueId);
-      setLeagueLeaderboardData(leaderboardData);
+      const weekSnapshot = await getDocs(weekQuery);
       
-      // Cache the new data
-      localStorage.setItem(`leagueLeaderboard_${leagueId}`, JSON.stringify({
-        data: leaderboardData,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.error('Error loading league leaderboard:', error);
-      setError('Failed to load league leaderboard. Please try again.');
-    } finally {
-      setLoadingLeagueData(false);
-    }
-  };
-
-  const fetchLeaderboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Check for cached data
-      const cachedData = localStorage.getItem('globalLeaderboardData');
-      if (cachedData) {
-        const { data, tournament, weekNums, timestamp } = JSON.parse(cachedData);
-        const now = Date.now();
+      weekSnapshot.forEach(doc => {
+        const data = doc.data();
+        const userId = data.userId;
         
-        if (now - timestamp < CACHE_DURATION) {
-          // Use cached data if it's less than 5 minutes old
-          console.log('Using cached global leaderboard data');
-          setLeaderboardData(data);
-          setActiveTournament(tournament);
-          setWeekNumbers(weekNums);
-          
-          // Set user rank from cached data
-          if (user) {
-            const userEntry = data.find(entry => entry.id === user.uid);
-            if (userEntry) {
-              setUserRank(userEntry.rank);
-            }
-          }
-          
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Get active tournament
-      const tournament = await transferService.getActiveTournament();
-      if (!tournament) {
-        setError("No active tournament found.");
-        setLoading(false);
-        return;
-      }
-      
-      setActiveTournament(tournament);
-      
-      // Get all user data
-      const usersRef = collection(db, "users");
-      const usersSnapshot = await getDocs(usersRef);
-      
-      const users = {};
-      usersSnapshot.forEach(doc => {
-        // Get user data
-        const userData = doc.data();
-        
-        // Include all users who have a teamName (as they've registered)
-        if (userData.teamName) {
-          users[doc.id] = {
-            id: doc.id,
-            teamName: userData.teamName || "Unnamed Team",
-            photoURL: userData.photoURL,
-            weeks: {},
-            weeklyTotalPoints: 0,
-            referralPoints: userData.referralPoints || 0,
-            totalPoints: 0  // We'll calculate this from weekly stats
-          };
+        if (usersMap[userId]) {
+          const weeklyPoints = data.points || 0;
+          usersMap[userId].weeks[weekNum] = weeklyPoints;
+          usersMap[userId].weeklyTotalPoints = 
+            (usersMap[userId].weeklyTotalPoints || 0) + weeklyPoints;
         }
       });
+    }
+    
+    // Convert to array and calculate totals
+    const leaderboardArray = Object.values(usersMap);
+    
+    // Update total points for each user
+    leaderboardArray.forEach(user => {
+      user.totalPoints = user.weeklyTotalPoints + (user.referralPoints || 0);
+    });
+    
+    // Sort by total points
+    leaderboardArray.sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    // Assign ranks
+    leaderboardArray.forEach((teamUser, index) => {
+      teamUser.rank = index + 1;
       
-      // Define completed weeks to show
-      const completedWindows = tournament.transferWindows
-        .filter(window => window.status === "completed")
-        .sort((a, b) => b.weekNumber - a.weekNumber)
-        .slice(0, 5); // Get last 5 completed weeks
+      // If this is the current user, save their rank
+      if (user && teamUser.id === user.uid) {
+        setUserRank(teamUser.rank);
+      }
+    });
+    
+    return {
+      data: leaderboardArray,
+      tournament,
+      weekNums
+    };
+  }, [user]);
+  
+  const { 
+    data: globalLeaderboardData, 
+    loading: globalLoading, 
+    error: globalError,
+    refetch: refetchGlobal 
+  } = useCachedData(
+    GLOBAL_LEADERBOARD_CACHE_KEY, 
+    fetchGlobalLeaderboard,
+    [user?.uid]
+  );
+  
+  // Fetch user leagues
+  useEffect(() => {
+    const fetchUserLeagues = async () => {
+      if (!user) return;
       
-      setWeekNumbers(completedWindows.map(window => window.weekNumber));
-      
-      // Get weekly stats for all users
-      const weeklyStatsRef = collection(db, "userWeeklyStats");
-      
-      // For each user, query their weekly stats for each week
-      for (const userId in users) {
-        let weeklyTotalPoints = 0;
+      try {
+        const leagues = await LeagueService.getUserLeagues(user.uid);
+        setUserLeagues(leagues);
         
-        // Process each week separately
-        for (const window of completedWindows) {
-          const weekNum = window.weekNumber;
-          
-          // Get stats for this specific week using the week-specific document ID
-          const weeklyStatRef = doc(db, "userWeeklyStats", `${userId}_${tournament.id}_${weekNum}`);
-          const weeklyStatDoc = await getDoc(weeklyStatRef);
-          
-          if (weeklyStatDoc.exists()) {
-            const weeklyPoints = weeklyStatDoc.data().points || 0;
-            
-            // Update the weeks object with this week's points
-            users[userId].weeks[weekNum] = weeklyPoints;
-            
-            // Add to weekly total
-            weeklyTotalPoints += weeklyPoints;
-          } else {
-            // If no data for this week, set to 0 or null
-            users[userId].weeks[weekNum] = 0;
+        // Check if cached selected league still exists in user leagues
+        if (selectedLeagueId) {
+          const leagueExists = leagues.some(l => l.id === selectedLeagueId);
+          if (!leagueExists) {
+            setSelectedLeagueId('');
+            localStorage.removeItem(SELECTED_LEAGUE_CACHE_KEY);
           }
         }
-        
-        // Update weekly total
-        users[userId].weeklyTotalPoints = weeklyTotalPoints;
-        
-        // Calculate total points (weekly points + referral bonus)
-        users[userId].totalPoints = weeklyTotalPoints + users[userId].referralPoints;
+      } catch (error) {
+        console.error('Error fetching user leagues:', error);
       }
-      
-      // Convert to array and sort by total points
-      const leaderboardArray = Object.values(users)
-        .sort((a, b) => b.totalPoints - a.totalPoints);
-      
-      // Assign ranks
-      leaderboardArray.forEach((teamUser, index) => {
-        teamUser.rank = index + 1;
-        
-        // If this is the current user, save their rank
-        if (teamUser.id === user?.uid) {
-          setUserRank(teamUser.rank);
-        }
-      });
-      
-      setLeaderboardData(leaderboardArray);
-      
-      // Cache the data
-      localStorage.setItem('globalLeaderboardData', JSON.stringify({
-        data: leaderboardArray,
-        tournament,
-        weekNums: completedWindows.map(window => window.weekNumber),
-        timestamp: Date.now()
-      }));
-      
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching leaderboard data:", error);
-      setError("Failed to load leaderboard data. Please try again later.");
-      setLoading(false);
+    };
+    
+    fetchUserLeagues();
+  }, [user]);
+  
+  // Fetch league leaderboard data when a league is selected
+  const fetchLeagueLeaderboard = useCallback(async () => {
+    if (!selectedLeagueId) return null;
+    
+    const leaderboardData = await LeagueService.getLeagueLeaderboard(selectedLeagueId);
+    return { data: leaderboardData };
+  }, [selectedLeagueId]);
+  
+  const { 
+    data: leagueData, 
+    loading: leagueLoading, 
+    error: leagueError,
+    refetch: refetchLeague 
+  } = useCachedData(
+    selectedLeagueId ? `${LEAGUE_LEADERBOARD_CACHE_PREFIX}${selectedLeagueId}` : null,
+    fetchLeagueLeaderboard,
+    [selectedLeagueId]
+  );
+  
+  // Handle league selection
+  const handleLeagueSelection = useCallback((leagueId) => {
+    setSelectedLeagueId(leagueId);
+    
+    if (leagueId) {
+      localStorage.setItem(SELECTED_LEAGUE_CACHE_KEY, leagueId);
+    } else {
+      localStorage.removeItem(SELECTED_LEAGUE_CACHE_KEY);
     }
-  };
-
+  }, []);
+  
   // Force refresh function to bypass cache
   const handleRefreshData = () => {
-    // Clear relevant cache items
-    localStorage.removeItem('globalLeaderboardData');
-    if (selectedLeague) {
-      localStorage.removeItem(`leagueLeaderboard_${selectedLeague.id}`);
-    }
-    
-    // Refetch data
-    fetchLeaderboardData();
-    if (selectedLeague) {
-      handleLeagueSelection(selectedLeague.id);
+    if (selectedLeagueId) {
+      refetchLeague();
+    } else {
+      refetchGlobal();
     }
   };
+  
+  // Sort function for table data
+  const handleSort = useCallback((key) => {
+    setSortConfig(prevConfig => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+  
+  // Get sorted data based on current config - memoized to prevent unnecessary recalculations
+  const sortedData = useMemo(() => {
+    // Determine which data to sort
+    const dataToSort = selectedLeagueId && leagueData?.data 
+      ? [...leagueData.data] 
+      : globalLeaderboardData?.data ? [...globalLeaderboardData.data] : [];
+    
+    if (!dataToSort.length || !sortConfig.key) return dataToSort;
+    
+    return dataToSort.sort((a, b) => {
+      // Handle nested week points
+      if (sortConfig.key.startsWith('week_')) {
+        const weekNum = parseInt(sortConfig.key.split('_')[1]);
+        const aValue = a.weeks ? (a.weeks[weekNum] || 0) : 0;
+        const bValue = b.weeks ? (b.weeks[weekNum] || 0) : 0;
+        
+        return sortConfig.direction === 'asc' 
+          ? aValue - bValue 
+          : bValue - aValue;
+      }
+      
+      // Handle other columns
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [
+    sortConfig, 
+    selectedLeagueId, 
+    leagueData?.data, 
+    globalLeaderboardData?.data
+  ]);
+  
+  // Helper for rendering sort indicator
+  const getSortIndicator = useCallback((key) => {
+    return sortConfig.key === key 
+      ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') 
+      : '';
+  }, [sortConfig]);
+  
+  // Determine loading and error states
+  const isLoading = selectedLeagueId ? leagueLoading : globalLoading;
+  const error = selectedLeagueId ? leagueError : globalError;
+  
+  // Get selected league object
+  const selectedLeague = useMemo(() => {
+    if (!selectedLeagueId) return null;
+    return userLeagues.find(league => league.id === selectedLeagueId) || null;
+  }, [selectedLeagueId, userLeagues]);
 
-  if (loading) {
+  if (isLoading) {
     return <div className={styles.loading}>Loading leaderboard data...</div>;
   }
 
@@ -344,7 +338,7 @@ const LeaderboardPage = () => {
           <label htmlFor="league-filter">Filter by League:</label>
           <select
             id="league-filter"
-            value={selectedLeague?.id || ''}
+            value={selectedLeagueId}
             onChange={(e) => handleLeagueSelection(e.target.value)}
             className={styles.leagueSelect}
           >
@@ -368,14 +362,15 @@ const LeaderboardPage = () => {
       <Card className={styles.leaderboardCard}>
         <CardHeader>
           <CardTitle>
-            {selectedLeague ? `${selectedLeague.name} Leaderboard` : `${activeTournament?.name || "Tournament"} Leaderboard`}
+            {selectedLeague 
+              ? `${selectedLeague.name} Leaderboard` 
+              : `${activeTournament?.name || "Tournament"} Leaderboard`}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {selectedLeague ? (
-            loadingLeagueData ? (
-              <div className={styles.loading}>Loading league data...</div>
-            ) : sortedLeagueData.length > 0 ? (
+          {selectedLeagueId ? (
+            // League leaderboard
+            sortedData.length > 0 ? (
               <div className={styles.tableWrapper}>
                 <table className={styles.leaderboardTable}>
                   <thead>
@@ -395,7 +390,7 @@ const LeaderboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedLeagueData.map((team) => (
+                    {sortedData.map((team) => (
                       <tr key={team.id} className={team.id === user?.uid ? styles.currentUser : ""}>
                         <td className={styles.rankColumn}>
                           {team.leagueRank <= 3 ? (
@@ -440,8 +435,8 @@ const LeaderboardPage = () => {
               </div>
             )
           ) : (
-            // Original global leaderboard content
-            sortedLeaderboardData.length > 0 ? (
+            // Global leaderboard
+            sortedData.length > 0 ? (
               <div className={styles.tableWrapper}>
                 <table className={styles.leaderboardTable}>
                   <thead>
@@ -466,7 +461,7 @@ const LeaderboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedLeaderboardData.map((team) => (
+                    {sortedData.map((team) => (
                       <tr key={team.id} className={team.id === user?.uid ? styles.currentUser : ""}>
                         <td className={styles.rankColumn}>
                           {team.rank <= 3 ? (
@@ -522,7 +517,7 @@ const LeaderboardPage = () => {
       
       {user && userRank && (
         <div className={styles.userRankCard}>
-          <p>Your current rank: <span className={styles.rankHighlight}>{userRank}</span> out of {leaderboardData.length} teams</p>
+          <p>Your current rank: <span className={styles.rankHighlight}>{userRank}</span> out of {sortedData.length} teams</p>
         </div>
       )}
       
@@ -536,7 +531,7 @@ const LeaderboardPage = () => {
           Bonus points are awarded for referrals (25 points per successful referral, up to 3 referrals).
         </p>
         <p>
-          The leaderboard shows the last 5 completed weeks of the tournament.
+          The leaderboard shows the last {weekNumbers.length} completed weeks of the tournament.
           Total points determine your overall rank (Weekly points + Bonus points).
         </p>
       </div>
