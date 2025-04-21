@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/ca
 import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '../../firebase';
 import styles from './page.module.css';
+import Sparkline from './Sparkline';
 
 const PlayerPerformancePage = () => {
   const [loading, setLoading] = useState(true);
@@ -99,6 +100,27 @@ const PlayerPerformancePage = () => {
     try {
       setLoading(true);
       
+      // Check for cached data first to improve load times
+      const cachedData = getCachedData('playerPerformanceData');
+      const cacheTime = localStorage.getItem('playerPerformanceTimestamp');
+      const now = Date.now();
+      const cacheAge = now - parseInt(cacheTime || '0');
+      
+      // If we have valid cached data less than 30 minutes old, use it
+      if (cachedData && cacheAge < 30 * 60 * 1000) {
+        console.log("Using cached player data", cacheAge / 60000, "minutes old");
+        
+        // Use cached data
+        setPlayerData(cachedData.aggregatedData);
+        setFilteredData(cachedData.aggregatedData);
+        setAvailableWeeks(cachedData.availableWeeks);
+        setLoading(false);
+        return;
+      }
+      
+      console.log("Fetching fresh player data...");
+      const startTime = performance.now();
+      
       // Fetch data from our API endpoint
       const response = await fetch('/api/player-performance?sheetId=1G8NTmAzg1NqRpgp4FOBWWzfxf59UyfzbLVCL992hDpM');
       
@@ -112,22 +134,31 @@ const PlayerPerformancePage = () => {
         throw new Error(result.error || 'Failed to fetch data from Google Sheets');
       }
       
-      // Process the raw data from Google Sheets
-      const rawData = result.processedRows ? 
-        result.processedRows.map(row => calculateMetrics(row, playerMasterData)) : [];
+      // Process the raw data in batches for better performance
+      const rawData = await processBatches(result.processedRows || [], playerMasterData);
       
-      console.log("Sample raw player data:", rawData.slice(0, 2));
+      const processTime = performance.now() - startTime;
+      console.log(`Data processing took ${(processTime / 1000).toFixed(2)} seconds`);
       
       // Extract available weeks for filter
       const weeks = new Set();
       rawData.forEach(player => {
         if (player.week) weeks.add(player.week);
       });
-      setAvailableWeeks(Array.from(weeks).sort((a, b) => a - b));
+      const availableWeeksList = Array.from(weeks).sort((a, b) => a - b);
+      setAvailableWeeks(availableWeeksList);
       
       // Aggregate players data to eliminate duplicates
       const aggregatedData = aggregatePlayerData(rawData);
-      console.log("Sample aggregated player data:", aggregatedData.slice(0, 2));
+      console.log(`Processed ${rawData.length} raw entries into ${aggregatedData.length} aggregated player records`);
+      
+      // Cache the processed data
+      cacheData('playerPerformanceData', {
+        aggregatedData,
+        availableWeeks: availableWeeksList,
+        rawCount: rawData.length
+      });
+      localStorage.setItem('playerPerformanceTimestamp', now.toString());
       
       setPlayerData(aggregatedData);
       setFilteredData(aggregatedData);
@@ -138,12 +169,54 @@ const PlayerPerformancePage = () => {
       setLoading(false);
     }
   };
+  
+  // Process data in smaller batches to avoid blocking the main thread
+  const processBatches = async (rows, masterData) => {
+    const batchSize = 100; // Process 100 items at a time
+    const results = [];
+    
+    // Split into batches to avoid UI freezing
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      
+      // Use setTimeout and Promise to allow UI updates between batches
+      await new Promise(resolve => {
+        setTimeout(() => {
+          const processedBatch = batch.map(row => calculateMetrics(row, masterData));
+          results.push(...processedBatch);
+          resolve();
+        }, 0);
+      });
+    }
+    
+    return results;
+  };
+  
+  // Cache helpers
+  const cacheData = (key, data) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Failed to cache data:', e);
+    }
+  };
+  
+  const getCachedData = (key) => {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.warn('Failed to retrieve cached data:', e);
+      return null;
+    }
+  };
 
   // Aggregate player data to eliminate duplicates and sum up metrics
   const aggregatePlayerData = (rawData) => {
     // First, group by player name and week
     const weeklyStats = {};
     const tournamentStats = {};
+    const playerWeeklyPoints = {}; // Track weekly points for form chart
 
     // Process each player match performance
     rawData.forEach(player => {
@@ -166,12 +239,26 @@ const PlayerPerformancePage = () => {
         weeklyStats[weeklyKey].matchCount += 1;
       }
       
+      // Track weekly points for each player (for form chart)
+      if (!playerWeeklyPoints[playerKey]) {
+        playerWeeklyPoints[playerKey] = {};
+      }
+      
+      // Initialize or add to weekly totals
+      const weekNum = player.week;
+      if (!playerWeeklyPoints[playerKey][weekNum]) {
+        playerWeeklyPoints[playerKey][weekNum] = player.totalPoints;
+      } else {
+        playerWeeklyPoints[playerKey][weekNum] += player.totalPoints;
+      }
+      
       // Update tournament stats (across all weeks)
       if (!tournamentStats[playerKey]) {
         tournamentStats[playerKey] = {
           ...player,
           week: 'all',  // Mark as an all-weeks entry
-          matchCount: 1
+          matchCount: 1,
+          weeklyForm: {} // Track weekly points for sparkline
         };
       } else {
         // Sum all numeric values
@@ -182,6 +269,17 @@ const PlayerPerformancePage = () => {
         });
         tournamentStats[playerKey].matchCount += 1;
       }
+    });
+
+    // Consolidate weekly points into the tournament stats for sparkline
+    Object.keys(tournamentStats).forEach(playerKey => {
+      const weeksWithPoints = playerWeeklyPoints[playerKey];
+      const weekNumbers = Object.keys(weeksWithPoints).map(w => parseInt(w)).sort((a, b) => a - b);
+      
+      // Create array of weekly points for sparkline
+      tournamentStats[playerKey].formData = weekNumbers.map(week => 
+        weeksWithPoints[week] || 0
+      );
     });
 
     // Combine weekly and tournament stats into a single array
@@ -283,6 +381,7 @@ const PlayerPerformancePage = () => {
   const renderPlayerCard = (player) => {
     const matchesText = player.matchCount > 1 ? `${player.matchCount} matches` : '1 match';
     const weekText = player.week === 'all' ? 'Tournament' : `Week ${player.week}`;
+    const showingTournament = player.week === 'all';
     
     return (
       <div key={`${player.name}-${player.week}`} className={styles.playerCard}>
@@ -309,6 +408,21 @@ const PlayerPerformancePage = () => {
                 <span className={styles.statLabel}>Points</span>
                 <span className={styles.statValue}>{player.totalPoints}</span>
               </div>
+              
+              {/* Form chart (only in tournament view) */}
+              {showingTournament && player.formData && player.formData.length > 1 && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Form</span>
+                  <div className={styles.formChart}>
+                    <Sparkline 
+                      data={player.formData} 
+                      width={80} 
+                      height={20} 
+                      color="#FF6A00" 
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Position-specific stats */}
@@ -387,6 +501,9 @@ const PlayerPerformancePage = () => {
 
   // Function to render table for desktop view
   const renderTable = () => {
+    // Determine if we're showing tournament view (for form column)
+    const showingTournament = selectedWeek === 'all';
+    
     return (
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
@@ -430,6 +547,8 @@ const PlayerPerformancePage = () => {
                 </>
               )}
               <th>Points</th>
+              {/* Only show form column when in tournament view */}
+              {showingTournament && <th>Form</th>}
             </tr>
           </thead>
           <tbody>
@@ -481,6 +600,21 @@ const PlayerPerformancePage = () => {
                   </>
                 )}
                 <td className={styles.pointsColumn}>{player.totalPoints}</td>
+                {/* Form sparkline for tournament view */}
+                {showingTournament && (
+                  <td>
+                    {player.formData && player.formData.length > 1 ? (
+                      <Sparkline 
+                        data={player.formData} 
+                        width={80} 
+                        height={20} 
+                        color="#FF6A00" 
+                      />
+                    ) : (
+                      <span className={styles.noFormData}>—</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
