@@ -572,3 +572,52 @@ html.dark-mode .cumulativeHighlight,
 html.dark-mode .statLarge {
   color: #ff9a3c !important;
 }
+
+/* Styles for form sparkline chart */
+.formChart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  min-height: 28px;
+}
+
+.noFormData {
+  color: #999;
+  font-style: italic;
+}
+
+.formColumn {
+  text-align: center;
+  width: 100px;
+}
+
+/* Tooltip for sparkline chart */
+.tooltipContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip {
+  visibility: hidden;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  text-align: center;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.tooltipContainer:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
