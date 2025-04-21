@@ -22,16 +22,15 @@
   --table-header-text: white;
   --table-row-hover: #f9f9f9;
   --table-border: #f0f0f0;
+  
+  /* Headings */
+  --heading-color: #323232;
+  --subheading-color: #4a4a4a;
+  
+  /* Navigation */
+  --nav-bg: linear-gradient(45deg, #f9a825, #ff7043);
+  --nav-text: #faf3e0;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* Add this to your src/app/globals.css file */
 
 /* Enhanced Dark Mode Variables */
 html.dark-mode {
@@ -57,22 +56,33 @@ html.dark-mode {
   --table-header-text: white;
   --table-row-hover: #2d2d2d;
   --table-border: #333;
+  
+  /* Headings */
+  --heading-color: #f0f0f0;
+  --subheading-color: #dddddd;
+  
+  /* Navigation */
+  --nav-bg: linear-gradient(45deg, #d17d00, #cc5800);
+  --nav-text: #ffffff;
 }
 
 /* UNIVERSAL DARK MODE OVERRIDES - WILL AFFECT ALL PAGES */
 /* Basic text and background colors */
 html.dark-mode body {
-  background-color: #121212 !important;
-  color: #f0f0f0 !important;
+  background-color: var(--background, #121212) !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
-/* All text elements for better readability */
+/* All text elements for better readability - IMPORTANT SECTION FOR HEADINGS */
 html.dark-mode h1, 
 html.dark-mode h2, 
 html.dark-mode h3, 
 html.dark-mode h4, 
 html.dark-mode h5, 
-html.dark-mode h6,
+html.dark-mode h6 {
+  color: var(--heading-color, #f0f0f0) !important;
+}
+
 html.dark-mode p,
 html.dark-mode span,
 html.dark-mode div,
@@ -80,7 +90,17 @@ html.dark-mode td,
 html.dark-mode th,
 html.dark-mode li,
 html.dark-mode label {
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
+}
+
+/* Card titles and special headings */
+html.dark-mode .pageTitle,
+html.dark-mode .sectionTitle,
+html.dark-mode .cardTitle,
+html.dark-mode .card-title,
+html.dark-mode [class*="-title"],
+html.dark-mode [class*="Title"] {
+  color: var(--heading-color, #f0f0f0) !important;
 }
 
 /* Links and anchors */
@@ -91,11 +111,14 @@ html.dark-mode a {
 /* All input fields and form controls */
 html.dark-mode input, 
 html.dark-mode textarea, 
-html.dark-mode select,
+html.dark-mode select {
+  background-color: var(--input-background, #2d2d2d) !important;
+  color: var(--input-text, #f0f0f0) !important;
+  border-color: var(--input-border, #444) !important;
+}
+
 html.dark-mode button {
-  background-color: #2d2d2d !important;
-  color: #f0f0f0 !important;
-  border-color: #444 !important;
+  color: inherit !important;
 }
 
 html.dark-mode input::placeholder, 
@@ -106,20 +129,24 @@ html.dark-mode textarea::placeholder {
 /* All card-like containers */
 html.dark-mode .card,
 html.dark-mode [class*="card"],
-html.dark-mode [class*="Card"],
+html.dark-mode [class*="Card"] {
+  background-color: var(--card-background, #1e1e1e) !important;
+  border-color: var(--card-border, #333) !important;
+  color: var(--foreground, #f0f0f0) !important;
+}
+
 html.dark-mode [class*="container"],
 html.dark-mode [class*="Container"],
 html.dark-mode [class*="section"],
 html.dark-mode [class*="Section"] {
-  background-color: #1e1e1e !important;
-  border-color: #333 !important;
-  color: #f0f0f0 !important;
+  background-color: transparent !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 /* Tables */
 html.dark-mode table {
-  background-color: #1e1e1e !important;
-  color: #f0f0f0 !important;
+  background-color: var(--card-background, #1e1e1e) !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode tbody tr:nth-child(even) {
@@ -130,31 +157,36 @@ html.dark-mode tbody tr:hover {
   background-color: #333 !important;
 }
 
+html.dark-mode th {
+  background-color: var(--table-header-bg, linear-gradient(45deg, #f9a825, #d84315)) !important;
+  color: var(--table-header-text, white) !important;
+}
+
 /* Bottom navigation bar */
 html.dark-mode .bottomNav {
-  background: linear-gradient(45deg, #d17d00, #cc5800) !important;
+  background: var(--nav-bg, linear-gradient(45deg, #d17d00, #cc5800)) !important;
 }
 
 html.dark-mode .navItem {
-  color: #ffffff !important;
+  color: var(--nav-text, #ffffff) !important;
 }
 
 html.dark-mode .icon, 
 html.dark-mode .label {
-  color: #ffffff !important;
+  color: var(--nav-text, #ffffff) !important;
 }
 
 /* Form elements */
 html.dark-mode .formGroup label {
-  color: #e0e0e0 !important;
+  color: var(--foreground, #e0e0e0) !important;
 }
 
 /* PAGE-SPECIFIC DARK MODE FIXES */
 
 /* Point System Page */
 html.dark-mode .categoryCard {
-  background-color: #1e1e1e !important;
-  color: #f0f0f0 !important;
+  background-color: var(--card-background, #1e1e1e) !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .pointAction,
@@ -162,7 +194,7 @@ html.dark-mode .pointValue,
 html.dark-mode .categoryTitle,
 html.dark-mode .infoBox p,
 html.dark-mode .infoBox h3 {
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .pointItem {
@@ -171,27 +203,27 @@ html.dark-mode .pointItem {
 
 /* Player Performance Page */
 html.dark-mode .tab {
-  background-color: #2d2d2d !important;
-  color: #e0e0e0 !important;
+  background-color: var(--input-background, #2d2d2d) !important;
+  color: var(--foreground, #e0e0e0) !important;
 }
 
 html.dark-mode .activeTab {
-  background-color: #f9a825 !important;
+  background-color: var(--primary-color, #f9a825) !important;
   color: #fff !important;
 }
 
 html.dark-mode .tableWrapper {
-  background-color: #1e1e1e !important;
+  background-color: var(--card-background, #1e1e1e) !important;
 }
 
 html.dark-mode .tableHeader {
-  background: linear-gradient(45deg, #ff9a00, #ff6a00) !important;
+  background: var(--table-header-bg, linear-gradient(45deg, #ff9a00, #ff6a00)) !important;
   color: white !important;
 }
 
 html.dark-mode .tableCell {
-  color: #f0f0f0 !important;
-  border-bottom-color: #333 !important;
+  color: var(--foreground, #f0f0f0) !important;
+  border-bottom-color: var(--table-border, #333) !important;
 }
 
 html.dark-mode .tableRow:nth-child(even) {
@@ -207,8 +239,8 @@ html.dark-mode .leagueCard,
 html.dark-mode .createForm,
 html.dark-mode .searchResults,
 html.dark-mode .inviteCard {
-  background-color: #1e1e1e !important;
-  border-color: #333 !important;
+  background-color: var(--card-background, #1e1e1e) !important;
+  border-color: var(--card-border, #333) !important;
 }
 
 html.dark-mode .searchResultItem:hover {
@@ -217,7 +249,7 @@ html.dark-mode .searchResultItem:hover {
 
 html.dark-mode .userChip {
   background-color: #333 !important;
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .removeButton {
@@ -232,12 +264,12 @@ html.dark-mode .leagueName,
 html.dark-mode .leagueStats,
 html.dark-mode .userName,
 html.dark-mode .teamName {
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 /* Profile Page */
 html.dark-mode .photoSection {
-  background-color: #1e1e1e !important;
+  background-color: var(--card-background, #1e1e1e) !important;
 }
 
 html.dark-mode .referralSection {
@@ -255,17 +287,17 @@ html.dark-mode .referralInfo {
 
 /* Teams Page */
 html.dark-mode .teamCard {
-  background-color: #1e1e1e !important;
+  background-color: var(--card-background, #1e1e1e) !important;
 }
 
 html.dark-mode .playerCard {
   background-color: #2a2a2a !important;
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .playerName,
 html.dark-mode .playerPoints {
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .selectedPlayer {
@@ -276,35 +308,28 @@ html.dark-mode .selectedPlayer {
 html.dark-mode .captainButton,
 html.dark-mode .viceCaptainButton {
   background-color: #444 !important;
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .captainButton.selected {
-  background-color: #f9a825 !important;
+  background-color: var(--primary-color, #f9a825) !important;
   color: white !important;
 }
 
 html.dark-mode .viceCaptainButton.selected {
-  background-color: #ff7043 !important;
+  background-color: var(--secondary-color, #ff7043) !important;
   color: white !important;
 }
 
 /* Dashboard Page */
 html.dark-mode .featureCard {
-  background-color: #1e1e1e !important;
-  color: #f0f0f0 !important;
+  background-color: var(--card-background, #1e1e1e) !important;
+  color: var(--foreground, #f0f0f0) !important;
 }
 
 html.dark-mode .noTeamMessage,
 html.dark-mode .noStats {
   color: #ccc !important;
-}
-
-/* SPECIFIC FIXES FOR DASHBOARD CARDS FROM SCREENSHOT 6 */
-html.dark-mode .card h2,
-html.dark-mode .card h3,
-html.dark-mode .card p {
-  color: #f0f0f0 !important;
 }
 
 /* Override for text that should always be dark on light backgrounds */
@@ -334,13 +359,6 @@ html.dark-mode [style*="linear-gradient"] {
   /* Leave these alone as they're usually colored properly */
 }
 
-/* Fix inputs that have dark backgrounds in dark mode */
-html.dark-mode input,
-html.dark-mode textarea {
-  background-color: #333 !important;
-  color: white !important;
-}
-
 /* Ensure buttons remain styled correctly */
 html.dark-mode button {
   background-color: inherit; /* This allows the button's own styling to work */
@@ -359,12 +377,9 @@ html.dark-mode .acceptButton {
 /* For orange/amber buttons */
 html.dark-mode .saveButton,
 html.dark-mode .copyButton {
-  background: #f9a825 !important;
+  background: var(--primary-color, #f9a825) !important;
   color: white !important;
 }
-
-/* Improve dark theme toggle script in head section */
-/* (Add this script in layout.js) */
 
 /* Global Reset */
 html,
@@ -392,15 +407,9 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
-
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-  color: var(--text-color);
+  color: var(--heading-color);
   margin: 0 0 10px;
   font-weight: bold;
 }
@@ -437,10 +446,12 @@ button:disabled {
 input, textarea {
   width: 100%;
   padding: 10px;
-  border: 2px solid var(--neutral-color);
+  border: 2px solid var(--input-border);
   border-radius: 5px;
   font-size: 14px;
   margin-bottom: 15px;
+  background-color: var(--input-background);
+  color: var(--input-text);
 }
 
 input:focus, textarea:focus {
