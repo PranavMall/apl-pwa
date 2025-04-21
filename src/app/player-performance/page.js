@@ -396,9 +396,7 @@ const PlayerPerformancePage = () => {
               <th>Team</th>
               <th>Position</th>
               <th>Matches</th>
-              <th>Runs</th>
-              <th>Wickets</th>
-              <th>Catches</th>
+              <th>Period</th>
               {selectedPosition === 'batsman' && (
                 <>
                   <th>Runs</th>
