@@ -3,14 +3,13 @@
   margin: 0 auto;
   padding: 20px;
   font-family: var(--font-geist-sans, sans-serif);
-  /* Add padding at bottom for mobile navigation */
-  padding-bottom: 90px;
+  padding-bottom: 90px; /* Space for bottom navigation */
 }
 
 .pageTitle {
   font-size: 1.75rem;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--text-color, #333);
 }
 
 /* Filter controls */
@@ -30,26 +29,17 @@
 
 .filterGroup label {
   font-weight: 500;
-  color: #444;
+  color: var(--text-color, #444);
 }
 
-.select {
+.select, .searchInput {
   padding: 10px 15px;
   border-radius: 8px;
-  border: 1px solid #ddd;
-  background: white;
+  border: 1px solid var(--card-border, #ddd);
+  background: var(--card-background, white);
   min-width: 180px;
   font-size: 0.95rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.searchInput {
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  background: white;
-  min-width: 250px;
-  font-size: 0.95rem;
+  color: var(--text-color, #333);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -66,8 +56,8 @@
 .tableWrapper {
   overflow-x: auto;
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  background: white;
+  box-shadow: var(--card-shadow, 0 4px 12px rgba(0,0,0,0.1));
+  background: var(--card-background, white);
   margin-bottom: 30px;
 }
 
@@ -78,8 +68,8 @@
 }
 
 .table th {
-  background: linear-gradient(45deg, #ff9a00, #ff6a00);
-  color: white;
+  background: var(--table-header-bg, linear-gradient(45deg, #ff9a00, #ff6a00));
+  color: var(--table-header-text, white);
   text-align: left;
   padding: 15px;
   font-weight: 600;
@@ -89,21 +79,18 @@
   transition: background 0.2s;
 }
 
-.table th:hover {
-  background: linear-gradient(45deg, #ff6a00, #ff9a00);
-}
-
 .table td {
   padding: 12px 15px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--table-border, #f0f0f0);
+  color: var(--text-color, inherit);
 }
 
 .table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: var(--card-background, #f9f9f9);
 }
 
 .table tr:hover {
-  background-color: #fff5e6;
+  background-color: var(--table-row-hover, #fff5e6);
 }
 
 /* Mobile card-based layout */
@@ -114,9 +101,9 @@
 }
 
 .playerCard {
-  background: white;
+  background: var(--card-background, white);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: var(--card-shadow, 0 2px 8px rgba(0,0,0,0.1));
   padding: 0;
   overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -128,7 +115,7 @@
 }
 
 .playerCardHeader {
-  background: linear-gradient(45deg, #ff9a00, #ff6a00);
+  background: var(--table-header-bg, linear-gradient(45deg, #ff9a00, #ff6a00));
   color: white;
   padding: 15px;
   position: relative;
@@ -152,6 +139,7 @@
 
 .playerCardBody {
   padding: 15px;
+  color: var(--text-color, inherit);
 }
 
 .positionBadge {
@@ -171,7 +159,7 @@
 }
 
 .stat {
-  background: #f5f5f5;
+  background: var(--input-background, #f5f5f5);
   border-radius: 6px;
   padding: 8px 12px;
   min-width: 80px;
@@ -181,20 +169,21 @@
 .statLabel {
   display: block;
   font-size: 0.75rem;
-  color: #666;
+  color: var(--text-color, #666);
+  opacity: 0.8;
   margin-bottom: 3px;
 }
 
 .statValue {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text-color, #333);
 }
 
 /* Points column styling */
 .pointsColumn {
   font-weight: 600;
-  color: #ff6a00;
+  color: var(--primary-color, #ff6a00);
 }
 
 /* Role badges */
@@ -234,7 +223,7 @@
   align-items: center;
   min-height: 200px;
   font-size: 1.1rem;
-  color: #666;
+  color: var(--text-color, #666);
 }
 
 .error {
@@ -249,10 +238,31 @@
 .noData {
   text-align: center;
   padding: 40px 20px;
-  color: #757575;
+  color: var(--text-color, #757575);
   font-style: italic;
-  background: #f9f9f9;
+  background: var(--card-background, #f9f9f9);
   border-radius: 8px;
+}
+
+/* Form sparkline chart */
+.formChart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  min-height: 28px;
+}
+
+.noFormData {
+  color: #999;
+  font-style: italic;
+}
+
+/* Enhanced stats */
+.statLarge {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--primary-color, #ff6a00);
 }
 
 /* Responsive adjustments */
@@ -275,8 +285,7 @@
     width: 100%;
   }
   
-  .select, 
-  .searchInput {
+  .select, .searchInput {
     width: 100%;
   }
   
@@ -319,74 +328,13 @@
   }
 }
 
-/* Dark mode compatibility */
-@media (prefers-color-scheme: dark) {
-  .table {
-    background: #1e1e1e;
-  }
-  
-  .table td {
-    color: #f0f0f0;
-    border-bottom-color: #333;
-  }
-  
-  .table tr:nth-child(even) {
-    background-color: #252525;
-  }
-  
-  .table tr:hover {
-    background-color: #333;
-  }
-  
-  .select,
-  .searchInput {
-    background-color: #2d2d2d;
-    color: #f0f0f0;
-    border-color: #444;
-  }
-  
-  .filterGroup label {
-    color: #e0e0e0;
-  }
-  
-  .noData {
-    background: #252525;
-    color: #aaa;
-  }
-  
-  .pageTitle {
-    color: #f0f0f0;
-  }
-  
-  /* Dark mode for cards */
-  .playerCard {
-    background: #1e1e1e;
-  }
-  
-  .playerCardBody {
-    color: #f0f0f0;
-  }
-  
-  .stat {
-    background: #2d2d2d;
-  }
-  
-  .statLabel {
-    color: #aaa;
-  }
-  
-  .statValue {
-    color: #f0f0f0;
-  }
-}
-
-/* Force dark mode styles with the html.dark-mode class */
-html.dark-mode .table {
-  background: #1e1e1e !important;
+/* Dark mode compatibility - relies on CSS variables from globals.css */
+html.dark-mode .table th {
+  color: white !important;
 }
 
 html.dark-mode .table td {
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
   border-bottom-color: #333 !important;
 }
 
@@ -400,224 +348,36 @@ html.dark-mode .table tr:hover {
 
 html.dark-mode .select,
 html.dark-mode .searchInput {
-  background-color: #2d2d2d !important;
-  color: #f0f0f0 !important;
+  background-color: var(--input-background, #2d2d2d) !important;
+  color: var(--foreground, #f0f0f0) !important;
   border-color: #444 !important;
 }
 
-html.dark-mode .filterGroup label {
-  color: #e0e0e0 !important;
-}
-
-html.dark-mode .noData {
-  background: #252525 !important;
-  color: #aaa !important;
-}
-
-html.dark-mode .pageTitle {
-  color: #f0f0f0 !important;
-}
-
-html.dark-mode .playerCard {
-  background: #1e1e1e !important;
-}
-
+html.dark-mode .pageTitle, 
+html.dark-mode .filterGroup label,
+html.dark-mode .statValue,
 html.dark-mode .playerCardBody {
-  color: #f0f0f0 !important;
+  color: var(--foreground, #f0f0f0) !important;
+}
+
+html.dark-mode .playerCard,
+html.dark-mode .tableWrapper {
+  background-color: var(--card-background, #1e1e1e) !important;
 }
 
 html.dark-mode .stat {
-  background: #2d2d2d !important;
+  background-color: #2d2d2d !important;
 }
 
 html.dark-mode .statLabel {
   color: #aaa !important;
 }
 
-html.dark-mode .statValue {
-  color: #f0f0f0 !important;
-}
-/* Enhanced stat containers to better handle cumulative stats */
-.matchCountBadge {
-  display: inline-block;
-  background-color: #e3f2fd;
-  color: #1565c0;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  margin-left: 8px;
-  vertical-align: middle;
+html.dark-mode .noData {
+  background-color: #252525 !important;
+  color: #aaa !important;
 }
 
-.periodBadge {
-  display: inline-block;
-  background-color: #fff3e0;
-  color: #e65100;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-/* Update card styles for cumulative view */
-.playerCardHeader {
-  background: linear-gradient(45deg, #ff9a00, #ff6a00);
-  color: white;
-  padding: 15px;
-  position: relative;
-}
-
-.playerCardHeader .matchCountBadge {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-}
-
-.cumulativeHighlight {
-  font-weight: 700;
-  color: #ff6a00;
-}
-
-/* Enhanced table styles for sortable columns */
-.table th {
-  cursor: pointer;
-  position: relative;
-}
-
-.table th::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0;
-  height: 0;
-  opacity: 0.5;
-}
-
-.table th.sorted-asc::after {
-  content: '▲';
-  opacity: 1;
-}
-
-.table th.sorted-desc::after {
-  content: '▼';
-  opacity: 1;
-}
-
-.table th:hover::after {
-  opacity: 1;
-}
-
-/* Enhanced stat display for cumulative metrics */
-.statValue {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.statLarge {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #ff6a00;
-}
-
-/* Responsive enhancements */
-@media (max-width: 768px) {
-  .playerCard {
-    margin-bottom: 15px;
-  }
-  
-  .statGroups {
-    gap: 8px;
-  }
-}
-
-/* Dark mode compatibility updates */
-@media (prefers-color-scheme: dark) {
-  .matchCountBadge {
-    background-color: rgba(33, 150, 243, 0.2);
-    color: #90caf9;
-  }
-  
-  .periodBadge {
-    background-color: rgba(255, 152, 0, 0.2);
-    color: #ffcc80;
-  }
-  
-  .cumulativeHighlight {
-    color: #ff9a3c;
-  }
-  
-  .statLarge {
-    color: #ff9a3c;
-  }
-}
-
-/* Force dark mode styles with the html.dark-mode class */
-html.dark-mode .matchCountBadge {
-  background-color: rgba(33, 150, 243, 0.2) !important;
-  color: #90caf9 !important;
-}
-
-html.dark-mode .periodBadge {
-  background-color: rgba(255, 152, 0, 0.2) !important;
-  color: #ffcc80 !important;
-}
-
-html.dark-mode .cumulativeHighlight,
 html.dark-mode .statLarge {
-  color: #ff9a3c !important;
-}
-
-/* Styles for form sparkline chart */
-.formChart {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 0;
-  min-height: 28px;
-}
-
-.noFormData {
-  color: #999;
-  font-style: italic;
-}
-
-.formColumn {
-  text-align: center;
-  width: 100px;
-}
-
-/* Tooltip for sparkline chart */
-.tooltipContainer {
-  position: relative;
-  display: inline-block;
-}
-
-.tooltip {
-  visibility: hidden;
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  text-align: center;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 1;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-.tooltipContainer:hover .tooltip {
-  visibility: visible;
-  opacity: 1;
+  color: var(--primary-color, #ff9a3c) !important;
 }
