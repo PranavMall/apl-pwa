@@ -85,6 +85,9 @@ const PlayerPerformancePage = () => {
       );
     }
     
+    // Sort by total points (descending)
+    data.sort((a, b) => b.totalPoints - a.totalPoints);
+    
     setFilteredData(data);
   }, [playerData, selectedPosition, selectedWeek, searchTerm]);
 
@@ -106,26 +109,85 @@ const PlayerPerformancePage = () => {
       }
       
       // Process the raw data from Google Sheets
-      const processedData = result.processedRows ? 
+      const rawData = result.processedRows ? 
         result.processedRows.map(row => calculateMetrics(row, playerMasterData)) : [];
       
-      console.log("Sample processed player data:", processedData.slice(0, 2));
+      console.log("Sample raw player data:", rawData.slice(0, 2));
       
       // Extract available weeks for filter
       const weeks = new Set();
-      processedData.forEach(player => {
+      rawData.forEach(player => {
         if (player.week) weeks.add(player.week);
       });
       setAvailableWeeks(Array.from(weeks).sort((a, b) => a - b));
       
-      setPlayerData(processedData);
-      setFilteredData(processedData);
+      // Aggregate players data to eliminate duplicates
+      const aggregatedData = aggregatePlayerData(rawData);
+      console.log("Sample aggregated player data:", aggregatedData.slice(0, 2));
+      
+      setPlayerData(aggregatedData);
+      setFilteredData(aggregatedData);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching player performance data:', err);
       setError('Failed to load player performance data. Please try again later.');
       setLoading(false);
     }
+  };
+
+  // Aggregate player data to eliminate duplicates and sum up metrics
+  const aggregatePlayerData = (rawData) => {
+    // First, group by player name and week
+    const weeklyStats = {};
+    const tournamentStats = {};
+
+    // Process each player match performance
+    rawData.forEach(player => {
+      const playerKey = `${player.name.toLowerCase()}_${player.team.toLowerCase()}`;
+      const weeklyKey = `${playerKey}_${player.week}`;
+      
+      // Update weekly stats
+      if (!weeklyStats[weeklyKey]) {
+        weeklyStats[weeklyKey] = {
+          ...player,
+          matchCount: 1
+        };
+      } else {
+        // Sum all numeric values
+        Object.keys(player).forEach(key => {
+          if (typeof player[key] === 'number') {
+            weeklyStats[weeklyKey][key] += player[key];
+          }
+        });
+        weeklyStats[weeklyKey].matchCount += 1;
+      }
+      
+      // Update tournament stats (across all weeks)
+      if (!tournamentStats[playerKey]) {
+        tournamentStats[playerKey] = {
+          ...player,
+          week: 'all',  // Mark as an all-weeks entry
+          matchCount: 1
+        };
+      } else {
+        // Sum all numeric values
+        Object.keys(player).forEach(key => {
+          if (typeof player[key] === 'number' && key !== 'week') {
+            tournamentStats[playerKey][key] += player[key];
+          }
+        });
+        tournamentStats[playerKey].matchCount += 1;
+      }
+    });
+
+    // Combine weekly and tournament stats into a single array
+    const combinedStats = [
+      ...Object.values(weeklyStats),
+      ...Object.values(tournamentStats)
+    ];
+    
+    // Sort by total points (descending)
+    return combinedStats.sort((a, b) => b.totalPoints - a.totalPoints);
   };
 
   // Helper function to calculate metrics from points
@@ -215,11 +277,14 @@ const PlayerPerformancePage = () => {
 
   // Function to render player statistics in a mobile-friendly card format
   const renderPlayerCard = (player) => {
+    const matchesText = player.matchCount > 1 ? `${player.matchCount} matches` : '1 match';
+    const weekText = player.week === 'all' ? 'Tournament' : `Week ${player.week}`;
+    
     return (
-      <div key={`${player.name}-${player.week}-${player.match}`} className={styles.playerCard}>
+      <div key={`${player.name}-${player.week}`} className={styles.playerCard}>
         <div className={styles.playerCardHeader}>
           <h3 className={styles.playerName}>{player.name}</h3>
-          <span className={styles.playerTeam}>{player.team}</span>
+          <span className={styles.playerTeam}>{player.team} - {weekText} ({matchesText})</span>
         </div>
         
         <div className={styles.playerCardBody}>
@@ -326,6 +391,8 @@ const PlayerPerformancePage = () => {
               <th>Player</th>
               <th>Team</th>
               <th>Position</th>
+              <th>Matches</th>
+              <th>Period</th>
               {selectedPosition === 'batsman' && (
                 <>
                   <th>Runs</th>
@@ -362,8 +429,8 @@ const PlayerPerformancePage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredData.map(player => (
-              <tr key={`${player.name}-${player.week}-${player.match}`}>
+            {filteredData.map((player, index) => (
+              <tr key={`${player.name}-${player.week}-${index}`}>
                 <td>{player.name}</td>
                 <td>{player.team}</td>
                 <td>
@@ -375,6 +442,8 @@ const PlayerPerformancePage = () => {
                      player.position}
                   </span>
                 </td>
+                <td>{player.matchCount || 1}</td>
+                <td>{player.week === 'all' ? 'Tournament' : `Week ${player.week}`}</td>
                 {selectedPosition === 'batsman' && (
                   <>
                     <td>{player.runs}</td>
@@ -446,14 +515,14 @@ const PlayerPerformancePage = () => {
               </div>
               
               <div className={styles.filterGroup}>
-                <label htmlFor="week-filter">Week:</label>
+                <label htmlFor="week-filter">Period:</label>
                 <select
                   id="week-filter"
                   className={styles.select}
                   value={selectedWeek}
                   onChange={(e) => setSelectedWeek(e.target.value)}
                 >
-                  <option value="all">All Weeks</option>
+                  <option value="all">Tournament (All Weeks)</option>
                   {availableWeeks.map(week => (
                     <option key={week} value={week}>Week {week}</option>
                   ))}
@@ -490,7 +559,7 @@ const PlayerPerformancePage = () => {
                 {/* Card-based layout for mobile view */}
                 <div className={styles.mobileView}>
                   <div className={styles.cardsContainer}>
-                    {filteredData.map(player => renderPlayerCard(player))}
+                    {filteredData.map((player, index) => renderPlayerCard(player))}
                   </div>
                 </div>
               </>
