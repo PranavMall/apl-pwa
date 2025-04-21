@@ -437,3 +437,138 @@ html.dark-mode .statLabel {
 html.dark-mode .statValue {
   color: #f0f0f0 !important;
 }
+/* Enhanced stat containers to better handle cumulative stats */
+.matchCountBadge {
+  display: inline-block;
+  background-color: #e3f2fd;
+  color: #1565c0;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.periodBadge {
+  display: inline-block;
+  background-color: #fff3e0;
+  color: #e65100;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Update card styles for cumulative view */
+.playerCardHeader {
+  background: linear-gradient(45deg, #ff9a00, #ff6a00);
+  color: white;
+  padding: 15px;
+  position: relative;
+}
+
+.playerCardHeader .matchCountBadge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.cumulativeHighlight {
+  font-weight: 700;
+  color: #ff6a00;
+}
+
+/* Enhanced table styles for sortable columns */
+.table th {
+  cursor: pointer;
+  position: relative;
+}
+
+.table th::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  opacity: 0.5;
+}
+
+.table th.sorted-asc::after {
+  content: '▲';
+  opacity: 1;
+}
+
+.table th.sorted-desc::after {
+  content: '▼';
+  opacity: 1;
+}
+
+.table th:hover::after {
+  opacity: 1;
+}
+
+/* Enhanced stat display for cumulative metrics */
+.statValue {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.statLarge {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #ff6a00;
+}
+
+/* Responsive enhancements */
+@media (max-width: 768px) {
+  .playerCard {
+    margin-bottom: 15px;
+  }
+  
+  .statGroups {
+    gap: 8px;
+  }
+}
+
+/* Dark mode compatibility updates */
+@media (prefers-color-scheme: dark) {
+  .matchCountBadge {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #90caf9;
+  }
+  
+  .periodBadge {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #ffcc80;
+  }
+  
+  .cumulativeHighlight {
+    color: #ff9a3c;
+  }
+  
+  .statLarge {
+    color: #ff9a3c;
+  }
+}
+
+/* Force dark mode styles with the html.dark-mode class */
+html.dark-mode .matchCountBadge {
+  background-color: rgba(33, 150, 243, 0.2) !important;
+  color: #90caf9 !important;
+}
+
+html.dark-mode .periodBadge {
+  background-color: rgba(255, 152, 0, 0.2) !important;
+  color: #ffcc80 !important;
+}
+
+html.dark-mode .cumulativeHighlight,
+html.dark-mode .statLarge {
+  color: #ff9a3c !important;
+}
