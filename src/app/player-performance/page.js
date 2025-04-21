@@ -71,8 +71,12 @@ const PlayerPerformancePage = () => {
       );
     }
     
-    // Filter by week
-    if (selectedWeek && selectedWeek !== 'all') {
+    // Filter by period (week or tournament)
+    if (selectedWeek === 'all') {
+      // For "Tournament (All Weeks)", only show tournament-level aggregated data
+      data = data.filter(player => player.week === 'all');
+    } else {
+      // For specific week, only show data for that week
       data = data.filter(player => player.week === parseInt(selectedWeek));
     }
     
@@ -392,7 +396,9 @@ const PlayerPerformancePage = () => {
               <th>Team</th>
               <th>Position</th>
               <th>Matches</th>
-              <th>Period</th>
+              <th>Runs</th>
+              <th>Wickets</th>
+              <th>Catches</th>
               {selectedPosition === 'batsman' && (
                 <>
                   <th>Runs</th>
