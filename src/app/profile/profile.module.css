@@ -6,6 +6,7 @@
   flex-direction: column;
   gap: 20px;
   padding-bottom: 100px; /* Space for bottom navigation */
+  font-family: var(--font-geist-sans, sans-serif);
 }
 
 .loading {
@@ -16,74 +17,29 @@
   font-size: 1.2rem;
   color: #666;
 }
-.referralLink {
-  color: #f9a825;
-  text-decoration: underline;
-  font-weight: 500;
-  transition: color 0.2s;
-}
 
-.referralLink:hover {
-  color: #ff7043;
-}
-
-/* Profile card styles */
+/* Profile Card */
 .profileCard {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
+  overflow: hidden;
 }
 
-.whatsappButton {
-  background: #25D366;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: background-color 0.2s;
-  margin-left: 5px;
+.profileGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
 }
 
-.whatsappButton:hover {
-  background: #128C7E;
-}
-
-.profileForm {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.statusMessage {
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: 4px;
-}
-
-.success {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.error {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
-.info {
-  background-color: #e3f2fd;
-  color: #0d47a1;
-}
-
+/* Photo Section */
 .photoSection {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 15px;
 }
 
 .photoContainer {
@@ -91,10 +47,11 @@
   height: 120px;
   border-radius: 50%;
   overflow: hidden;
-  background: #e0e0e0;
+  background: #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
 }
 
 .profilePhoto {
@@ -103,344 +60,356 @@
   object-fit: cover;
 }
 
-.photoPlaceholder {
-  width: 100%;
-  height: 100%;
+.avatarInfo {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  font-weight: bold;
-  color: #fff;
-  background: linear-gradient(45deg, #f9a825, #ff7043);
+  text-align: center;
 }
 
-.uploadButton {
-  background: linear-gradient(45deg, #f9a825, #ff7043);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.9rem;
+.avatarLabel {
   font-weight: 500;
-  transition: opacity 0.2s;
+  color: #4b5563;
+  font-size: 0.9rem;
 }
 
-.uploadButton:hover {
-  opacity: 0.9;
+.avatarHint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  max-width: 150px;
+  text-align: center;
 }
 
-.fileInput {
-  display: none;
+/* Info Section */
+.infoSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .label {
   font-weight: 500;
-  color: #555;
+  color: #4b5563;
   font-size: 0.95rem;
 }
 
 .input,
 .textarea {
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  background: white;
+  color: #1f2937;
 }
 
 .input:focus,
 .textarea:focus {
-  border-color: #f9a825;
+  border-color: var(--primary-color, #f9a825);
   outline: none;
+  box-shadow: 0 0 0 2px rgba(249, 168, 37, 0.2);
 }
 
 .textarea {
   resize: vertical;
   min-height: 80px;
+  line-height: 1.5;
 }
 
+.fieldHint {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* Referral Section */
 .referralSection {
-  margin-top: 10px;
-  background: #f9f9f9;
-  padding: 15px;
+  background: #faf9f7;
+  padding: 25px;
   border-radius: 8px;
+  margin-top: 20px;
 }
 
 .referralSection h3 {
-  margin-bottom: 10px;
+  margin: 0 0 15px 0;
   font-size: 1.1rem;
-  color: #333;
+  color: #4b5563;
+}
+
+.referralSection h4 {
+  margin: 25px 0 10px 0;
+  font-size: 1rem;
+  color: #4b5563;
+}
+
+.referralInfo {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 15px;
+  line-height: 1.5;
 }
 
 .referralCode {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  justify-content: space-between;
   background: white;
-  padding: 10px 15px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
+  font-weight: 500;
+  font-family: var(--font-geist-mono, monospace);
+  letter-spacing: 0.5px;
+}
+
+.referralActions {
+  display: flex;
+  gap: 10px;
 }
 
 .copyButton {
-  background: #f9a825;
+  background: var(--primary-color, #f9a825);
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .copyButton:hover {
-  background: #ff7043;
+  background: #f0950f;
 }
 
-.referralInfo {
-  font-size: 0.85rem;
-  color: #666;
+.referrerSection {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 20px;
+  margin-top: 20px;
 }
 
-.saveButton {
-  background: linear-gradient(45deg, #f9a825, #ff7043);
+.referrerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.applyButton {
+  background: var(--primary-color, #f9a825);
   color: white;
   border: none;
-  padding: 12px 20px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+
+.applyButton:hover {
+  background: #f0950f;
+}
+
+.applyButton:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.referralLink {
+  color: var(--primary-color, #f9a825);
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.referralLink:hover {
+  color: var(--secondary-color, #ff7043);
+}
+
+/* Status Message */
+.statusMessage {
+  padding: 12px 15px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin: 10px 0;
+  animation: fadeIn 0.3s ease;
+}
+
+.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border-left: 4px solid #2e7d32;
+}
+
+.error {
+  background-color: #ffebee;
+  color: #c62828;
+  border-left: 4px solid #c62828;
+}
+
+.info {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+  border-left: 4px solid #0d47a1;
+}
+
+/* Buttons */
+.saveButton {
+  background: linear-gradient(45deg, var(--primary-color, #f9a825), var(--secondary-color, #ff7043));
+  color: white;
+  border: none;
+  padding: 10px 20px;
   border-radius: 6px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
-  margin-top: 10px;
+  transition: all 0.3s;
   align-self: flex-start;
+  margin-top: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .saveButton:hover {
-  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.saveButton:active {
+  transform: translateY(0);
 }
 
 .saveButton:disabled {
-  background: #ccc;
+  background: #d1d5db;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-/* Team Card Styles */
+/* Team Card */
 .teamCard {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.teamStatusInfo {
+  margin-bottom: 20px;
 }
 
 .activeWindow {
   background: #4caf50;
   color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  margin-top: 5px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  text-align: center;
+  animation: pulse 2s infinite;
 }
 
 .inactiveWindow {
   background: #f44336;
   color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  margin-top: 5px;
-}
-
-.transferSection {
-  padding: 10px 0;
-}
-
-.playersGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
-  margin-top: 20px;
-  max-height: 400px;
-  overflow-y: auto;
-  padding: 5px;
-}
-
-.playerCard {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 2px solid transparent;
-  position: relative;
-}
-
-.playerCard:hover {
-  background: #f0f0f0;
-}
-
-.selectedPlayer {
-  border-color: #4caf50;
-  background: #e8f5e9;
-}
-
-.playerName {
-  font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 5px;
-}
-
-.playerTeam {
-  font-size: 0.85rem;
-  color: #666;
-  margin-bottom: 5px;
-}
-
-.playerPoints {
-  font-size: 0.9rem;
+  padding: 12px 16px;
+  border-radius: 6px;
   font-weight: 500;
-  color: #333;
+  text-align: center;
 }
 
-.captainButtons {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.captainButton,
-.viceCaptainButton {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.85rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.captainButton {
-  background: #e0e0e0;
-  color: #333;
-}
-
-.viceCaptainButton {
-  background: #e0e0e0;
-  color: #333;
-}
-
-.captainButton.selected {
-  background: #f9a825;
-  color: white;
-}
-
-.viceCaptainButton.selected {
-  background: #ff7043;
-  color: white;
-}
-
-.teamSummary {
-  margin-top: 20px;
-  background: #f5f5f5;
-  padding: 15px;
-  border-radius: 8px;
-}
-
-.teamCount {
+.teamInfoContent {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 20px;
+  padding: 5px 0;
 }
 
-.captainSummary {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.teamStatus {
+  flex: 1;
 }
 
-.saveTeamButton {
-  background: linear-gradient(45deg, #388e3c, #4caf50);
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  margin-top: 20px;
-  width: 100%;
+.teamStatus h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  color: #4b5563;
 }
 
-.saveTeamButton:hover {
-  opacity: 0.9;
-}
-
-.saveTeamButton:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.lockedTransferSection {
-  padding: 20px 0;
-}
-
-.lockedMessage {
-  background: #ffebee;
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.lockedMessage h3 {
-  color: #d32f2f;
-  margin-bottom: 10px;
-}
-
-.currentTeam {
-  margin-top: 30px;
-}
-
-.currentTeam h3 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.currentTeamGrid {
+.teamSummary {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
 }
 
-.currentPlayerCard {
-  background: #f5f5f5;
-  border-radius: 8px;
+.teamStat {
+  background: #f9fafb;
   padding: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  text-align: center;
 }
 
-.playerRole {
+.statLabel {
+  display: block;
   font-size: 0.8rem;
-  background: #e0e0e0;
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-top: 5px;
+  color: #6b7280;
+  margin-bottom: 5px;
+}
+
+.statValue {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.noTeamMessage {
+  color: #6b7280;
+  font-style: italic;
+  margin: 10px 0;
+}
+
+.teamManagementLink {
+  text-decoration: none;
+}
+
+.teamManagementButton {
+  background: var(--accent-color, #388e3c);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.teamManagementButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.teamManagementButton:active {
+  transform: translateY(0);
+}
+
+/* Leagues Card */
+.leaguesCard {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 /* Stats Card Styles */
@@ -448,6 +417,61 @@
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.weeklyPerformance {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.sparklineContainer {
+  margin-bottom: 10px;
+}
+
+.sparklineContainer h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  color: #4b5563;
+}
+
+.performanceChart {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.sparkline {
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+  display: block;
+}
+
+.noSparkline {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 20px 0;
+}
+
+.performanceSummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.performanceStat {
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .weeklyStatsTable {
@@ -457,171 +481,266 @@
 .weeklyStatsTable table {
   width: 100%;
   border-collapse: collapse;
-}
-
-.weeklyStatsTable th,
-.weeklyStatsTable td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
 }
 
 .weeklyStatsTable th {
-  background: #f5f5f5;
+  background: linear-gradient(45deg, var(--primary-color, #f9a825), var(--secondary-color, #ff7043));
+  color: white;
+  text-align: left;
+  padding: 12px 15px;
   font-weight: 600;
-  color: #333;
+}
+
+.weeklyStatsTable td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #4b5563;
 }
 
 .weeklyStatsTable tr:hover {
-  background: #f9f9f9;
+  background-color: #f9fafb;
 }
 
 .noStats {
   padding: 30px;
   text-align: center;
-  color: #666;
+  color: #6b7280;
   font-style: italic;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
 }
 
 /* Responsive Styles */
 @media (max-width: 768px) {
   .container {
-    padding: 10px;
+    padding: 15px;
     padding-bottom: 90px;
   }
   
-  .teamCount {
+  .profileGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .teamInfoContent {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
-  
-  .playersGrid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+
+  .teamManagementButton {
+    width: 100%;
   }
-  
-  .currentTeamGrid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+
+  .teamSummary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .performanceSummary {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
-/* Dark mode fixes for league components */
+
+@media (max-width: 480px) {
+  .referralCode {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .referralActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .teamSummary, 
+  .performanceSummary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark Mode Styles */
 @media (prefers-color-scheme: dark) {
-  .tab {
-    background: #2d2d2d;
-    color: #e0e0e0;
-  }
-  
-  .activeTab {
-    background: var(--primary-color, #f9a825);
-    color: white;
-  }
-  
-  .createForm, 
-  .leagueCard, 
-  .inviteCard {
+  .profileCard, 
+  .teamCard, 
+  .leaguesCard, 
+  .statsCard {
     background: #1e1e1e;
-    border-color: #333;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
-  
-  .message.success {
-    background: #1b5e20;
-  }
-  
-  .message.error {
-    background: #b71c1c;
-  }
-  
-  .userName, 
-  .leagueName,
-  .formGroup label {
+
+  .label {
     color: #e0e0e0;
   }
-  
-  .teamName {
-    color: #bbb;
-  }
-  
-  .leagueStats {
-    color: #aaa;
-  }
-  
-  .input {
-    background-color: #2d2d2d;
+
+  .input, 
+  .textarea {
+    background: #2d2d2d;
     color: #f0f0f0;
     border-color: #444;
   }
-  
-  .input::placeholder {
+
+  .fieldHint {
     color: #aaa;
   }
-  
-  .searchResults {
-    background: #2d2d2d;
-    border-color: #444;
+
+  .referralSection {
+    background: #262626;
   }
-  
-  .searchResultItem {
-    border-bottom-color: #444;
-  }
-  
-  .searchResultItem:hover {
-    background: #333;
-  }
-  
-  .userChip {
-    background: #333;
+
+  .referralSection h3,
+  .referralSection h4,
+  .teamStatus h3,
+  .sparklineContainer h3 {
     color: #e0e0e0;
   }
-  
-  .emptyState {
-    background: #252525;
+
+  .referralInfo {
+    color: #bbb;
+  }
+
+  .referralCode {
+    background: #2d2d2d;
+    border-color: #444;
+    color: #f0f0f0;
+  }
+
+  .teamStat {
+    background: #2d2d2d;
+  }
+
+  .statLabel {
+    color: #bbb;
+  }
+
+  .statValue {
+    color: #f0f0f0;
+  }
+
+  .noTeamMessage, 
+  .noStats {
     color: #aaa;
+  }
+
+  .weeklyStatsTable td {
+    color: #e0e0e0;
+    border-bottom-color: #333;
+  }
+
+  .weeklyStatsTable tr:hover {
+    background-color: #2a2a2a;
+  }
+
+  .performanceChart {
+    background: #2d2d2d;
+  }
+
+  .performanceStat {
+    background: #1e1e1e;
+  }
+
+  .photoContainer {
+    background: #333;
   }
 }
 
 /* Force dark mode styles with the html.dark-mode class */
-html.dark-mode .tab {
-  background: #2d2d2d !important;
-  color: #e0e0e0 !important;
-}
-
-html.dark-mode .activeTab {
-  background: var(--primary-color, #f9a825) !important;
-  color: white !important;
-}
-
-html.dark-mode .createForm,
-html.dark-mode .leagueCard,
-html.dark-mode .inviteCard,
-html.dark-mode .searchResults {
+html.dark-mode .profileCard, 
+html.dark-mode .teamCard, 
+html.dark-mode .leaguesCard, 
+html.dark-mode .statsCard {
   background: #1e1e1e !important;
-  border-color: #333 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-html.dark-mode .searchResultItem {
-  border-bottom-color: #444 !important;
-}
-
-html.dark-mode .searchResultItem:hover {
-  background: #333 !important;
-}
-
-html.dark-mode .userName,
-html.dark-mode .leagueName,
-html.dark-mode .formGroup label {
+html.dark-mode .label {
   color: #e0e0e0 !important;
 }
 
-html.dark-mode .teamName {
-  color: #bbb !important;
-}
-
-html.dark-mode .input {
-  background-color: #2d2d2d !important;
+html.dark-mode .input, 
+html.dark-mode .textarea {
+  background: #2d2d2d !important;
   color: #f0f0f0 !important;
   border-color: #444 !important;
 }
 
-html.dark-mode .userChip {
-  background: #333 !important;
+html.dark-mode .fieldHint {
+  color: #aaa !important;
+}
+
+html.dark-mode .referralSection {
+  background: #262626 !important;
+}
+
+html.dark-mode .referralSection h3,
+html.dark-mode .referralSection h4,
+html.dark-mode .teamStatus h3,
+html.dark-mode .sparklineContainer h3 {
   color: #e0e0e0 !important;
+}
+
+html.dark-mode .referralInfo {
+  color: #bbb !important;
+}
+
+html.dark-mode .referralCode {
+  background: #2d2d2d !important;
+  border-color: #444 !important;
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .teamStat {
+  background: #2d2d2d !important;
+}
+
+html.dark-mode .statLabel {
+  color: #bbb !important;
+}
+
+html.dark-mode .statValue {
+  color: #f0f0f0 !important;
+}
+
+html.dark-mode .noTeamMessage, 
+html.dark-mode .noStats {
+  color: #aaa !important;
+}
+
+html.dark-mode .weeklyStatsTable td {
+  color: #e0e0e0 !important;
+  border-bottom-color: #333 !important;
+}
+
+html.dark-mode .weeklyStatsTable tr:hover {
+  background-color: #2a2a2a !important;
+}
+
+html.dark-mode .performanceChart {
+  background: #2d2d2d !important;
+}
+
+html.dark-mode .performanceStat {
+  background: #1e1e1e !important;
+}
+
+html.dark-mode .photoContainer {
+  background: #333 !important;
+}
+
+html.dark-mode .avatarLabel {
+  color: #e0e0e0 !important;
+}
+
+html.dark-mode .avatarHint {
+  color: #aaa !important;
 }
