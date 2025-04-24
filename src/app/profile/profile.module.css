@@ -751,7 +751,12 @@ html.dark-mode .avatarHint {
   }
 }
 
-html.dark-mode .card-title
-{
+@media (prefers-color-scheme: dark) {
+  h3 {
+    color: #e0e0e0;
+  }
+}
+
+html.dark-mode h3 {
   color: #e0e0e0 !important;
 }
