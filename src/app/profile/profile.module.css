@@ -744,19 +744,15 @@ html.dark-mode .avatarLabel {
 html.dark-mode .avatarHint {
   color: #aaa !important;
 }
+
 @media (prefers-color-scheme: dark) {
   .card-title, 
-  [class*="CardTitle"] {
+{
     color: #e0e0e0 !important;
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  h3 {
-    color: #e0e0e0;
-  }
-}
-
-html.dark-mode h3 {
+html.dark-mode .card-title,
+{
   color: #e0e0e0 !important;
 }
