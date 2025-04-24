@@ -307,6 +307,48 @@ static async updateUserStats(performanceData) {
     return { success: false, error: error.message };
   }
 }
+  // Add this method to src/app/services/sheetsSyncSimple.js
+
+/**
+ * Fetch cap holders data from Google Sheets API
+ * @param {string} sheetId - The Google Sheets ID
+ * @returns {Promise<Array>} - Array of cap holders data
+ */
+static async fetchCapPointsData(sheetId) {
+  try {
+    // Get authenticated client
+    const sheets = await this.getAuthenticatedSheetsClient();
+    
+    // Make the API request
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'Cap_Points!A1:D1000'  // A-D columns to include Week, Orange Cap, Purple Cap
+    });
+    
+    const data = response.data;
+    
+    if (!data.values || data.values.length === 0) {
+      throw new Error('No data found in Cap_Points sheet');
+    }
+    
+    // Transform sheet data to a usable format
+    // Get headers from first row
+    const headers = data.values[0];
+    const rows = data.values.slice(1);
+    
+    return rows.map(row => {
+      const capData = {};
+      headers.forEach((header, index) => {
+        // Use trimmed header names to match Firebase field names
+        capData[header.trim()] = row[index];
+      });
+      return capData;
+    });
+  } catch (error) {
+    console.error('Error fetching cap data from Google Sheets:', error);
+    throw error;
+  }
+}
 
 /**
  * Get the correct team for a specific week using transfer history
