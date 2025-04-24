@@ -408,12 +408,6 @@ const UserProfilePage = () => {
                     <span className={styles.statLabel}>Players</span>
                     <span className={styles.statValue}>{userTeam.players?.length || 0}/11</span>
                   </div>
-                  {userTeam.transfersRemaining !== undefined && (
-                    <div className={styles.teamStat}>
-                      <span className={styles.statLabel}>Transfers Left</span>
-                      <span className={styles.statValue}>{userTeam.transfersRemaining}</span>
-                    </div>
-                  )}
                   {userTeam.lastTransferDate && (
                     <div className={styles.teamStat}>
                       <span className={styles.statLabel}>Last Updated</span>
