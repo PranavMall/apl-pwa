@@ -66,7 +66,7 @@ export class SheetsSyncService {
       // Make the API request
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: 'Player_Performance!A1:W1000'
+        range: 'Player_Performance!A1:W3000'
       });
       
       const data = response.data;
