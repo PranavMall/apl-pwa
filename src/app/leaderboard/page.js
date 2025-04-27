@@ -160,28 +160,36 @@ const LeaderboardPage = () => {
       }
     });
     
-    // Get weekly stats in bulk for the specific weeks
+    // Get ALL weekly stats from the tournament, not just last 5 weeks
     const weeklyStatsRef = collection(db, "userWeeklyStats");
+    const weeklyStatsQuery = query(
+      weeklyStatsRef,
+      where("tournamentId", "==", tournament.id)
+    );
     
-    // Only query for the tournament and weeks we need
-    for (const weekNum of weekNums) {
-      const weekQuery = query(
-        weeklyStatsRef,
-        where("tournamentId", "==", tournament.id),
-        where("weekNumber", "==", weekNum)
-      );
+    const weeklyStatsSnapshot = await getDocs(weeklyStatsQuery);
+    const allWeeklyStats = [];
+    
+    weeklyStatsSnapshot.forEach(doc => {
+      allWeeklyStats.push(doc.data());
+    });
+    
+    // Process weekly stats to calculate points for all weeks AND last 5 weeks
+    for (const userId in usersMap) {
+      // Filter stats for this user
+      const userStats = allWeeklyStats.filter(stat => stat.userId === userId);
       
-      const weekSnapshot = await getDocs(weekQuery);
+      // Calculate total points from ALL weeks (for actual total)
+      const totalFromAllWeeks = userStats.reduce((sum, stat) => sum + (stat.points || 0), 0);
+      usersMap[userId].weeklyTotalPoints = totalFromAllWeeks;
       
-      weekSnapshot.forEach(doc => {
-        const data = doc.data();
-        const userId = data.userId;
-        
-        if (usersMap[userId]) {
-          const weeklyPoints = data.points || 0;
-          usersMap[userId].weeks[weekNum] = weeklyPoints;
-          usersMap[userId].weeklyTotalPoints = 
-            (usersMap[userId].weeklyTotalPoints || 0) + weeklyPoints;
+      // Store points for the 5 display weeks separately
+      weekNums.forEach(weekNum => {
+        const weekStat = userStats.find(stat => stat.weekNumber === weekNum);
+        if (weekStat) {
+          usersMap[userId].weeks[weekNum] = weekStat.points || 0;
+        } else {
+          usersMap[userId].weeks[weekNum] = 0;
         }
       });
     }
@@ -189,7 +197,7 @@ const LeaderboardPage = () => {
     // Convert to array and calculate totals
     const leaderboardArray = Object.values(usersMap);
     
-    // Update total points for each user
+    // Update total points for each user (ALL weeks + referral points)
     leaderboardArray.forEach(user => {
       user.totalPoints = user.weeklyTotalPoints + (user.referralPoints || 0);
     });
@@ -565,7 +573,7 @@ const LeaderboardPage = () => {
         </p>
         <p>
           The leaderboard shows the last {weekNumbers.length} completed weeks of the tournament.
-          Total points determine your overall rank (Weekly points + Bonus points).
+          Total points include all weeks' performance plus any bonus points earned.
         </p>
       </div>
     </div>
